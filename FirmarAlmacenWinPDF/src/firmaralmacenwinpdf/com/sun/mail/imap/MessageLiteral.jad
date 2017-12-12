@@ -1,0 +1,63 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPFolder.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.Literal;
+import com.sun.mail.util.CRLFOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+
+// Referenced classes of package com.sun.mail.imap:
+//            LengthCounter
+
+class MessageLiteral
+    implements Literal
+{
+
+    public MessageLiteral(Message msg, int maxsize)
+        throws MessagingException, IOException
+    {
+        msgSize = -1;
+        this.msg = msg;
+        LengthCounter lc = new LengthCounter(maxsize);
+        OutputStream os = new CRLFOutputStream(lc);
+        msg.writeTo(os);
+        os.flush();
+        msgSize = lc.getSize();
+        buf = lc.getBytes();
+    }
+
+    public int size()
+    {
+        return msgSize;
+    }
+
+    public void writeTo(OutputStream os)
+        throws IOException
+    {
+        try
+        {
+            if(buf != null)
+            {
+                os.write(buf, 0, msgSize);
+            } else
+            {
+                os = new CRLFOutputStream(os);
+                msg.writeTo(os);
+            }
+        }
+        catch(MessagingException mex)
+        {
+            throw new IOException((new StringBuilder()).append("MessagingException while appending message: ").append(mex).toString());
+        }
+    }
+
+    private Message msg;
+    private int msgSize;
+    private byte buf[];
+}

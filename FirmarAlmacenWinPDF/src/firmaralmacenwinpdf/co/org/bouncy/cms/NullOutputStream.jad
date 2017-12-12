@@ -1,0 +1,32 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   NullOutputStream.java
+
+package co.org.bouncy.cms;
+
+import java.io.IOException;
+import java.io.OutputStream;
+
+class NullOutputStream extends OutputStream
+{
+
+    NullOutputStream()
+    {
+    }
+
+    public void write(byte abyte0[])
+        throws IOException
+    {
+    }
+
+    public void write(byte abyte0[], int i, int j)
+        throws IOException
+    {
+    }
+
+    public void write(int i)
+        throws IOException
+    {
+    }
+}

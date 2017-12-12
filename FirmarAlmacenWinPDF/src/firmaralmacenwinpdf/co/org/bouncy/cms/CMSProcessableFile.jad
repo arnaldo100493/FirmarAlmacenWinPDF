@@ -1,0 +1,66 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSProcessableFile.java
+
+package co.org.bouncy.cms;
+
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+import co.org.bouncy.asn1.cms.CMSObjectIdentifiers;
+import java.io.*;
+
+// Referenced classes of package co.org.bouncy.cms:
+//            CMSTypedData, CMSReadable, CMSException
+
+public class CMSProcessableFile
+    implements CMSTypedData, CMSReadable
+{
+
+    public CMSProcessableFile(File file)
+    {
+        this(file, 32768);
+    }
+
+    public CMSProcessableFile(File file, int bufSize)
+    {
+        this(new ASN1ObjectIdentifier(CMSObjectIdentifiers.data.getId()), file, bufSize);
+    }
+
+    public CMSProcessableFile(ASN1ObjectIdentifier type, File file, int bufSize)
+    {
+        this.type = type;
+        this.file = file;
+        buf = new byte[bufSize];
+    }
+
+    public InputStream getInputStream()
+        throws IOException, CMSException
+    {
+        return new BufferedInputStream(new FileInputStream(file), 32768);
+    }
+
+    public void write(OutputStream zOut)
+        throws IOException, CMSException
+    {
+        FileInputStream fIn = new FileInputStream(file);
+        int len;
+        while((len = fIn.read(buf, 0, buf.length)) > 0) 
+            zOut.write(buf, 0, len);
+        fIn.close();
+    }
+
+    public Object getContent()
+    {
+        return file;
+    }
+
+    public ASN1ObjectIdentifier getContentType()
+    {
+        return type;
+    }
+
+    private static final int DEFAULT_BUF_SIZE = 32768;
+    private final ASN1ObjectIdentifier type;
+    private final File file;
+    private final byte buf[];
+}

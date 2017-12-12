@@ -1,0 +1,110 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TraceOutputStream.java
+
+package com.sun.mail.util;
+
+import java.io.*;
+import java.util.logging.Level;
+
+// Referenced classes of package com.sun.mail.util:
+//            LogOutputStream, MailLogger
+
+public class TraceOutputStream extends FilterOutputStream
+{
+
+    public TraceOutputStream(OutputStream out, MailLogger logger)
+    {
+        super(out);
+        trace = false;
+        quote = false;
+        trace = logger.isLoggable(Level.FINEST);
+        traceOut = new LogOutputStream(logger);
+    }
+
+    public TraceOutputStream(OutputStream out, OutputStream traceOut)
+    {
+        super(out);
+        trace = false;
+        quote = false;
+        this.traceOut = traceOut;
+    }
+
+    public void setTrace(boolean trace)
+    {
+        this.trace = trace;
+    }
+
+    public void setQuote(boolean quote)
+    {
+        this.quote = quote;
+    }
+
+    public void write(int b)
+        throws IOException
+    {
+        if(trace)
+            if(quote)
+                writeByte(b);
+            else
+                traceOut.write(b);
+        out.write(b);
+    }
+
+    public void write(byte b[], int off, int len)
+        throws IOException
+    {
+        if(trace)
+            if(quote)
+            {
+                for(int i = 0; i < len; i++)
+                    writeByte(b[off + i]);
+
+            } else
+            {
+                traceOut.write(b, off, len);
+            }
+        out.write(b, off, len);
+    }
+
+    private final void writeByte(int b)
+        throws IOException
+    {
+        b &= 0xff;
+        if(b > 127)
+        {
+            traceOut.write(77);
+            traceOut.write(45);
+            b &= 0x7f;
+        }
+        if(b == 13)
+        {
+            traceOut.write(92);
+            traceOut.write(114);
+        } else
+        if(b == 10)
+        {
+            traceOut.write(92);
+            traceOut.write(110);
+            traceOut.write(10);
+        } else
+        if(b == 9)
+        {
+            traceOut.write(92);
+            traceOut.write(116);
+        } else
+        if(b < 32)
+        {
+            traceOut.write(94);
+            traceOut.write(64 + b);
+        } else
+        {
+            traceOut.write(b);
+        }
+    }
+
+    private boolean trace;
+    private boolean quote;
+    private OutputStream traceOut;
+}

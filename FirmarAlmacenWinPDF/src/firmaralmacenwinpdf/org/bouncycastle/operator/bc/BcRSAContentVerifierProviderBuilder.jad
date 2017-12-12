@@ -1,0 +1,44 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BcRSAContentVerifierProviderBuilder.java
+
+package org.bouncycastle.operator.bc;
+
+import java.io.IOException;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.crypto.Signer;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.signers.RSADigestSigner;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.OperatorCreationException;
+
+// Referenced classes of package org.bouncycastle.operator.bc:
+//            BcContentVerifierProviderBuilder, BcUtil
+
+public class BcRSAContentVerifierProviderBuilder extends BcContentVerifierProviderBuilder
+{
+
+    public BcRSAContentVerifierProviderBuilder(DigestAlgorithmIdentifierFinder digestAlgorithmFinder)
+    {
+        this.digestAlgorithmFinder = digestAlgorithmFinder;
+    }
+
+    protected Signer createSigner(AlgorithmIdentifier sigAlgId)
+        throws OperatorCreationException
+    {
+        AlgorithmIdentifier digAlg = digestAlgorithmFinder.find(sigAlgId);
+        org.bouncycastle.crypto.Digest dig = BcUtil.createDigest(digAlg);
+        return new RSADigestSigner(dig);
+    }
+
+    protected AsymmetricKeyParameter extractKeyParameters(SubjectPublicKeyInfo publicKeyInfo)
+        throws IOException
+    {
+        return PublicKeyFactory.createKey(publicKeyInfo);
+    }
+
+    private DigestAlgorithmIdentifierFinder digestAlgorithmFinder;
+}

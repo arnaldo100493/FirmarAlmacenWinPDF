@@ -1,0 +1,44 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECKeyPairGenerator.java
+
+package org.bouncycastle.crypto.generators;
+
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.math.ec.ECConstants;
+import org.bouncycastle.math.ec.ECPoint;
+
+public class ECKeyPairGenerator
+    implements AsymmetricCipherKeyPairGenerator, ECConstants
+{
+
+    public ECKeyPairGenerator()
+    {
+    }
+
+    public void init(KeyGenerationParameters param)
+    {
+        ECKeyGenerationParameters ecP = (ECKeyGenerationParameters)param;
+        random = ecP.getRandom();
+        params = ecP.getDomainParameters();
+    }
+
+    public AsymmetricCipherKeyPair generateKeyPair()
+    {
+        BigInteger n = params.getN();
+        int nBitLength = n.bitLength();
+        BigInteger d;
+        do
+            d = new BigInteger(nBitLength, random);
+        while(d.equals(ZERO) || d.compareTo(n) >= 0);
+        ECPoint Q = params.getG().multiply(d);
+        return new AsymmetricCipherKeyPair(new ECPublicKeyParameters(Q, params), new ECPrivateKeyParameters(d, params));
+    }
+
+    ECDomainParameters params;
+    SecureRandom random;
+}

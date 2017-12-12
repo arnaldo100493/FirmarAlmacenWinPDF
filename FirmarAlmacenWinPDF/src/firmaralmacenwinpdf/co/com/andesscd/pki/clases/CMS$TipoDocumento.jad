@@ -1,0 +1,48 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CMS.java
+
+package co.com.andesscd.pki.clases;
+
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CMS
+
+private static final class CMS$TipoDocumento extends Enum
+{
+
+    public static CMS$TipoDocumento[] values()
+    {
+        return (CMS$TipoDocumento[])$VALUES.clone();
+    }
+
+    public static CMS$TipoDocumento valueOf(String name)
+    {
+        return (CMS$TipoDocumento)Enum.valueOf(co/com/andesscd/pki/clases/CMS$TipoDocumento, name);
+    }
+
+    public static final CMS$TipoDocumento NO_ANALIZADO;
+    public static final CMS$TipoDocumento DESCONOCIDO;
+    public static final CMS$TipoDocumento PKCS7;
+    public static final CMS$TipoDocumento PDF;
+    public static final CMS$TipoDocumento PDF_FIRMADO;
+    private static final CMS$TipoDocumento $VALUES[];
+
+    static 
+    {
+        NO_ANALIZADO = new CMS$TipoDocumento("NO_ANALIZADO", 0);
+        DESCONOCIDO = new CMS$TipoDocumento("DESCONOCIDO", 1);
+        PKCS7 = new CMS$TipoDocumento("PKCS7", 2);
+        PDF = new CMS$TipoDocumento("PDF", 3);
+        PDF_FIRMADO = new CMS$TipoDocumento("PDF_FIRMADO", 4);
+        $VALUES = (new CMS$TipoDocumento[] {
+            NO_ANALIZADO, DESCONOCIDO, PKCS7, PDF, PDF_FIRMADO
+        });
+    }
+
+    private CMS$TipoDocumento(String s, int i)
+    {
+        super(s, i);
+    }
+}

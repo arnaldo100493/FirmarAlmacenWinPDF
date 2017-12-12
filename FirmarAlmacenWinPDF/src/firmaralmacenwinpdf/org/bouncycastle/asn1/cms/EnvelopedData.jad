@@ -1,0 +1,118 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EnvelopedData.java
+
+package org.bouncycastle.asn1.cms;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.cms:
+//            OriginatorInfo, EncryptedContentInfo, RecipientInfo
+
+public class EnvelopedData extends ASN1Encodable
+{
+
+    public EnvelopedData(OriginatorInfo originatorInfo, ASN1Set recipientInfos, EncryptedContentInfo encryptedContentInfo, ASN1Set unprotectedAttrs)
+    {
+label0:
+        {
+            super();
+            if(originatorInfo != null || unprotectedAttrs != null)
+            {
+                version = new DERInteger(2);
+                break label0;
+            }
+            version = new DERInteger(0);
+            Enumeration e = recipientInfos.getObjects();
+            RecipientInfo ri;
+            do
+            {
+                if(!e.hasMoreElements())
+                    break label0;
+                ri = RecipientInfo.getInstance(e.nextElement());
+            } while(ri.getVersion().equals(version));
+            version = new DERInteger(2);
+        }
+        this.originatorInfo = originatorInfo;
+        this.recipientInfos = recipientInfos;
+        this.encryptedContentInfo = encryptedContentInfo;
+        this.unprotectedAttrs = unprotectedAttrs;
+    }
+
+    public EnvelopedData(ASN1Sequence seq)
+    {
+        int index = 0;
+        version = (DERInteger)seq.getObjectAt(index++);
+        Object tmp = seq.getObjectAt(index++);
+        if(tmp instanceof ASN1TaggedObject)
+        {
+            originatorInfo = OriginatorInfo.getInstance((ASN1TaggedObject)tmp, false);
+            tmp = seq.getObjectAt(index++);
+        }
+        recipientInfos = ASN1Set.getInstance(tmp);
+        encryptedContentInfo = EncryptedContentInfo.getInstance(seq.getObjectAt(index++));
+        if(seq.size() > index)
+            unprotectedAttrs = ASN1Set.getInstance((ASN1TaggedObject)seq.getObjectAt(index), false);
+    }
+
+    public static EnvelopedData getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static EnvelopedData getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof EnvelopedData))
+            return (EnvelopedData)obj;
+        if(obj instanceof ASN1Sequence)
+            return new EnvelopedData((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid EnvelopedData: ").append(obj.getClass().getName()).toString());
+    }
+
+    public DERInteger getVersion()
+    {
+        return version;
+    }
+
+    public OriginatorInfo getOriginatorInfo()
+    {
+        return originatorInfo;
+    }
+
+    public ASN1Set getRecipientInfos()
+    {
+        return recipientInfos;
+    }
+
+    public EncryptedContentInfo getEncryptedContentInfo()
+    {
+        return encryptedContentInfo;
+    }
+
+    public ASN1Set getUnprotectedAttrs()
+    {
+        return unprotectedAttrs;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(version);
+        if(originatorInfo != null)
+            v.add(new DERTaggedObject(false, 0, originatorInfo));
+        v.add(recipientInfos);
+        v.add(encryptedContentInfo);
+        if(unprotectedAttrs != null)
+            v.add(new DERTaggedObject(false, 1, unprotectedAttrs));
+        return new BERSequence(v);
+    }
+
+    private DERInteger version;
+    private OriginatorInfo originatorInfo;
+    private ASN1Set recipientInfos;
+    private EncryptedContentInfo encryptedContentInfo;
+    private ASN1Set unprotectedAttrs;
+}

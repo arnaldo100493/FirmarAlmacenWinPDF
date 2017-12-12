@@ -1,0 +1,110 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   OriginatorIdentifierOrKey.java
+
+package org.bouncycastle.asn1.cms;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
+
+// Referenced classes of package org.bouncycastle.asn1.cms:
+//            IssuerAndSerialNumber, OriginatorPublicKey
+
+public class OriginatorIdentifierOrKey extends ASN1Encodable
+    implements ASN1Choice
+{
+
+    public OriginatorIdentifierOrKey(IssuerAndSerialNumber id)
+    {
+        this.id = id;
+    }
+
+    /**
+     * @deprecated Method OriginatorIdentifierOrKey is deprecated
+     */
+
+    public OriginatorIdentifierOrKey(ASN1OctetString id)
+    {
+        this(new SubjectKeyIdentifier(id));
+    }
+
+    public OriginatorIdentifierOrKey(SubjectKeyIdentifier id)
+    {
+        this.id = new DERTaggedObject(false, 0, id);
+    }
+
+    public OriginatorIdentifierOrKey(OriginatorPublicKey id)
+    {
+        this.id = new DERTaggedObject(false, 1, id);
+    }
+
+    /**
+     * @deprecated Method OriginatorIdentifierOrKey is deprecated
+     */
+
+    public OriginatorIdentifierOrKey(DERObject id)
+    {
+        this.id = id;
+    }
+
+    public static OriginatorIdentifierOrKey getInstance(ASN1TaggedObject o, boolean explicit)
+    {
+        if(!explicit)
+            throw new IllegalArgumentException("Can't implicitly tag OriginatorIdentifierOrKey");
+        else
+            return getInstance(o.getObject());
+    }
+
+    public static OriginatorIdentifierOrKey getInstance(Object o)
+    {
+        if(o == null || (o instanceof OriginatorIdentifierOrKey))
+            return (OriginatorIdentifierOrKey)o;
+        if(o instanceof IssuerAndSerialNumber)
+            return new OriginatorIdentifierOrKey((IssuerAndSerialNumber)o);
+        if(o instanceof SubjectKeyIdentifier)
+            return new OriginatorIdentifierOrKey((SubjectKeyIdentifier)o);
+        if(o instanceof OriginatorPublicKey)
+            return new OriginatorIdentifierOrKey((OriginatorPublicKey)o);
+        if(o instanceof ASN1TaggedObject)
+            return new OriginatorIdentifierOrKey((ASN1TaggedObject)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid OriginatorIdentifierOrKey: ").append(o.getClass().getName()).toString());
+    }
+
+    public DEREncodable getId()
+    {
+        return id;
+    }
+
+    public IssuerAndSerialNumber getIssuerAndSerialNumber()
+    {
+        if(id instanceof IssuerAndSerialNumber)
+            return (IssuerAndSerialNumber)id;
+        else
+            return null;
+    }
+
+    public SubjectKeyIdentifier getSubjectKeyIdentifier()
+    {
+        if((id instanceof ASN1TaggedObject) && ((ASN1TaggedObject)id).getTagNo() == 0)
+            return SubjectKeyIdentifier.getInstance((ASN1TaggedObject)id, false);
+        else
+            return null;
+    }
+
+    public OriginatorPublicKey getOriginatorKey()
+    {
+        if((id instanceof ASN1TaggedObject) && ((ASN1TaggedObject)id).getTagNo() == 1)
+            return OriginatorPublicKey.getInstance((ASN1TaggedObject)id, false);
+        else
+            return null;
+    }
+
+    public DERObject toASN1Object()
+    {
+        return id.getDERObject();
+    }
+
+    private DEREncodable id;
+}

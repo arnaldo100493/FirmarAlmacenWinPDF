@@ -1,0 +1,57 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Font.java
+
+package co.com.pdf.text;
+
+
+// Referenced classes of package co.com.pdf.text:
+//            Font
+
+public static final class Font$FontStyle extends Enum
+{
+
+    public static Font$FontStyle[] values()
+    {
+        return (Font$FontStyle[])$VALUES.clone();
+    }
+
+    public static Font$FontStyle valueOf(String name)
+    {
+        return (Font$FontStyle)Enum.valueOf(co/com/pdf/text/Font$FontStyle, name);
+    }
+
+    public String getValue()
+    {
+        return code;
+    }
+
+    public static final Font$FontStyle NORMAL;
+    public static final Font$FontStyle BOLD;
+    public static final Font$FontStyle ITALIC;
+    public static final Font$FontStyle OBLIQUE;
+    public static final Font$FontStyle UNDERLINE;
+    public static final Font$FontStyle LINETHROUGH;
+    private String code;
+    private static final Font$FontStyle $VALUES[];
+
+    static 
+    {
+        NORMAL = new Font$FontStyle("NORMAL", 0, "normal");
+        BOLD = new Font$FontStyle("BOLD", 1, "bold");
+        ITALIC = new Font$FontStyle("ITALIC", 2, "italic");
+        OBLIQUE = new Font$FontStyle("OBLIQUE", 3, "oblique");
+        UNDERLINE = new Font$FontStyle("UNDERLINE", 4, "underline");
+        LINETHROUGH = new Font$FontStyle("LINETHROUGH", 5, "line-through");
+        $VALUES = (new Font$FontStyle[] {
+            NORMAL, BOLD, ITALIC, OBLIQUE, UNDERLINE, LINETHROUGH
+        });
+    }
+
+    private Font$FontStyle(String s, int i, String code)
+    {
+        super(s, i);
+        this.code = code;
+    }
+}

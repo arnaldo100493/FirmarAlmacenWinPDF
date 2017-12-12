@@ -1,0 +1,66 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509CRLEntryHolder.java
+
+package org.bouncycastle.cert;
+
+import java.math.BigInteger;
+import java.util.*;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.DERInteger;
+import org.bouncycastle.asn1.x509.*;
+
+// Referenced classes of package org.bouncycastle.cert:
+//            CertUtils
+
+public class X509CRLEntryHolder
+{
+
+    X509CRLEntryHolder(org.bouncycastle.asn1.x509.TBSCertList.CRLEntry entry)
+    {
+        this.entry = entry;
+        extensions = entry.getExtensions();
+    }
+
+    public BigInteger getSerialNumber()
+    {
+        return entry.getUserCertificate().getValue();
+    }
+
+    public Date getRevocationDate()
+    {
+        return entry.getRevocationDate().getDate();
+    }
+
+    public boolean hasExtensions()
+    {
+        return extensions != null;
+    }
+
+    public X509Extension getExtension(ASN1ObjectIdentifier oid)
+    {
+        if(extensions != null)
+            return extensions.getExtension(oid);
+        else
+            return null;
+    }
+
+    public List getExtensionOIDs()
+    {
+        return CertUtils.getExtensionOIDs(extensions);
+    }
+
+    public Set getCriticalExtensionOIDs()
+    {
+        return CertUtils.getCriticalExtensionOIDs(extensions);
+    }
+
+    public Set getNonCriticalExtensionOIDs()
+    {
+        return CertUtils.getNonCriticalExtensionOIDs(extensions);
+    }
+
+    private org.bouncycastle.asn1.x509.TBSCertList.CRLEntry entry;
+    private X509Extensions extensions;
+}

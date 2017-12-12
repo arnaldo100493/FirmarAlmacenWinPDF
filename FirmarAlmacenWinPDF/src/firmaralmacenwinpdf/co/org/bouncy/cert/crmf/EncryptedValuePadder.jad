@@ -1,0 +1,15 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EncryptedValuePadder.java
+
+package co.org.bouncy.cert.crmf;
+
+
+public interface EncryptedValuePadder
+{
+
+    public abstract byte[] getPaddedData(byte abyte0[]);
+
+    public abstract byte[] getUnpaddedData(byte abyte0[]);
+}

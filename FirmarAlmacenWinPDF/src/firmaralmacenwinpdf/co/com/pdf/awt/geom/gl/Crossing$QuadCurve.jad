@@ -1,0 +1,105 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Crossing.java
+
+package co.com.pdf.awt.geom.gl;
+
+
+// Referenced classes of package co.com.pdf.awt.geom.gl:
+//            Crossing
+
+public static class Crossing$QuadCurve
+{
+
+    int cross(double res[], int rc, double py1, double py2)
+    {
+        int cross = 0;
+        for(int i = 0; i < rc; i++)
+        {
+            double t = res[i];
+            if(t < -1.0000000000000001E-005D || t > 1.0000100000000001D)
+                continue;
+            if(t < 1.0000000000000001E-005D)
+            {
+                if(py1 < 0.0D && (bx == 0.0D ? ax - bx : bx) < 0.0D)
+                    cross--;
+                continue;
+            }
+            if(t > 0.99999000000000005D)
+            {
+                if(py1 < ay && (ax == bx ? bx : ax - bx) > 0.0D)
+                    cross++;
+                continue;
+            }
+            double ry = t * (t * Ay + By);
+            if(ry <= py2)
+                continue;
+            double rxt = t * Ax + bx;
+            if(rxt <= -1.0000000000000001E-005D || rxt >= 1.0000000000000001E-005D)
+                cross += rxt <= 0.0D ? -1 : 1;
+        }
+
+        return cross;
+    }
+
+    int solvePoint(double res[], double px)
+    {
+        double eqn[] = {
+            -px, Bx, Ax
+        };
+        return Crossing.solveQuad(eqn, res);
+    }
+
+    int solveExtrem(double res[])
+    {
+        int rc = 0;
+        if(Ax != 0.0D)
+            res[rc++] = -Bx / (Ax + Ax);
+        if(Ay != 0.0D)
+            res[rc++] = -By / (Ay + Ay);
+        return rc;
+    }
+
+    int addBound(double bound[], int bc, double res[], int rc, double minX, double maxX, boolean changeId, int id)
+    {
+        for(int i = 0; i < rc; i++)
+        {
+            double t = res[i];
+            if(t <= -1.0000000000000001E-005D || t >= 1.0000100000000001D)
+                continue;
+            double rx = t * (t * Ax + Bx);
+            if(minX > rx || rx > maxX)
+                continue;
+            bound[bc++] = t;
+            bound[bc++] = rx;
+            bound[bc++] = t * (t * Ay + By);
+            bound[bc++] = id;
+            if(changeId)
+                id++;
+        }
+
+        return bc;
+    }
+
+    double ax;
+    double ay;
+    double bx;
+    double by;
+    double Ax;
+    double Ay;
+    double Bx;
+    double By;
+
+    public Crossing$QuadCurve(double x1, double y1, double cx, double cy, double x2, double y2)
+    {
+        ax = x2 - x1;
+        ay = y2 - y1;
+        bx = cx - x1;
+        by = cy - y1;
+        Bx = bx + bx;
+        Ax = ax - Bx;
+        By = by + by;
+        Ay = ay - By;
+    }
+}

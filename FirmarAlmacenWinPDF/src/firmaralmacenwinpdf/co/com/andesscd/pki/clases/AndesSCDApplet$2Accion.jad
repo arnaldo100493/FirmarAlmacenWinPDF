@@ -1,0 +1,62 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   AndesSCDApplet.java
+
+package co.com.andesscd.pki.clases;
+
+import co.com.andesscd.Auxiliar;
+import co.com.andesscd.Base64Coder;
+import java.awt.HeadlessException;
+import java.io.*;
+import java.security.PrivilegedAction;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            AndesSCDApplet
+
+class AndesSCDApplet$2Accion
+    implements PrivilegedAction
+{
+
+    public Object run()
+    {
+        try
+        {
+            JFileChooser fc = new JFileChooser();
+            int returnVal = fc.showOpenDialog(null);
+            if(returnVal == 0)
+            {
+                File file = fc.getSelectedFile();
+                if(file.isFile())
+                {
+                    base64 = new String(Base64Coder.encode(Auxiliar.inputStream2ByteArray(new FileInputStream(file))));
+                    path = file.getAbsolutePath();
+                    name = file.getName();
+                }
+            }
+            return base64;
+        }
+        catch(Exception e)
+        {
+            System.out.println(e.getMessage());
+            JOptionPane.showMessageDialog(null, (new StringBuilder()).append("No fue posible convertir el archovo a base 64: ").append(e.getMessage()).toString(), "Error", 0);
+            return null;
+        }
+    }
+
+    String path;
+    String name;
+    String base64;
+    final AndesSCDApplet this$0;
+
+    public AndesSCDApplet$2Accion()
+    {
+        this$0 = AndesSCDApplet.this;
+        super();
+        path = "";
+        name = "";
+        base64 = "";
+    }
+}

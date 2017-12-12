@@ -1,0 +1,69 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ContentHints.java
+
+package org.bouncycastle.asn1.ess;
+
+import org.bouncycastle.asn1.*;
+
+public class ContentHints extends ASN1Encodable
+{
+
+    public static ContentHints getInstance(Object o)
+    {
+        if(o == null || (o instanceof ContentHints))
+            return (ContentHints)o;
+        if(o instanceof ASN1Sequence)
+            return new ContentHints((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in 'ContentHints' factory : ").append(o.getClass().getName()).append(".").toString());
+    }
+
+    private ContentHints(ASN1Sequence seq)
+    {
+        DEREncodable field = seq.getObjectAt(0);
+        if(field.getDERObject() instanceof DERUTF8String)
+        {
+            contentDescription = DERUTF8String.getInstance(field);
+            contentType = DERObjectIdentifier.getInstance(seq.getObjectAt(1));
+        } else
+        {
+            contentType = DERObjectIdentifier.getInstance(seq.getObjectAt(0));
+        }
+    }
+
+    public ContentHints(DERObjectIdentifier contentType)
+    {
+        this.contentType = contentType;
+        contentDescription = null;
+    }
+
+    public ContentHints(DERObjectIdentifier contentType, DERUTF8String contentDescription)
+    {
+        this.contentType = contentType;
+        this.contentDescription = contentDescription;
+    }
+
+    public DERObjectIdentifier getContentType()
+    {
+        return contentType;
+    }
+
+    public DERUTF8String getContentDescription()
+    {
+        return contentDescription;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(contentDescription != null)
+            v.add(contentDescription);
+        v.add(contentType);
+        return new DERSequence(v);
+    }
+
+    private DERUTF8String contentDescription;
+    private DERObjectIdentifier contentType;
+}

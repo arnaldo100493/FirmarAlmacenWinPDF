@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ASN1Object.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            DERObject, ASN1InputStream, DEREncodable, DEROutputStream
+
+public abstract class ASN1Object extends DERObject
+{
+
+    public ASN1Object()
+    {
+    }
+
+    public static ASN1Object fromByteArray(byte data[])
+        throws IOException
+    {
+        ASN1InputStream aIn = new ASN1InputStream(data);
+        try
+        {
+            return (ASN1Object)aIn.readObject();
+        }
+        catch(ClassCastException e)
+        {
+            throw new IOException("cannot recognise object in stream");
+        }
+    }
+
+    public final boolean equals(Object o)
+    {
+        if(this == o)
+            return true;
+        else
+            return (o instanceof DEREncodable) && asn1Equals(((DEREncodable)o).getDERObject());
+    }
+
+    public abstract int hashCode();
+
+    abstract void encode(DEROutputStream deroutputstream)
+        throws IOException;
+
+    abstract boolean asn1Equals(DERObject derobject);
+}

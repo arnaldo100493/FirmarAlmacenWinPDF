@@ -1,0 +1,82 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertStoreCollectionSpi.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.InvalidAlgorithmParameterException;
+import java.security.cert.*;
+import java.util.*;
+
+public class CertStoreCollectionSpi extends CertStoreSpi
+{
+
+    public CertStoreCollectionSpi(CertStoreParameters params)
+        throws InvalidAlgorithmParameterException
+    {
+        super(params);
+        if(!(params instanceof CollectionCertStoreParameters))
+        {
+            throw new InvalidAlgorithmParameterException((new StringBuilder()).append("org.bouncycastle.jce.provider.CertStoreCollectionSpi: parameter must be a CollectionCertStoreParameters object\n").append(params.toString()).toString());
+        } else
+        {
+            this.params = (CollectionCertStoreParameters)params;
+            return;
+        }
+    }
+
+    public Collection engineGetCertificates(CertSelector selector)
+        throws CertStoreException
+    {
+        List col = new ArrayList();
+        Iterator iter = params.getCollection().iterator();
+        if(selector == null)
+            do
+            {
+                if(!iter.hasNext())
+                    break;
+                Object obj = iter.next();
+                if(obj instanceof Certificate)
+                    col.add(obj);
+            } while(true);
+        else
+            do
+            {
+                if(!iter.hasNext())
+                    break;
+                Object obj = iter.next();
+                if((obj instanceof Certificate) && selector.match((Certificate)obj))
+                    col.add(obj);
+            } while(true);
+        return col;
+    }
+
+    public Collection engineGetCRLs(CRLSelector selector)
+        throws CertStoreException
+    {
+        List col = new ArrayList();
+        Iterator iter = params.getCollection().iterator();
+        if(selector == null)
+            do
+            {
+                if(!iter.hasNext())
+                    break;
+                Object obj = iter.next();
+                if(obj instanceof CRL)
+                    col.add(obj);
+            } while(true);
+        else
+            do
+            {
+                if(!iter.hasNext())
+                    break;
+                Object obj = iter.next();
+                if((obj instanceof CRL) && selector.match((CRL)obj))
+                    col.add(obj);
+            } while(true);
+        return col;
+    }
+
+    private CollectionCertStoreParameters params;
+}

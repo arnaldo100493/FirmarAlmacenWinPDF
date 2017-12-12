@@ -1,0 +1,67 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   LazyDERSequence.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+import java.util.Enumeration;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            DERSequence, LazyDERConstructionEnumeration, DEREncodable, DEROutputStream
+
+public class LazyDERSequence extends DERSequence
+{
+
+    LazyDERSequence(byte encoded[])
+        throws IOException
+    {
+        parsed = false;
+        size = -1;
+        this.encoded = encoded;
+    }
+
+    private void parse()
+    {
+        for(Enumeration en = new LazyDERConstructionEnumeration(encoded); en.hasMoreElements(); addObject((DEREncodable)en.nextElement()));
+        parsed = true;
+    }
+
+    public synchronized DEREncodable getObjectAt(int index)
+    {
+        if(!parsed)
+            parse();
+        return super.getObjectAt(index);
+    }
+
+    public synchronized Enumeration getObjects()
+    {
+        if(parsed)
+            return super.getObjects();
+        else
+            return new LazyDERConstructionEnumeration(encoded);
+    }
+
+    public int size()
+    {
+        if(size < 0)
+        {
+            Enumeration en = new LazyDERConstructionEnumeration(encoded);
+            for(size = 0; en.hasMoreElements(); size++)
+                en.nextElement();
+
+        }
+        return size;
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        out.writeEncoded(48, encoded);
+    }
+
+    private byte encoded[];
+    private boolean parsed;
+    private int size;
+}

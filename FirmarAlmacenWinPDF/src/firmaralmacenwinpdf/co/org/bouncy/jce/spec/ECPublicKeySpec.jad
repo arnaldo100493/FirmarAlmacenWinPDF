@@ -1,0 +1,28 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECPublicKeySpec.java
+
+package co.org.bouncy.jce.spec;
+
+import co.org.bouncy.math.ec.ECPoint;
+
+// Referenced classes of package co.org.bouncy.jce.spec:
+//            ECKeySpec, ECParameterSpec
+
+public class ECPublicKeySpec extends ECKeySpec
+{
+
+    public ECPublicKeySpec(ECPoint q, ECParameterSpec spec)
+    {
+        super(spec);
+        this.q = q;
+    }
+
+    public ECPoint getQ()
+    {
+        return q;
+    }
+
+    private ECPoint q;
+}

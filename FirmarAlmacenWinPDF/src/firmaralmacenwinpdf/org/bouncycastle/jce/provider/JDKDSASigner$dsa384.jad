@@ -1,0 +1,21 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKDSASigner.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.crypto.digests.SHA384Digest;
+import org.bouncycastle.crypto.signers.DSASigner;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKDSASigner
+
+public static class JDKDSASigner$dsa384 extends JDKDSASigner
+{
+
+    public JDKDSASigner$dsa384()
+    {
+        super(new SHA384Digest(), new DSASigner());
+    }
+}

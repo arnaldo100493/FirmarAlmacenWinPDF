@@ -1,0 +1,368 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Protocol.java
+
+package com.sun.mail.iap;
+
+import com.sun.mail.util.*;
+import java.io.*;
+import java.net.*;
+import java.util.Properties;
+import java.util.Vector;
+import java.util.logging.Level;
+import javax.net.ssl.SSLSocket;
+
+// Referenced classes of package com.sun.mail.iap:
+//            ResponseInputStream, ResponseHandler, ConnectionException, Response, 
+//            LiteralException, ProtocolException, CommandFailedException, BadCommandException, 
+//            Argument, ByteArray
+
+public class Protocol
+{
+
+    public Protocol(String host, int port, Properties props, String prefix, boolean isSSL, MailLogger logger)
+        throws IOException, ProtocolException
+    {
+        connected = false;
+        tagCounter = 0;
+        handlers = new Vector();
+        this.host = host;
+        this.props = props;
+        this.prefix = prefix;
+        this.logger = logger;
+        traceLogger = logger.getSubLogger("protocol", null);
+        socket = SocketFetcher.getSocket(host, port, props, prefix, isSSL);
+        quote = PropUtil.getBooleanProperty(props, "mail.debug.quote", false);
+        initStreams();
+        processGreeting(readResponse());
+        timestamp = System.currentTimeMillis();
+        connected = true;
+        if(!connected)
+            disconnect();
+        break MISSING_BLOCK_LABEL_138;
+        Exception exception;
+        exception;
+        if(!connected)
+            disconnect();
+        throw exception;
+    }
+
+    private void initStreams()
+        throws IOException
+    {
+        traceInput = new TraceInputStream(socket.getInputStream(), traceLogger);
+        traceInput.setQuote(quote);
+        input = new ResponseInputStream(traceInput);
+        traceOutput = new TraceOutputStream(socket.getOutputStream(), traceLogger);
+        traceOutput.setQuote(quote);
+        output = new DataOutputStream(new BufferedOutputStream(traceOutput));
+    }
+
+    public Protocol(InputStream in, PrintStream out, boolean debug)
+        throws IOException
+    {
+        connected = false;
+        tagCounter = 0;
+        handlers = new Vector();
+        host = "localhost";
+        quote = false;
+        logger = new MailLogger(getClass(), "DEBUG", debug, out);
+        traceLogger = logger.getSubLogger("protocol", null);
+        traceInput = new TraceInputStream(in, traceLogger);
+        traceInput.setQuote(quote);
+        input = new ResponseInputStream(traceInput);
+        traceOutput = new TraceOutputStream(out, traceLogger);
+        traceOutput.setQuote(quote);
+        output = new DataOutputStream(new BufferedOutputStream(traceOutput));
+        timestamp = System.currentTimeMillis();
+    }
+
+    public long getTimestamp()
+    {
+        return timestamp;
+    }
+
+    public void addResponseHandler(ResponseHandler h)
+    {
+        handlers.addElement(h);
+    }
+
+    public void removeResponseHandler(ResponseHandler h)
+    {
+        handlers.removeElement(h);
+    }
+
+    public void notifyResponseHandlers(Response responses[])
+    {
+        if(handlers.size() == 0)
+            return;
+        for(int i = 0; i < responses.length; i++)
+        {
+            Response r = responses[i];
+            if(r == null)
+                continue;
+            Object h[] = handlers.toArray();
+            for(int j = 0; j < h.length; j++)
+                if(h[j] != null)
+                    ((ResponseHandler)h[j]).handleResponse(r);
+
+        }
+
+    }
+
+    protected void processGreeting(Response r)
+        throws ProtocolException
+    {
+        if(r.isBYE())
+            throw new ConnectionException(this, r);
+        else
+            return;
+    }
+
+    protected ResponseInputStream getInputStream()
+    {
+        return input;
+    }
+
+    protected OutputStream getOutputStream()
+    {
+        return output;
+    }
+
+    protected synchronized boolean supportsNonSyncLiterals()
+    {
+        return false;
+    }
+
+    public Response readResponse()
+        throws IOException, ProtocolException
+    {
+        return new Response(this);
+    }
+
+    protected ByteArray getResponseBuffer()
+    {
+        return null;
+    }
+
+    public String writeCommand(String command, Argument args)
+        throws IOException, ProtocolException
+    {
+        String tag = (new StringBuilder()).append("A").append(Integer.toString(tagCounter++, 10)).toString();
+        output.writeBytes((new StringBuilder()).append(tag).append(" ").append(command).toString());
+        if(args != null)
+        {
+            output.write(32);
+            args.write(this);
+        }
+        output.write(CRLF);
+        output.flush();
+        return tag;
+    }
+
+    public synchronized Response[] command(String command, Argument args)
+    {
+        commandStart(command);
+        Vector v = new Vector();
+        boolean done = false;
+        String tag = null;
+        Response r = null;
+        try
+        {
+            tag = writeCommand(command, args);
+        }
+        catch(LiteralException lex)
+        {
+            v.addElement(lex.getResponse());
+            done = true;
+        }
+        catch(Exception ex)
+        {
+            v.addElement(Response.byeResponse(ex));
+            done = true;
+        }
+        Response byeResp = null;
+        do
+        {
+            if(done)
+                break;
+            try
+            {
+                r = readResponse();
+            }
+            catch(IOException ioex)
+            {
+                if(byeResp != null)
+                    break;
+                r = Response.byeResponse(ioex);
+            }
+            catch(ProtocolException pex)
+            {
+                continue;
+            }
+            if(r.isBYE())
+            {
+                byeResp = r;
+            } else
+            {
+                v.addElement(r);
+                if(r.isTagged() && r.getTag().equals(tag))
+                    done = true;
+            }
+        } while(true);
+        if(byeResp != null)
+            v.addElement(byeResp);
+        Response responses[] = new Response[v.size()];
+        v.copyInto(responses);
+        timestamp = System.currentTimeMillis();
+        commandEnd();
+        return responses;
+    }
+
+    public void handleResult(Response response)
+        throws ProtocolException
+    {
+        if(response.isOK())
+            return;
+        if(response.isNO())
+            throw new CommandFailedException(response);
+        if(response.isBAD())
+            throw new BadCommandException(response);
+        if(response.isBYE())
+        {
+            disconnect();
+            throw new ConnectionException(this, response);
+        } else
+        {
+            return;
+        }
+    }
+
+    public void simpleCommand(String cmd, Argument args)
+        throws ProtocolException
+    {
+        Response r[] = command(cmd, args);
+        notifyResponseHandlers(r);
+        handleResult(r[r.length - 1]);
+    }
+
+    public synchronized void startTLS(String cmd)
+        throws IOException, ProtocolException
+    {
+        if(socket instanceof SSLSocket)
+        {
+            return;
+        } else
+        {
+            simpleCommand(cmd, null);
+            socket = SocketFetcher.startTLS(socket, host, props, prefix);
+            initStreams();
+            return;
+        }
+    }
+
+    public boolean isSSL()
+    {
+        return socket instanceof SSLSocket;
+    }
+
+    protected synchronized void disconnect()
+    {
+        if(socket != null)
+        {
+            try
+            {
+                socket.close();
+            }
+            catch(IOException e) { }
+            socket = null;
+        }
+    }
+
+    protected synchronized String getLocalHost()
+    {
+        if(localHostName == null || localHostName.length() <= 0)
+            localHostName = props.getProperty((new StringBuilder()).append(prefix).append(".localhost").toString());
+        if(localHostName == null || localHostName.length() <= 0)
+            localHostName = props.getProperty((new StringBuilder()).append(prefix).append(".localaddress").toString());
+        try
+        {
+            if(localHostName == null || localHostName.length() <= 0)
+            {
+                InetAddress localHost = InetAddress.getLocalHost();
+                localHostName = localHost.getCanonicalHostName();
+                if(localHostName == null)
+                    localHostName = (new StringBuilder()).append("[").append(localHost.getHostAddress()).append("]").toString();
+            }
+        }
+        catch(UnknownHostException uhex) { }
+        if((localHostName == null || localHostName.length() <= 0) && socket != null && socket.isBound())
+        {
+            InetAddress localHost = socket.getLocalAddress();
+            localHostName = localHost.getCanonicalHostName();
+            if(localHostName == null)
+                localHostName = (new StringBuilder()).append("[").append(localHost.getHostAddress()).append("]").toString();
+        }
+        return localHostName;
+    }
+
+    protected boolean isTracing()
+    {
+        return traceLogger.isLoggable(Level.FINEST);
+    }
+
+    protected void suspendTracing()
+    {
+        if(traceLogger.isLoggable(Level.FINEST))
+        {
+            traceInput.setTrace(false);
+            traceOutput.setTrace(false);
+        }
+    }
+
+    protected void resumeTracing()
+    {
+        if(traceLogger.isLoggable(Level.FINEST))
+        {
+            traceInput.setTrace(true);
+            traceOutput.setTrace(true);
+        }
+    }
+
+    protected void finalize()
+        throws Throwable
+    {
+        super.finalize();
+        disconnect();
+    }
+
+    private void commandStart(String s)
+    {
+    }
+
+    private void commandEnd()
+    {
+    }
+
+    protected String host;
+    private Socket socket;
+    protected boolean quote;
+    protected MailLogger logger;
+    protected MailLogger traceLogger;
+    protected Properties props;
+    protected String prefix;
+    private boolean connected;
+    private TraceInputStream traceInput;
+    private volatile ResponseInputStream input;
+    private TraceOutputStream traceOutput;
+    private volatile DataOutputStream output;
+    private int tagCounter;
+    private String localHostName;
+    private final Vector handlers;
+    private volatile long timestamp;
+    private static final byte CRLF[] = {
+        13, 10
+    };
+
+}

@@ -1,0 +1,30 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:43 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   ContextSSL.java
+
+package co.com.andesscd.clientes.fna;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLSession;
+
+// Referenced classes of package co.com.andesscd.clientes.fna:
+//            ContextSSL
+
+class ContextSSL$2
+    implements HostnameVerifier
+{
+
+    public boolean verify(String arg0, SSLSession arg1)
+    {
+        return true;
+    }
+
+    final ContextSSL this$0;
+
+    ContextSSL$2()
+    {
+        this$0 = ContextSSL.this;
+        super();
+    }
+}

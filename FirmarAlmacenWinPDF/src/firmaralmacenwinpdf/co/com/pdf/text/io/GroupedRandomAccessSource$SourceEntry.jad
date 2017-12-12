@@ -1,0 +1,32 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GroupedRandomAccessSource.java
+
+package co.com.pdf.text.io;
+
+
+// Referenced classes of package co.com.pdf.text.io:
+//            RandomAccessSource, GroupedRandomAccessSource
+
+private static class GroupedRandomAccessSource$SourceEntry
+{
+
+    public long offsetN(long absoluteOffset)
+    {
+        return absoluteOffset - firstByte;
+    }
+
+    final RandomAccessSource source;
+    final long firstByte;
+    final long lastByte;
+    final int index;
+
+    public GroupedRandomAccessSource$SourceEntry(int index, RandomAccessSource source, long offset)
+    {
+        this.index = index;
+        this.source = source;
+        firstByte = offset;
+        lastByte = (offset + source.length()) - 1L;
+    }
+}

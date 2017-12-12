@@ -1,0 +1,39 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKKeyFactory.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.*;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKKeyFactory, JDKDSAPrivateKey, JDKDSAPublicKey
+
+public static class JDKKeyFactory$DSA extends JDKKeyFactory
+{
+
+    protected PrivateKey engineGeneratePrivate(KeySpec keySpec)
+        throws InvalidKeySpecException
+    {
+        if(keySpec instanceof DSAPrivateKeySpec)
+            return new JDKDSAPrivateKey((DSAPrivateKeySpec)keySpec);
+        else
+            return super.engineGeneratePrivate(keySpec);
+    }
+
+    protected PublicKey engineGeneratePublic(KeySpec keySpec)
+        throws InvalidKeySpecException
+    {
+        if(keySpec instanceof DSAPublicKeySpec)
+            return new JDKDSAPublicKey((DSAPublicKeySpec)keySpec);
+        else
+            return super.engineGeneratePublic(keySpec);
+    }
+
+    public JDKKeyFactory$DSA()
+    {
+    }
+}

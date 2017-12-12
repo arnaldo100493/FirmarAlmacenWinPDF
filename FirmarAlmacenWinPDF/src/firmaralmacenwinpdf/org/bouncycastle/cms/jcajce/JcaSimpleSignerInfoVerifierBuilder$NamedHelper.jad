@@ -1,0 +1,55 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JcaSimpleSignerInfoVerifierBuilder.java
+
+package org.bouncycastle.cms.jcajce;
+
+import java.security.PublicKey;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.operator.*;
+import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
+import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+
+// Referenced classes of package org.bouncycastle.cms.jcajce:
+//            JcaSimpleSignerInfoVerifierBuilder
+
+private class JcaSimpleSignerInfoVerifierBuilder$NamedHelper extends JcaSimpleSignerInfoVerifierBuilder.Helper
+{
+
+    ContentVerifierProvider createContentVerifierProvider(PublicKey publicKey)
+        throws OperatorCreationException
+    {
+        return (new JcaContentVerifierProviderBuilder()).setProvider(providerName).build(publicKey);
+    }
+
+    ContentVerifierProvider createContentVerifierProvider(X509Certificate certificate)
+        throws OperatorCreationException
+    {
+        return (new JcaContentVerifierProviderBuilder()).setProvider(providerName).build(certificate);
+    }
+
+    DigestCalculatorProvider createDigestCalculatorProvider()
+        throws OperatorCreationException
+    {
+        return (new JcaDigestCalculatorProviderBuilder()).setProvider(providerName).build();
+    }
+
+    ContentVerifierProvider createContentVerifierProvider(X509CertificateHolder certHolder)
+        throws OperatorCreationException, CertificateException
+    {
+        return (new JcaContentVerifierProviderBuilder()).setProvider(providerName).build(certHolder);
+    }
+
+    private final String providerName;
+    final JcaSimpleSignerInfoVerifierBuilder this$0;
+
+    public JcaSimpleSignerInfoVerifierBuilder$NamedHelper(String providerName)
+    {
+        this$0 = JcaSimpleSignerInfoVerifierBuilder.this;
+        super(JcaSimpleSignerInfoVerifierBuilder.this, null);
+        this.providerName = providerName;
+    }
+}

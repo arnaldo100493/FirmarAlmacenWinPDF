@@ -1,0 +1,437 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   POP3Message.java
+
+package com.sun.mail.pop3;
+
+import com.sun.mail.util.MailLogger;
+import com.sun.mail.util.ReadableMime;
+import java.io.*;
+import java.lang.ref.SoftReference;
+import java.util.Enumeration;
+import java.util.logging.Level;
+import javax.mail.*;
+import javax.mail.internet.*;
+
+// Referenced classes of package com.sun.mail.pop3:
+//            POP3Folder, POP3Store, TempFile, AppendStream, 
+//            Protocol
+
+public class POP3Message extends MimeMessage
+    implements ReadableMime
+{
+
+    public POP3Message(Folder folder, int msgno)
+        throws MessagingException
+    {
+        super(folder, msgno);
+        hdrSize = -1;
+        msgSize = -1;
+        uid = "UNKNOWN";
+        rawData = new SoftReference(null);
+        this.folder = (POP3Folder)folder;
+    }
+
+    public synchronized void setFlags(Flags newFlags, boolean set)
+        throws MessagingException
+    {
+        Flags oldFlags = (Flags)flags.clone();
+        super.setFlags(newFlags, set);
+        if(!flags.equals(oldFlags))
+            folder.notifyMessageChangedListeners(1, this);
+    }
+
+    public int getSize()
+        throws MessagingException
+    {
+        POP3Message pop3message = this;
+        JVM INSTR monitorenter ;
+        if(msgSize > 0)
+            return msgSize;
+        pop3message;
+        JVM INSTR monitorexit ;
+          goto _L1
+        Exception exception;
+        exception;
+        throw exception;
+_L1:
+        if(headers == null)
+            loadHeaders();
+        pop3message = this;
+        JVM INSTR monitorenter ;
+        if(msgSize < 0)
+            msgSize = folder.getProtocol().list(msgnum) - hdrSize;
+        return msgSize;
+        Exception exception1;
+        exception1;
+        throw exception1;
+        EOFException eex;
+        eex;
+        folder.close(false);
+        throw new FolderClosedException(folder, eex.toString());
+        IOException ex;
+        ex;
+        throw new MessagingException("error getting size", ex);
+    }
+
+    private InputStream getRawStream(boolean skipHeader)
+        throws MessagingException
+    {
+        InputStream rawcontent = null;
+        POP3Message pop3message = this;
+        JVM INSTR monitorenter ;
+        AppendStream os;
+        BufferedOutputStream bos;
+        rawcontent = (InputStream)rawData.get();
+        if(rawcontent != null)
+            break MISSING_BLOCK_LABEL_424;
+        TempFile cache = folder.getFileCache();
+        if(cache == null)
+            break MISSING_BLOCK_LABEL_168;
+        Session s = ((POP3Store)(POP3Store)folder.getStore()).getSession();
+        if(folder.logger.isLoggable(Level.FINE))
+            folder.logger.fine((new StringBuilder()).append("caching message #").append(msgnum).append(" in temp file").toString());
+        os = cache.getAppendStream();
+        bos = new BufferedOutputStream(os);
+        folder.getProtocol().retr(msgnum, bos);
+        bos.close();
+        break MISSING_BLOCK_LABEL_159;
+        Exception exception;
+        exception;
+        bos.close();
+        throw exception;
+        rawcontent = os.getInputStream();
+        break MISSING_BLOCK_LABEL_203;
+        rawcontent = folder.getProtocol().retr(msgnum, msgSize <= 0 ? 0 : msgSize + hdrSize);
+        if(rawcontent == null)
+        {
+            expunged = true;
+            throw new MessageRemovedException((new StringBuilder()).append("can't retrieve message #").append(msgnum).append(" in POP3Message.getContentStream").toString());
+        }
+        if(headers == null || ((POP3Store)(POP3Store)folder.getStore()).forgetTopHeaders)
+        {
+            headers = new InternetHeaders(rawcontent);
+            hdrSize = (int)((SharedInputStream)rawcontent).getPosition();
+        } else
+        {
+            int offset = 0;
+            int len;
+            do
+            {
+                len = 0;
+                do
+                {
+                    int c1;
+                    if((c1 = rawcontent.read()) < 0 || c1 == 10)
+                        break;
+                    if(c1 == 13)
+                    {
+                        if(rawcontent.available() > 0)
+                        {
+                            rawcontent.mark(1);
+                            if(rawcontent.read() != 10)
+                                rawcontent.reset();
+                        }
+                        break;
+                    }
+                    len++;
+                } while(true);
+            } while(rawcontent.available() != 0 && len != 0);
+            hdrSize = (int)((SharedInputStream)rawcontent).getPosition();
+        }
+        msgSize = rawcontent.available();
+        rawData = new SoftReference(rawcontent);
+        break MISSING_BLOCK_LABEL_476;
+        Exception exception1;
+        exception1;
+        throw exception1;
+        EOFException eex;
+        eex;
+        folder.close(false);
+        throw new FolderClosedException(folder, eex.toString());
+        IOException ex;
+        ex;
+        throw new MessagingException("error fetching POP3 content", ex);
+        rawcontent = ((SharedInputStream)rawcontent).newStream(skipHeader ? hdrSize : 0L, -1L);
+        return rawcontent;
+    }
+
+    protected synchronized InputStream getContentStream()
+        throws MessagingException
+    {
+        if(contentStream != null)
+            return ((SharedInputStream)contentStream).newStream(0L, -1L);
+        InputStream cstream = getRawStream(true);
+        TempFile cache = folder.getFileCache();
+        if(cache != null || ((POP3Store)(POP3Store)folder.getStore()).keepMessageContent)
+            contentStream = ((SharedInputStream)cstream).newStream(0L, -1L);
+        return cstream;
+    }
+
+    public InputStream getMimeStream()
+        throws MessagingException
+    {
+        return getRawStream(false);
+    }
+
+    public synchronized void invalidate(boolean invalidateHeaders)
+    {
+        content = null;
+        InputStream rstream = (InputStream)rawData.get();
+        if(rstream != null)
+        {
+            try
+            {
+                rstream.close();
+            }
+            catch(IOException ex) { }
+            rawData = new SoftReference(null);
+        }
+        if(contentStream != null)
+        {
+            try
+            {
+                contentStream.close();
+            }
+            catch(IOException ex) { }
+            contentStream = null;
+        }
+        msgSize = -1;
+        if(invalidateHeaders)
+        {
+            headers = null;
+            hdrSize = -1;
+        }
+    }
+
+    public InputStream top(int n)
+        throws MessagingException
+    {
+        POP3Message pop3message = this;
+        JVM INSTR monitorenter ;
+        return folder.getProtocol().top(msgnum, n);
+        Exception exception;
+        exception;
+        throw exception;
+        EOFException eex;
+        eex;
+        folder.close(false);
+        throw new FolderClosedException(folder, eex.toString());
+        IOException ex;
+        ex;
+        throw new MessagingException("error getting size", ex);
+    }
+
+    public String[] getHeader(String name)
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getHeader(name);
+    }
+
+    public String getHeader(String name, String delimiter)
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getHeader(name, delimiter);
+    }
+
+    public void setHeader(String name, String value)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("POP3 messages are read-only");
+    }
+
+    public void addHeader(String name, String value)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("POP3 messages are read-only");
+    }
+
+    public void removeHeader(String name)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("POP3 messages are read-only");
+    }
+
+    public Enumeration getAllHeaders()
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getAllHeaders();
+    }
+
+    public Enumeration getMatchingHeaders(String names[])
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getMatchingHeaders(names);
+    }
+
+    public Enumeration getNonMatchingHeaders(String names[])
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getNonMatchingHeaders(names);
+    }
+
+    public void addHeaderLine(String line)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("POP3 messages are read-only");
+    }
+
+    public Enumeration getAllHeaderLines()
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getAllHeaderLines();
+    }
+
+    public Enumeration getMatchingHeaderLines(String names[])
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getMatchingHeaderLines(names);
+    }
+
+    public Enumeration getNonMatchingHeaderLines(String names[])
+        throws MessagingException
+    {
+        if(headers == null)
+            loadHeaders();
+        return headers.getNonMatchingHeaderLines(names);
+    }
+
+    public void saveChanges()
+        throws MessagingException
+    {
+        throw new IllegalWriteException("POP3 messages are read-only");
+    }
+
+    public synchronized void writeTo(OutputStream os, String ignoreList[])
+        throws IOException, MessagingException
+    {
+        InputStream in;
+        InputStream rawcontent = (InputStream)rawData.get();
+        if(rawcontent == null && ignoreList == null && !((POP3Store)(POP3Store)folder.getStore()).cacheWriteTo)
+        {
+            Session s = ((POP3Store)(POP3Store)folder.getStore()).getSession();
+            if(folder.logger.isLoggable(Level.FINE))
+                folder.logger.fine((new StringBuilder()).append("streaming msg ").append(msgnum).toString());
+            if(!folder.getProtocol().retr(msgnum, os))
+            {
+                expunged = true;
+                throw new MessageRemovedException((new StringBuilder()).append("can't retrieve message #").append(msgnum).append(" in POP3Message.writeTo").toString());
+            }
+            break MISSING_BLOCK_LABEL_267;
+        }
+        if(rawcontent == null || ignoreList != null)
+            break MISSING_BLOCK_LABEL_261;
+        in = ((SharedInputStream)rawcontent).newStream(0L, -1L);
+        byte buf[] = new byte[16384];
+        int len;
+        while((len = in.read(buf)) > 0) 
+            os.write(buf, 0, len);
+        try
+        {
+            if(in != null)
+                in.close();
+        }
+        catch(IOException ex) { }
+        break MISSING_BLOCK_LABEL_267;
+        Exception exception;
+        exception;
+        try
+        {
+            if(in != null)
+                in.close();
+        }
+        catch(IOException ex) { }
+        throw exception;
+        super.writeTo(os, ignoreList);
+    }
+
+    private void loadHeaders()
+        throws MessagingException
+    {
+        {
+            if(!$assertionsDisabled && Thread.holdsLock(this))
+                throw new AssertionError();
+            boolean fetchContent;
+            InputStream cs;
+            InputStream hdrs;
+            Exception exception;
+            Exception exception2;
+            try
+            {
+label0:
+                {
+                    fetchContent = false;
+                    synchronized(this)
+                    {
+                        if(headers == null)
+                            break label0;
+                    }
+                    return;
+                }
+            }
+            catch(EOFException eex)
+            {
+                folder.close(false);
+                throw new FolderClosedException(folder, eex.toString());
+            }
+            catch(IOException ex)
+            {
+                throw new MessagingException("error loading POP3 headers", ex);
+            }
+        }
+        hdrs = null;
+        if(((POP3Store)(POP3Store)folder.getStore()).disableTop || (hdrs = folder.getProtocol().top(msgnum, 0)) == null)
+        {
+            fetchContent = true;
+            break MISSING_BLOCK_LABEL_119;
+        }
+        hdrSize = hdrs.available();
+        headers = new InternetHeaders(hdrs);
+        hdrs.close();
+        break MISSING_BLOCK_LABEL_119;
+        exception;
+        hdrs.close();
+        throw exception;
+        pop3message;
+        JVM INSTR monitorexit ;
+          goto _L1
+        exception1;
+        throw exception1;
+_L1:
+        if(!fetchContent)
+            break MISSING_BLOCK_LABEL_206;
+        cs = null;
+        cs = getContentStream();
+        if(cs != null)
+            cs.close();
+        break MISSING_BLOCK_LABEL_206;
+        exception2;
+        if(cs != null)
+            cs.close();
+        throw exception2;
+    }
+
+    static final String UNKNOWN = "UNKNOWN";
+    private POP3Folder folder;
+    private int hdrSize;
+    private int msgSize;
+    String uid;
+    private SoftReference rawData;
+    static final boolean $assertionsDisabled = !com/sun/mail/pop3/POP3Message.desiredAssertionStatus();
+
+}

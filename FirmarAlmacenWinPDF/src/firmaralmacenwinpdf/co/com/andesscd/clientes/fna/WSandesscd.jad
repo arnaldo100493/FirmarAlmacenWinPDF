@@ -1,0 +1,229 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   WSandesscd.java
+
+package co.com.andesscd.clientes.fna;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import javax.xml.namespace.QName;
+import javax.xml.ws.*;
+
+// Referenced classes of package co.com.andesscd.clientes.fna:
+//            CertificadosPortType, CertificadosPersonaNaturalRUTPortType, CertificateVinculacionEmpresaPortType, FirmarPortType, 
+//            VerificarFirmaPortType, ConsultarSolicitudPortType, FirmarOTPPortType, TiempoUsoOTPPortType, 
+//            InvalidarOTPPortType, LoginPortType, DepartamentoPortType, MunicipioPortType, 
+//            ConsultarCertPortType, RevocacionPortType, CambiarPinPortType
+
+public class WSandesscd extends Service
+{
+
+    public WSandesscd()
+    {
+        super(__getWsdlLocation(), WSANDESSCD_QNAME);
+    }
+
+    public transient WSandesscd(WebServiceFeature features[])
+    {
+        super(__getWsdlLocation(), WSANDESSCD_QNAME, features);
+    }
+
+    public WSandesscd(URL wsdlLocation)
+    {
+        super(wsdlLocation, WSANDESSCD_QNAME);
+    }
+
+    public transient WSandesscd(URL wsdlLocation, WebServiceFeature features[])
+    {
+        super(wsdlLocation, WSANDESSCD_QNAME, features);
+    }
+
+    public WSandesscd(URL wsdlLocation, QName serviceName)
+    {
+        super(wsdlLocation, serviceName);
+    }
+
+    public transient WSandesscd(URL wsdlLocation, QName serviceName, WebServiceFeature features[])
+    {
+        super(wsdlLocation, serviceName, features);
+    }
+
+    public CertificadosPortType getCertificadosPort()
+    {
+        return (CertificadosPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CertificadosPort"), co/com/andesscd/clientes/fna/CertificadosPortType);
+    }
+
+    public transient CertificadosPortType getCertificadosPort(WebServiceFeature features[])
+    {
+        return (CertificadosPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CertificadosPort"), co/com/andesscd/clientes/fna/CertificadosPortType, features);
+    }
+
+    public CertificadosPersonaNaturalRUTPortType getCertificadosPersonaNaturalRUTPort()
+    {
+        return (CertificadosPersonaNaturalRUTPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CertificadosPersonaNaturalRUTPort"), co/com/andesscd/clientes/fna/CertificadosPersonaNaturalRUTPortType);
+    }
+
+    public transient CertificadosPersonaNaturalRUTPortType getCertificadosPersonaNaturalRUTPort(WebServiceFeature features[])
+    {
+        return (CertificadosPersonaNaturalRUTPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CertificadosPersonaNaturalRUTPort"), co/com/andesscd/clientes/fna/CertificadosPersonaNaturalRUTPortType, features);
+    }
+
+    public CertificateVinculacionEmpresaPortType getCertificateVinculacionEmpresaPort()
+    {
+        return (CertificateVinculacionEmpresaPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CertificateVinculacionEmpresaPort"), co/com/andesscd/clientes/fna/CertificateVinculacionEmpresaPortType);
+    }
+
+    public transient CertificateVinculacionEmpresaPortType getCertificateVinculacionEmpresaPort(WebServiceFeature features[])
+    {
+        return (CertificateVinculacionEmpresaPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CertificateVinculacionEmpresaPort"), co/com/andesscd/clientes/fna/CertificateVinculacionEmpresaPortType, features);
+    }
+
+    public FirmarPortType getFirmarPort()
+    {
+        return (FirmarPortType)super.getPort(new QName("http://www.andesscd.com.co/", "FirmarPort"), co/com/andesscd/clientes/fna/FirmarPortType);
+    }
+
+    public transient FirmarPortType getFirmarPort(WebServiceFeature features[])
+    {
+        return (FirmarPortType)super.getPort(new QName("http://www.andesscd.com.co/", "FirmarPort"), co/com/andesscd/clientes/fna/FirmarPortType, features);
+    }
+
+    public VerificarFirmaPortType getVerificarFirmaPort()
+    {
+        return (VerificarFirmaPortType)super.getPort(new QName("http://www.andesscd.com.co/", "VerificarFirmaPort"), co/com/andesscd/clientes/fna/VerificarFirmaPortType);
+    }
+
+    public transient VerificarFirmaPortType getVerificarFirmaPort(WebServiceFeature features[])
+    {
+        return (VerificarFirmaPortType)super.getPort(new QName("http://www.andesscd.com.co/", "VerificarFirmaPort"), co/com/andesscd/clientes/fna/VerificarFirmaPortType, features);
+    }
+
+    public ConsultarSolicitudPortType getConsultarSolicitudPort()
+    {
+        return (ConsultarSolicitudPortType)super.getPort(new QName("http://www.andesscd.com.co/", "ConsultarSolicitudPort"), co/com/andesscd/clientes/fna/ConsultarSolicitudPortType);
+    }
+
+    public transient ConsultarSolicitudPortType getConsultarSolicitudPort(WebServiceFeature features[])
+    {
+        return (ConsultarSolicitudPortType)super.getPort(new QName("http://www.andesscd.com.co/", "ConsultarSolicitudPort"), co/com/andesscd/clientes/fna/ConsultarSolicitudPortType, features);
+    }
+
+    public FirmarOTPPortType getFirmarOTPPort()
+    {
+        return (FirmarOTPPortType)super.getPort(new QName("http://www.andesscd.com.co/", "FirmarOTPPort"), co/com/andesscd/clientes/fna/FirmarOTPPortType);
+    }
+
+    public transient FirmarOTPPortType getFirmarOTPPort(WebServiceFeature features[])
+    {
+        return (FirmarOTPPortType)super.getPort(new QName("http://www.andesscd.com.co/", "FirmarOTPPort"), co/com/andesscd/clientes/fna/FirmarOTPPortType, features);
+    }
+
+    public TiempoUsoOTPPortType getTiempoUsoOTPPort()
+    {
+        return (TiempoUsoOTPPortType)super.getPort(new QName("http://www.andesscd.com.co/", "TiempoUsoOTPPort"), co/com/andesscd/clientes/fna/TiempoUsoOTPPortType);
+    }
+
+    public transient TiempoUsoOTPPortType getTiempoUsoOTPPort(WebServiceFeature features[])
+    {
+        return (TiempoUsoOTPPortType)super.getPort(new QName("http://www.andesscd.com.co/", "TiempoUsoOTPPort"), co/com/andesscd/clientes/fna/TiempoUsoOTPPortType, features);
+    }
+
+    public InvalidarOTPPortType getInvalidarOTPPort()
+    {
+        return (InvalidarOTPPortType)super.getPort(new QName("http://www.andesscd.com.co/", "InvalidarOTPPort"), co/com/andesscd/clientes/fna/InvalidarOTPPortType);
+    }
+
+    public transient InvalidarOTPPortType getInvalidarOTPPort(WebServiceFeature features[])
+    {
+        return (InvalidarOTPPortType)super.getPort(new QName("http://www.andesscd.com.co/", "InvalidarOTPPort"), co/com/andesscd/clientes/fna/InvalidarOTPPortType, features);
+    }
+
+    public LoginPortType getLoginPort()
+    {
+        return (LoginPortType)super.getPort(new QName("http://www.andesscd.com.co/", "LoginPort"), co/com/andesscd/clientes/fna/LoginPortType);
+    }
+
+    public transient LoginPortType getLoginPort(WebServiceFeature features[])
+    {
+        return (LoginPortType)super.getPort(new QName("http://www.andesscd.com.co/", "LoginPort"), co/com/andesscd/clientes/fna/LoginPortType, features);
+    }
+
+    public DepartamentoPortType getDepartamentoPort()
+    {
+        return (DepartamentoPortType)super.getPort(new QName("http://www.andesscd.com.co/", "DepartamentoPort"), co/com/andesscd/clientes/fna/DepartamentoPortType);
+    }
+
+    public transient DepartamentoPortType getDepartamentoPort(WebServiceFeature features[])
+    {
+        return (DepartamentoPortType)super.getPort(new QName("http://www.andesscd.com.co/", "DepartamentoPort"), co/com/andesscd/clientes/fna/DepartamentoPortType, features);
+    }
+
+    public MunicipioPortType getMunicipioPort()
+    {
+        return (MunicipioPortType)super.getPort(new QName("http://www.andesscd.com.co/", "MunicipioPort"), co/com/andesscd/clientes/fna/MunicipioPortType);
+    }
+
+    public transient MunicipioPortType getMunicipioPort(WebServiceFeature features[])
+    {
+        return (MunicipioPortType)super.getPort(new QName("http://www.andesscd.com.co/", "MunicipioPort"), co/com/andesscd/clientes/fna/MunicipioPortType, features);
+    }
+
+    public ConsultarCertPortType getConsultarCertPort()
+    {
+        return (ConsultarCertPortType)super.getPort(new QName("http://www.andesscd.com.co/", "ConsultarCertPort"), co/com/andesscd/clientes/fna/ConsultarCertPortType);
+    }
+
+    public transient ConsultarCertPortType getConsultarCertPort(WebServiceFeature features[])
+    {
+        return (ConsultarCertPortType)super.getPort(new QName("http://www.andesscd.com.co/", "ConsultarCertPort"), co/com/andesscd/clientes/fna/ConsultarCertPortType, features);
+    }
+
+    public RevocacionPortType getRevocacionPort()
+    {
+        return (RevocacionPortType)super.getPort(new QName("http://www.andesscd.com.co/", "RevocacionPort"), co/com/andesscd/clientes/fna/RevocacionPortType);
+    }
+
+    public transient RevocacionPortType getRevocacionPort(WebServiceFeature features[])
+    {
+        return (RevocacionPortType)super.getPort(new QName("http://www.andesscd.com.co/", "RevocacionPort"), co/com/andesscd/clientes/fna/RevocacionPortType, features);
+    }
+
+    public CambiarPinPortType getCambiarPinPort()
+    {
+        return (CambiarPinPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CambiarPinPort"), co/com/andesscd/clientes/fna/CambiarPinPortType);
+    }
+
+    public transient CambiarPinPortType getCambiarPinPort(WebServiceFeature features[])
+    {
+        return (CambiarPinPortType)super.getPort(new QName("http://www.andesscd.com.co/", "CambiarPinPort"), co/com/andesscd/clientes/fna/CambiarPinPortType, features);
+    }
+
+    private static URL __getWsdlLocation()
+    {
+        if(WSANDESSCD_EXCEPTION != null)
+            throw WSANDESSCD_EXCEPTION;
+        else
+            return WSANDESSCD_WSDL_LOCATION;
+    }
+
+    private static final URL WSANDESSCD_WSDL_LOCATION;
+    private static final WebServiceException WSANDESSCD_EXCEPTION;
+    private static final QName WSANDESSCD_QNAME = new QName("http://www.andesscd.com.co/", "WSandesscd");
+
+    static 
+    {
+        URL url = null;
+        WebServiceException e = null;
+        try
+        {
+            url = new URL("https://ra.andesscd.com.co/test/WebService/wsdl.php?WSDL");
+        }
+        catch(MalformedURLException ex)
+        {
+            e = new WebServiceException(ex);
+        }
+        WSANDESSCD_WSDL_LOCATION = url;
+        WSANDESSCD_EXCEPTION = e;
+    }
+}

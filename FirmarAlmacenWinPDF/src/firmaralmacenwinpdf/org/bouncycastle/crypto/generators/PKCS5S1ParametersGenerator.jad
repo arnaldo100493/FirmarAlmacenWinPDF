@@ -1,0 +1,68 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PKCS5S1ParametersGenerator.java
+
+package org.bouncycastle.crypto.generators;
+
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.ParametersWithIV;
+
+public class PKCS5S1ParametersGenerator extends PBEParametersGenerator
+{
+
+    public PKCS5S1ParametersGenerator(Digest digest)
+    {
+        this.digest = digest;
+    }
+
+    private byte[] generateDerivedKey()
+    {
+        byte digestBytes[] = new byte[digest.getDigestSize()];
+        digest.update(password, 0, password.length);
+        digest.update(salt, 0, salt.length);
+        digest.doFinal(digestBytes, 0);
+        for(int i = 1; i < iterationCount; i++)
+        {
+            digest.update(digestBytes, 0, digestBytes.length);
+            digest.doFinal(digestBytes, 0);
+        }
+
+        return digestBytes;
+    }
+
+    public CipherParameters generateDerivedParameters(int keySize)
+    {
+        keySize /= 8;
+        if(keySize > digest.getDigestSize())
+        {
+            throw new IllegalArgumentException((new StringBuilder()).append("Can't generate a derived key ").append(keySize).append(" bytes long.").toString());
+        } else
+        {
+            byte dKey[] = generateDerivedKey();
+            return new KeyParameter(dKey, 0, keySize);
+        }
+    }
+
+    public CipherParameters generateDerivedParameters(int keySize, int ivSize)
+    {
+        keySize /= 8;
+        ivSize /= 8;
+        if(keySize + ivSize > digest.getDigestSize())
+        {
+            throw new IllegalArgumentException((new StringBuilder()).append("Can't generate a derived key ").append(keySize + ivSize).append(" bytes long.").toString());
+        } else
+        {
+            byte dKey[] = generateDerivedKey();
+            return new ParametersWithIV(new KeyParameter(dKey, 0, keySize), dKey, keySize, ivSize);
+        }
+    }
+
+    public CipherParameters generateDerivedMacParameters(int keySize)
+    {
+        return generateDerivedParameters(keySize);
+    }
+
+    private Digest digest;
+}

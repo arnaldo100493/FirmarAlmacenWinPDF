@@ -1,0 +1,62 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   AttCertIssuer.java
+
+package org.bouncycastle.asn1.x509;
+
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            V2Form, GeneralNames
+
+public class AttCertIssuer extends ASN1Encodable
+    implements ASN1Choice
+{
+
+    public static AttCertIssuer getInstance(Object obj)
+    {
+        if(obj instanceof AttCertIssuer)
+            return (AttCertIssuer)obj;
+        if(obj instanceof V2Form)
+            return new AttCertIssuer(V2Form.getInstance(obj));
+        if(obj instanceof GeneralNames)
+            return new AttCertIssuer((GeneralNames)obj);
+        if(obj instanceof ASN1TaggedObject)
+            return new AttCertIssuer(V2Form.getInstance((ASN1TaggedObject)obj, false));
+        if(obj instanceof ASN1Sequence)
+            return new AttCertIssuer(GeneralNames.getInstance(obj));
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public static AttCertIssuer getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(obj.getObject());
+    }
+
+    public AttCertIssuer(GeneralNames names)
+    {
+        obj = names;
+        choiceObj = obj.getDERObject();
+    }
+
+    public AttCertIssuer(V2Form v2Form)
+    {
+        obj = v2Form;
+        choiceObj = new DERTaggedObject(false, 0, obj);
+    }
+
+    public ASN1Encodable getIssuer()
+    {
+        return obj;
+    }
+
+    public DERObject toASN1Object()
+    {
+        return choiceObj;
+    }
+
+    ASN1Encodable obj;
+    DERObject choiceObj;
+}

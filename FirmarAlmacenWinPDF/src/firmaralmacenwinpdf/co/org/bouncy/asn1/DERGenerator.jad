@@ -1,0 +1,91 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERGenerator.java
+
+package co.org.bouncy.asn1;
+
+import co.org.bouncy.util.io.Streams;
+import java.io.*;
+
+// Referenced classes of package co.org.bouncy.asn1:
+//            ASN1Generator
+
+public abstract class DERGenerator extends ASN1Generator
+{
+
+    protected DERGenerator(OutputStream out)
+    {
+        super(out);
+        _tagged = false;
+    }
+
+    public DERGenerator(OutputStream out, int tagNo, boolean isExplicit)
+    {
+        super(out);
+        _tagged = false;
+        _tagged = true;
+        _isExplicit = isExplicit;
+        _tagNo = tagNo;
+    }
+
+    private void writeLength(OutputStream out, int length)
+        throws IOException
+    {
+        if(length > 127)
+        {
+            int size = 1;
+            for(int val = length; (val >>>= 8) != 0;)
+                size++;
+
+            out.write((byte)(size | 0x80));
+            for(int i = (size - 1) * 8; i >= 0; i -= 8)
+                out.write((byte)(length >> i));
+
+        } else
+        {
+            out.write((byte)length);
+        }
+    }
+
+    void writeDEREncoded(OutputStream out, int tag, byte bytes[])
+        throws IOException
+    {
+        out.write(tag);
+        writeLength(out, bytes.length);
+        out.write(bytes);
+    }
+
+    void writeDEREncoded(int tag, byte bytes[])
+        throws IOException
+    {
+        if(_tagged)
+        {
+            int tagNum = _tagNo | 0x80;
+            if(_isExplicit)
+            {
+                int newTag = _tagNo | 0x20 | 0x80;
+                ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+                writeDEREncoded(((OutputStream) (bOut)), tag, bytes);
+                writeDEREncoded(_out, newTag, bOut.toByteArray());
+            } else
+            if((tag & 0x20) != 0)
+                writeDEREncoded(_out, tagNum | 0x20, bytes);
+            else
+                writeDEREncoded(_out, tagNum, bytes);
+        } else
+        {
+            writeDEREncoded(_out, tag, bytes);
+        }
+    }
+
+    void writeDEREncoded(OutputStream out, int tag, InputStream in)
+        throws IOException
+    {
+        writeDEREncoded(out, tag, Streams.readAll(in));
+    }
+
+    private boolean _tagged;
+    private boolean _isExplicit;
+    private int _tagNo;
+}

@@ -1,0 +1,49 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   AccessibleElementId.java
+
+package co.com.pdf.text;
+
+
+public class AccessibleElementId
+    implements Comparable
+{
+
+    public AccessibleElementId()
+    {
+        id = 0;
+        id = ++id_counter;
+    }
+
+    public String toString()
+    {
+        return Integer.toString(id);
+    }
+
+    public int hashCode()
+    {
+        return id;
+    }
+
+    public boolean equals(Object o)
+    {
+        return (o instanceof AccessibleElementId) && id == ((AccessibleElementId)o).id;
+    }
+
+    public int compareTo(AccessibleElementId elementId)
+    {
+        if(id < elementId.id)
+            return -1;
+        return id <= elementId.id ? 0 : 1;
+    }
+
+    public volatile int compareTo(Object x0)
+    {
+        return compareTo((AccessibleElementId)x0);
+    }
+
+    private static int id_counter = 0;
+    private int id;
+
+}

@@ -1,0 +1,31 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BERNull.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            DERNull, ASN1OutputStream, BEROutputStream, DEROutputStream
+
+public class BERNull extends DERNull
+{
+
+    public BERNull()
+    {
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        if((out instanceof ASN1OutputStream) || (out instanceof BEROutputStream))
+            out.write(5);
+        else
+            super.encode(out);
+    }
+
+    public static final BERNull INSTANCE = new BERNull();
+
+}

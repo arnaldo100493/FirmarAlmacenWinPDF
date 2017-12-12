@@ -1,0 +1,224 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KeyAgreement.java
+
+package org.bouncycastle.jce.provider.asymmetric.ec;
+
+import java.math.BigInteger;
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.util.Hashtable;
+import javax.crypto.*;
+import javax.crypto.spec.SecretKeySpec;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.x9.X9IntegerConverter;
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.agreement.*;
+import org.bouncycastle.crypto.agreement.kdf.DHKDFParameters;
+import org.bouncycastle.crypto.agreement.kdf.ECDHKEKGenerator;
+import org.bouncycastle.crypto.digests.SHA1Digest;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.jce.interfaces.*;
+import org.bouncycastle.math.ec.ECPoint;
+
+// Referenced classes of package org.bouncycastle.jce.provider.asymmetric.ec:
+//            ECUtil
+
+public class KeyAgreement extends KeyAgreementSpi
+{
+    public static class MQVwithSHA1KDF extends KeyAgreement
+    {
+
+        public MQVwithSHA1KDF()
+        {
+            super("ECMQVwithSHA1KDF", new ECMQVBasicAgreement(), new ECDHKEKGenerator(new SHA1Digest()));
+        }
+    }
+
+    public static class DHwithSHA1KDF extends KeyAgreement
+    {
+
+        public DHwithSHA1KDF()
+        {
+            super("ECDHwithSHA1KDF", new ECDHBasicAgreement(), new ECDHKEKGenerator(new SHA1Digest()));
+        }
+    }
+
+    public static class MQV extends KeyAgreement
+    {
+
+        public MQV()
+        {
+            super("ECMQV", new ECMQVBasicAgreement(), null);
+        }
+    }
+
+    public static class DHC extends KeyAgreement
+    {
+
+        public DHC()
+        {
+            super("ECDHC", new ECDHCBasicAgreement(), null);
+        }
+    }
+
+    public static class DH extends KeyAgreement
+    {
+
+        public DH()
+        {
+            super("ECDH", new ECDHBasicAgreement(), null);
+        }
+    }
+
+
+    private byte[] bigIntToBytes(BigInteger r)
+    {
+        return converter.integerToBytes(r, converter.getByteLength(parameters.getG().getX()));
+    }
+
+    protected KeyAgreement(String kaAlgorithm, BasicAgreement agreement, DerivationFunction kdf)
+    {
+        this.kaAlgorithm = kaAlgorithm;
+        this.agreement = agreement;
+        this.kdf = kdf;
+    }
+
+    protected Key engineDoPhase(Key key, boolean lastPhase)
+        throws InvalidKeyException, IllegalStateException
+    {
+        if(parameters == null)
+            throw new IllegalStateException((new StringBuilder()).append(kaAlgorithm).append(" not initialised.").toString());
+        if(!lastPhase)
+            throw new IllegalStateException((new StringBuilder()).append(kaAlgorithm).append(" can only be between two parties.").toString());
+        CipherParameters pubKey;
+        if(agreement instanceof ECMQVBasicAgreement)
+        {
+            if(!(key instanceof MQVPublicKey))
+                throw new InvalidKeyException((new StringBuilder()).append(kaAlgorithm).append(" key agreement requires ").append(getSimpleName(org/bouncycastle/jce/interfaces/MQVPublicKey)).append(" for doPhase").toString());
+            MQVPublicKey mqvPubKey = (MQVPublicKey)key;
+            ECPublicKeyParameters staticKey = (ECPublicKeyParameters)ECUtil.generatePublicKeyParameter(mqvPubKey.getStaticKey());
+            ECPublicKeyParameters ephemKey = (ECPublicKeyParameters)ECUtil.generatePublicKeyParameter(mqvPubKey.getEphemeralKey());
+            pubKey = new MQVPublicParameters(staticKey, ephemKey);
+        } else
+        {
+            if(!(key instanceof ECPublicKey))
+                throw new InvalidKeyException((new StringBuilder()).append(kaAlgorithm).append(" key agreement requires ").append(getSimpleName(org/bouncycastle/jce/interfaces/ECPublicKey)).append(" for doPhase").toString());
+            pubKey = ECUtil.generatePublicKeyParameter((PublicKey)key);
+        }
+        result = agreement.calculateAgreement(pubKey);
+        return null;
+    }
+
+    protected byte[] engineGenerateSecret()
+        throws IllegalStateException
+    {
+        if(kdf != null)
+            throw new UnsupportedOperationException("KDF can only be used when algorithm is known");
+        else
+            return bigIntToBytes(result);
+    }
+
+    protected int engineGenerateSecret(byte sharedSecret[], int offset)
+        throws IllegalStateException, ShortBufferException
+    {
+        byte secret[] = engineGenerateSecret();
+        if(sharedSecret.length - offset < secret.length)
+        {
+            throw new ShortBufferException((new StringBuilder()).append(kaAlgorithm).append(" key agreement: need ").append(secret.length).append(" bytes").toString());
+        } else
+        {
+            System.arraycopy(secret, 0, sharedSecret, offset, secret.length);
+            return secret.length;
+        }
+    }
+
+    protected SecretKey engineGenerateSecret(String algorithm)
+        throws NoSuchAlgorithmException
+    {
+        byte secret[] = bigIntToBytes(result);
+        if(kdf != null)
+        {
+            if(!algorithms.containsKey(algorithm))
+                throw new NoSuchAlgorithmException((new StringBuilder()).append("unknown algorithm encountered: ").append(algorithm).toString());
+            int keySize = ((Integer)algorithms.get(algorithm)).intValue();
+            DHKDFParameters params = new DHKDFParameters(new DERObjectIdentifier(algorithm), keySize, secret);
+            byte keyBytes[] = new byte[keySize / 8];
+            kdf.init(params);
+            kdf.generateBytes(keyBytes, 0, keyBytes.length);
+            secret = keyBytes;
+        }
+        return new SecretKeySpec(secret, algorithm);
+    }
+
+    protected void engineInit(Key key, AlgorithmParameterSpec params, SecureRandom random)
+        throws InvalidKeyException, InvalidAlgorithmParameterException
+    {
+        initFromKey(key);
+    }
+
+    protected void engineInit(Key key, SecureRandom random)
+        throws InvalidKeyException
+    {
+        initFromKey(key);
+    }
+
+    private void initFromKey(Key key)
+        throws InvalidKeyException
+    {
+        if(agreement instanceof ECMQVBasicAgreement)
+        {
+            if(!(key instanceof MQVPrivateKey))
+                throw new InvalidKeyException((new StringBuilder()).append(kaAlgorithm).append(" key agreement requires ").append(getSimpleName(org/bouncycastle/jce/interfaces/MQVPrivateKey)).append(" for initialisation").toString());
+            MQVPrivateKey mqvPrivKey = (MQVPrivateKey)key;
+            ECPrivateKeyParameters staticPrivKey = (ECPrivateKeyParameters)ECUtil.generatePrivateKeyParameter(mqvPrivKey.getStaticPrivateKey());
+            ECPrivateKeyParameters ephemPrivKey = (ECPrivateKeyParameters)ECUtil.generatePrivateKeyParameter(mqvPrivKey.getEphemeralPrivateKey());
+            ECPublicKeyParameters ephemPubKey = null;
+            if(mqvPrivKey.getEphemeralPublicKey() != null)
+                ephemPubKey = (ECPublicKeyParameters)ECUtil.generatePublicKeyParameter(mqvPrivKey.getEphemeralPublicKey());
+            MQVPrivateParameters localParams = new MQVPrivateParameters(staticPrivKey, ephemPrivKey, ephemPubKey);
+            parameters = staticPrivKey.getParameters();
+            agreement.init(localParams);
+        } else
+        {
+            if(!(key instanceof ECPrivateKey))
+                throw new InvalidKeyException((new StringBuilder()).append(kaAlgorithm).append(" key agreement requires ").append(getSimpleName(org/bouncycastle/jce/interfaces/ECPrivateKey)).append(" for initialisation").toString());
+            ECPrivateKeyParameters privKey = (ECPrivateKeyParameters)ECUtil.generatePrivateKeyParameter((PrivateKey)key);
+            parameters = privKey.getParameters();
+            agreement.init(privKey);
+        }
+    }
+
+    private static String getSimpleName(Class clazz)
+    {
+        String fullName = clazz.getName();
+        return fullName.substring(fullName.lastIndexOf('.') + 1);
+    }
+
+    private static final X9IntegerConverter converter = new X9IntegerConverter();
+    private static final Hashtable algorithms;
+    private String kaAlgorithm;
+    private BigInteger result;
+    private ECDomainParameters parameters;
+    private BasicAgreement agreement;
+    private DerivationFunction kdf;
+
+    static 
+    {
+        algorithms = new Hashtable();
+        Integer i128 = new Integer(128);
+        Integer i192 = new Integer(192);
+        Integer i256 = new Integer(256);
+        algorithms.put(NISTObjectIdentifiers.id_aes128_CBC.getId(), i128);
+        algorithms.put(NISTObjectIdentifiers.id_aes192_CBC.getId(), i192);
+        algorithms.put(NISTObjectIdentifiers.id_aes256_CBC.getId(), i256);
+        algorithms.put(NISTObjectIdentifiers.id_aes128_wrap.getId(), i128);
+        algorithms.put(NISTObjectIdentifiers.id_aes192_wrap.getId(), i192);
+        algorithms.put(NISTObjectIdentifiers.id_aes256_wrap.getId(), i256);
+        algorithms.put(PKCSObjectIdentifiers.id_alg_CMS3DESwrap.getId(), i192);
+    }
+}

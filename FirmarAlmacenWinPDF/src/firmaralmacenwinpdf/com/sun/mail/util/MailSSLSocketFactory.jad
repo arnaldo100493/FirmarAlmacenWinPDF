@@ -1,0 +1,205 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailSSLSocketFactory.java
+
+package com.sun.mail.util;
+
+import java.io.IOException;
+import java.net.*;
+import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.List;
+import javax.net.ssl.*;
+
+public class MailSSLSocketFactory extends SSLSocketFactory
+{
+    private class MailTrustManager
+        implements X509TrustManager
+    {
+
+        public void checkClientTrusted(X509Certificate certs[], String authType)
+            throws CertificateException
+        {
+            if(!isTrustAllHosts() && getTrustedHosts() == null)
+                adapteeTrustManager.checkClientTrusted(certs, authType);
+        }
+
+        public void checkServerTrusted(X509Certificate certs[], String authType)
+            throws CertificateException
+        {
+            if(!isTrustAllHosts() && getTrustedHosts() == null)
+                adapteeTrustManager.checkServerTrusted(certs, authType);
+        }
+
+        public X509Certificate[] getAcceptedIssuers()
+        {
+            return adapteeTrustManager.getAcceptedIssuers();
+        }
+
+        private X509TrustManager adapteeTrustManager;
+        final MailSSLSocketFactory this$0;
+
+        private MailTrustManager()
+            throws GeneralSecurityException
+        {
+            this$0 = MailSSLSocketFactory.this;
+            super();
+            adapteeTrustManager = null;
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
+            tmf.init((KeyStore)null);
+            adapteeTrustManager = (X509TrustManager)tmf.getTrustManagers()[0];
+        }
+
+    }
+
+
+    public MailSSLSocketFactory()
+        throws GeneralSecurityException
+    {
+        this("TLS");
+    }
+
+    public MailSSLSocketFactory(String protocol)
+        throws GeneralSecurityException
+    {
+        trustedHosts = null;
+        adapteeFactory = null;
+        trustAllHosts = false;
+        sslcontext = SSLContext.getInstance(protocol);
+        keyManagers = null;
+        secureRandom = null;
+        newAdapteeFactory();
+    }
+
+    private synchronized void newAdapteeFactory()
+        throws KeyManagementException
+    {
+        sslcontext.init(keyManagers, trustManagers, secureRandom);
+        adapteeFactory = sslcontext.getSocketFactory();
+    }
+
+    public synchronized KeyManager[] getKeyManagers()
+    {
+        return (KeyManager[])(KeyManager[])keyManagers.clone();
+    }
+
+    public synchronized void setKeyManagers(KeyManager keyManagers[])
+        throws GeneralSecurityException
+    {
+        this.keyManagers = (KeyManager[])(KeyManager[])keyManagers.clone();
+        newAdapteeFactory();
+    }
+
+    public synchronized SecureRandom getSecureRandom()
+    {
+        return secureRandom;
+    }
+
+    public synchronized void setSecureRandom(SecureRandom secureRandom)
+        throws GeneralSecurityException
+    {
+        this.secureRandom = secureRandom;
+        newAdapteeFactory();
+    }
+
+    public synchronized TrustManager[] getTrustManagers()
+    {
+        return trustManagers;
+    }
+
+    public synchronized void setTrustManagers(TrustManager trustManagers[])
+        throws GeneralSecurityException
+    {
+        this.trustManagers = trustManagers;
+        newAdapteeFactory();
+    }
+
+    public synchronized boolean isTrustAllHosts()
+    {
+        return trustAllHosts;
+    }
+
+    public synchronized void setTrustAllHosts(boolean trustAllHosts)
+    {
+        this.trustAllHosts = trustAllHosts;
+    }
+
+    public synchronized String[] getTrustedHosts()
+    {
+        return (String[])(String[])trustedHosts.clone();
+    }
+
+    public synchronized void setTrustedHosts(String trustedHosts[])
+    {
+        this.trustedHosts = (String[])(String[])trustedHosts.clone();
+    }
+
+    public synchronized boolean isServerTrusted(String server, SSLSocket sslSocket)
+    {
+        if(trustAllHosts)
+            return true;
+        if(trustedHosts != null)
+            return Arrays.asList(trustedHosts).contains(server);
+        else
+            return true;
+    }
+
+    public synchronized Socket createSocket(Socket socket, String s, int i, boolean flag)
+        throws IOException
+    {
+        return adapteeFactory.createSocket(socket, s, i, flag);
+    }
+
+    public synchronized String[] getDefaultCipherSuites()
+    {
+        return adapteeFactory.getDefaultCipherSuites();
+    }
+
+    public synchronized String[] getSupportedCipherSuites()
+    {
+        return adapteeFactory.getSupportedCipherSuites();
+    }
+
+    public synchronized Socket createSocket()
+        throws IOException
+    {
+        return adapteeFactory.createSocket();
+    }
+
+    public synchronized Socket createSocket(InetAddress inetaddress, int i, InetAddress inetaddress1, int j)
+        throws IOException
+    {
+        return adapteeFactory.createSocket(inetaddress, i, inetaddress1, j);
+    }
+
+    public synchronized Socket createSocket(InetAddress inetaddress, int i)
+        throws IOException
+    {
+        return adapteeFactory.createSocket(inetaddress, i);
+    }
+
+    public synchronized Socket createSocket(String s, int i, InetAddress inetaddress, int j)
+        throws IOException, UnknownHostException
+    {
+        return adapteeFactory.createSocket(s, i, inetaddress, j);
+    }
+
+    public synchronized Socket createSocket(String s, int i)
+        throws IOException, UnknownHostException
+    {
+        return adapteeFactory.createSocket(s, i);
+    }
+
+    private boolean trustAllHosts;
+    private String trustedHosts[];
+    private SSLContext sslcontext;
+    private KeyManager keyManagers[];
+    private TrustManager trustManagers[] = {
+        new MailTrustManager()
+    };
+    private SecureRandom secureRandom;
+    private SSLSocketFactory adapteeFactory;
+}

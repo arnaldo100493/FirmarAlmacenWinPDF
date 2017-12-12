@@ -1,0 +1,49 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:43 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   ConsultarSolicitudRequest.java
+
+package co.com.andesscd.clientes.fna;
+
+
+public class ConsultarSolicitudRequest
+{
+
+    public ConsultarSolicitudRequest()
+    {
+    }
+
+    public int getRasolicitud()
+    {
+        return rasolicitud;
+    }
+
+    public void setRasolicitud(int value)
+    {
+        rasolicitud = value;
+    }
+
+    public int getTipoDoc()
+    {
+        return tipoDoc;
+    }
+
+    public void setTipoDoc(int value)
+    {
+        tipoDoc = value;
+    }
+
+    public String getDocumento()
+    {
+        return documento;
+    }
+
+    public void setDocumento(String value)
+    {
+        documento = value;
+    }
+
+    protected int rasolicitud;
+    protected int tipoDoc;
+    protected String documento;
+}

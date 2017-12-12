@@ -1,0 +1,87 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BERGenerator.java
+
+package co.org.bouncy.asn1;
+
+import java.io.*;
+
+// Referenced classes of package co.org.bouncy.asn1:
+//            ASN1Generator
+
+public class BERGenerator extends ASN1Generator
+{
+
+    protected BERGenerator(OutputStream out)
+    {
+        super(out);
+        _tagged = false;
+    }
+
+    public BERGenerator(OutputStream out, int tagNo, boolean isExplicit)
+    {
+        super(out);
+        _tagged = false;
+        _tagged = true;
+        _isExplicit = isExplicit;
+        _tagNo = tagNo;
+    }
+
+    public OutputStream getRawOutputStream()
+    {
+        return _out;
+    }
+
+    private void writeHdr(int tag)
+        throws IOException
+    {
+        _out.write(tag);
+        _out.write(128);
+    }
+
+    protected void writeBERHeader(int tag)
+        throws IOException
+    {
+        if(_tagged)
+        {
+            int tagNum = _tagNo | 0x80;
+            if(_isExplicit)
+            {
+                writeHdr(tagNum | 0x20);
+                writeHdr(tag);
+            } else
+            if((tag & 0x20) != 0)
+                writeHdr(tagNum | 0x20);
+            else
+                writeHdr(tagNum);
+        } else
+        {
+            writeHdr(tag);
+        }
+    }
+
+    protected void writeBERBody(InputStream contentStream)
+        throws IOException
+    {
+        int ch;
+        while((ch = contentStream.read()) >= 0) 
+            _out.write(ch);
+    }
+
+    protected void writeBEREnd()
+        throws IOException
+    {
+        _out.write(0);
+        _out.write(0);
+        if(_tagged && _isExplicit)
+        {
+            _out.write(0);
+            _out.write(0);
+        }
+    }
+
+    private boolean _tagged;
+    private boolean _isExplicit;
+    private int _tagNo;
+}

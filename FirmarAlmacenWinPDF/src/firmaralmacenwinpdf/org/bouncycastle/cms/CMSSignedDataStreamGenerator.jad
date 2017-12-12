@@ -1,0 +1,655 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSSignedDataStreamGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.cert.X509Certificate;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DigestInfo;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSSignedGenerator, DefaultSignedAttributeTableGenerator, CMSAttributeTableGenerator, SimpleAttributeTableGenerator, 
+//            SignerInformation, SignerInfoGenerator, CMSException, CMSUtils, 
+//            CMSSignedHelper, CMSProcessable, CMSStreamException, SignerIntInfoGenerator
+
+public class CMSSignedDataStreamGenerator extends CMSSignedGenerator
+{
+    private class CmsSignedDataOutputStream extends OutputStream
+    {
+
+        public void write(int b)
+            throws IOException
+        {
+            _out.write(b);
+        }
+
+        public void write(byte bytes[], int off, int len)
+            throws IOException
+        {
+            _out.write(bytes, off, len);
+        }
+
+        public void write(byte bytes[])
+            throws IOException
+        {
+            _out.write(bytes);
+        }
+
+        public void close()
+            throws IOException
+        {
+            _out.close();
+            _eiGen.close();
+            digests.clear();
+            if(certs.size() != 0)
+            {
+                ASN1Set certSet = CMSUtils.createBerSetFromList(certs);
+                _sigGen.getRawOutputStream().write((new BERTaggedObject(false, 0, certSet)).getEncoded());
+            }
+            if(crls.size() != 0)
+            {
+                ASN1Set crlSet = CMSUtils.createBerSetFromList(crls);
+                _sigGen.getRawOutputStream().write((new BERTaggedObject(false, 1, crlSet)).getEncoded());
+            }
+            ASN1EncodableVector signerInfos = new ASN1EncodableVector();
+            DigestAndSignerInfoGeneratorHolder holder;
+            byte calculatedDigest[];
+            AlgorithmIdentifier digestAlgorithm;
+            for(Iterator it = _signerInfs.iterator(); it.hasNext(); signerInfos.add(holder.signerInf.generate(_contentOID, digestAlgorithm, calculatedDigest)))
+            {
+                holder = (DigestAndSignerInfoGeneratorHolder)it.next();
+                calculatedDigest = holder.digest.digest();
+                digests.put(holder.digestOID, calculatedDigest.clone());
+                digestAlgorithm = holder.getDigestAlgorithm();
+            }
+
+            for(Iterator it = signerGens.iterator(); it.hasNext();)
+            {
+                SignerInfoGenerator sigGen = (SignerInfoGenerator)it.next();
+                try
+                {
+                    signerInfos.add(sigGen.generate(_contentOID));
+                    byte calculatedDigest[] = sigGen.getCalculatedDigest();
+                    digests.put(sigGen.getDigestAlgorithm().getAlgorithm().getId(), calculatedDigest);
+                }
+                catch(CMSException e)
+                {
+                    throw new CMSStreamException((new StringBuilder()).append("exception generating signers: ").append(e.getMessage()).toString(), e);
+                }
+            }
+
+            SignerInformation signer;
+            for(Iterator it = _signers.iterator(); it.hasNext(); signerInfos.add(signer.toSignerInfo()))
+                signer = (SignerInformation)it.next();
+
+            _sigGen.getRawOutputStream().write((new DERSet(signerInfos)).getEncoded());
+            _sigGen.close();
+            _sGen.close();
+        }
+
+        private OutputStream _out;
+        private ASN1ObjectIdentifier _contentOID;
+        private BERSequenceGenerator _sGen;
+        private BERSequenceGenerator _sigGen;
+        private BERSequenceGenerator _eiGen;
+        final CMSSignedDataStreamGenerator this$0;
+
+        public CmsSignedDataOutputStream(OutputStream out, ASN1ObjectIdentifier contentOID, BERSequenceGenerator sGen, BERSequenceGenerator sigGen, BERSequenceGenerator eiGen)
+        {
+            this$0 = CMSSignedDataStreamGenerator.this;
+            super();
+            _out = out;
+            _contentOID = contentOID;
+            _sGen = sGen;
+            _sigGen = sigGen;
+            _eiGen = eiGen;
+        }
+    }
+
+    private class SignerIntInfoGeneratorImpl
+        implements SignerIntInfoGenerator
+    {
+
+        public SignerInfo generate(DERObjectIdentifier contentType, AlgorithmIdentifier digestAlgorithm, byte calculatedDigest[])
+            throws CMSStreamException
+        {
+            try
+            {
+                byte bytesToSign[] = calculatedDigest;
+                ASN1Set signedAttr = null;
+                if(_sAttr != null)
+                {
+                    Map parameters = getBaseParameters(contentType, digestAlgorithm, calculatedDigest);
+                    AttributeTable signed = _sAttr.getAttributes(Collections.unmodifiableMap(parameters));
+                    if(contentType == null && signed != null && signed.get(CMSAttributes.contentType) != null)
+                    {
+                        Hashtable tmpSigned = signed.toHashtable();
+                        tmpSigned.remove(CMSAttributes.contentType);
+                        signed = new AttributeTable(tmpSigned);
+                    }
+                    signedAttr = getAttributeSet(signed);
+                    bytesToSign = signedAttr.getEncoded("DER");
+                } else
+                if(_encName.equals("RSA"))
+                {
+                    DigestInfo dInfo = new DigestInfo(digestAlgorithm, calculatedDigest);
+                    bytesToSign = dInfo.getEncoded("DER");
+                }
+                _sig.update(bytesToSign);
+                byte sigBytes[] = _sig.sign();
+                ASN1Set unsignedAttr = null;
+                if(_unsAttr != null)
+                {
+                    Map parameters = getBaseParameters(contentType, digestAlgorithm, calculatedDigest);
+                    parameters.put("encryptedDigest", sigBytes.clone());
+                    AttributeTable unsigned = _unsAttr.getAttributes(Collections.unmodifiableMap(parameters));
+                    unsignedAttr = getAttributeSet(unsigned);
+                }
+                AlgorithmIdentifier digestEncryptionAlgorithm = getEncAlgorithmIdentifier(_encOID, _sig);
+                return new SignerInfo(_signerIdentifier, digestAlgorithm, signedAttr, digestEncryptionAlgorithm, new DEROctetString(sigBytes), unsignedAttr);
+            }
+            catch(IOException e)
+            {
+                throw new CMSStreamException("encoding error.", e);
+            }
+            catch(SignatureException e)
+            {
+                throw new CMSStreamException("error creating signature.", e);
+            }
+        }
+
+        private final SignerIdentifier _signerIdentifier;
+        private final String _encOID;
+        private final CMSAttributeTableGenerator _sAttr;
+        private final CMSAttributeTableGenerator _unsAttr;
+        private final String _encName;
+        private final Signature _sig;
+        final CMSSignedDataStreamGenerator this$0;
+
+        SignerIntInfoGeneratorImpl(PrivateKey key, SignerIdentifier signerIdentifier, String digestOID, String encOID, CMSAttributeTableGenerator sAttr, CMSAttributeTableGenerator unsAttr, 
+                Provider sigProvider, SecureRandom random)
+            throws NoSuchAlgorithmException, InvalidKeyException
+        {
+            this$0 = CMSSignedDataStreamGenerator.this;
+            super();
+            _signerIdentifier = signerIdentifier;
+            _encOID = encOID;
+            _sAttr = sAttr;
+            _unsAttr = unsAttr;
+            _encName = CMSSignedHelper.INSTANCE.getEncryptionAlgName(_encOID);
+            String digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(digestOID);
+            String signatureName = (new StringBuilder()).append(digestName).append("with").append(_encName).toString();
+            if(_sAttr != null)
+                _sig = CMSSignedHelper.INSTANCE.getSignatureInstance(signatureName, sigProvider);
+            else
+            if(_encName.equals("RSA"))
+                _sig = CMSSignedHelper.INSTANCE.getSignatureInstance("RSA", sigProvider);
+            else
+            if(_encName.equals("DSA"))
+                _sig = CMSSignedHelper.INSTANCE.getSignatureInstance("NONEwithDSA", sigProvider);
+            else
+                throw new NoSuchAlgorithmException((new StringBuilder()).append("algorithm: ").append(_encName).append(" not supported in base signatures.").toString());
+            _sig.initSign(key, random);
+        }
+    }
+
+    private class DigestAndSignerInfoGeneratorHolder
+    {
+
+        AlgorithmIdentifier getDigestAlgorithm()
+        {
+            return new AlgorithmIdentifier(new DERObjectIdentifier(digestOID), DERNull.INSTANCE);
+        }
+
+        SignerIntInfoGenerator signerInf;
+        MessageDigest digest;
+        String digestOID;
+        final CMSSignedDataStreamGenerator this$0;
+
+        DigestAndSignerInfoGeneratorHolder(SignerIntInfoGenerator signerInf, MessageDigest digest, String digestOID)
+        {
+            this$0 = CMSSignedDataStreamGenerator.this;
+            super();
+            this.signerInf = signerInf;
+            this.digest = digest;
+            this.digestOID = digestOID;
+        }
+    }
+
+
+    public CMSSignedDataStreamGenerator()
+    {
+        _signerInfs = new ArrayList();
+        _messageDigests = new ArrayList();
+    }
+
+    public CMSSignedDataStreamGenerator(SecureRandom rand)
+    {
+        super(rand);
+        _signerInfs = new ArrayList();
+        _messageDigests = new ArrayList();
+    }
+
+    public void setBufferSize(int bufferSize)
+    {
+        _bufferSize = bufferSize;
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String digestOID, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, digestOID, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String digestOID, Provider sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator())), (CMSAttributeTableGenerator)null, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, encryptionOID, digestOID, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, Provider sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, encryptionOID, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator())), (CMSAttributeTableGenerator)null, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String digestOID, AttributeTable signedAttr, AttributeTable unsignedAttr, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, digestOID, signedAttr, unsignedAttr, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String digestOID, AttributeTable signedAttr, AttributeTable unsignedAttr, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        addSigner(key, cert, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator(signedAttr))), ((CMSAttributeTableGenerator) (new SimpleAttributeTableGenerator(unsignedAttr))), sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, AttributeTable signedAttr, AttributeTable unsignedAttr, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, encryptionOID, digestOID, signedAttr, unsignedAttr, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, AttributeTable signedAttr, AttributeTable unsignedAttr, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        addSigner(key, cert, encryptionOID, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator(signedAttr))), ((CMSAttributeTableGenerator) (new SimpleAttributeTableGenerator(unsignedAttr))), sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, digestOID, signedAttrGenerator, unsignedAttrGenerator, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        addSigner(key, cert, getEncOID(key, digestOID), digestOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, cert, encryptionOID, digestOID, signedAttrGenerator, unsignedAttrGenerator, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        doAddSigner(key, getSignerIdentifier(cert), encryptionOID, digestOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String digestOID, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, digestOID, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String digestOID, Provider sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator())), (CMSAttributeTableGenerator)null, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String encryptionOID, String digestOID, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, encryptionOID, digestOID, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String encryptionOID, String digestOID, Provider sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, encryptionOID, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator())), (CMSAttributeTableGenerator)null, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String digestOID, AttributeTable signedAttr, AttributeTable unsignedAttr, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, digestOID, signedAttr, unsignedAttr, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String digestOID, AttributeTable signedAttr, AttributeTable unsignedAttr, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, digestOID, ((CMSAttributeTableGenerator) (new DefaultSignedAttributeTableGenerator(signedAttr))), ((CMSAttributeTableGenerator) (new SimpleAttributeTableGenerator(unsignedAttr))), sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, digestOID, signedAttrGenerator, unsignedAttrGenerator, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, getEncOID(key, digestOID), digestOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException
+    {
+        addSigner(key, subjectKeyID, encryptionOID, digestOID, signedAttrGenerator, unsignedAttrGenerator, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        doAddSigner(key, getSignerIdentifier(subjectKeyID), encryptionOID, digestOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider, sigProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, X509Certificate cert, String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider, 
+            Provider digProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        doAddSigner(key, getSignerIdentifier(cert), encryptionOID, digestOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider, digProvider);
+    }
+
+    /**
+     * @deprecated Method addSigner is deprecated
+     */
+
+    public void addSigner(PrivateKey key, byte subjectKeyID[], String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider, 
+            Provider digProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        doAddSigner(key, getSignerIdentifier(subjectKeyID), encryptionOID, digestOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider, digProvider);
+    }
+
+    private void doAddSigner(PrivateKey key, SignerIdentifier signerIdentifier, String encryptionOID, String digestOID, CMSAttributeTableGenerator signedAttrGenerator, CMSAttributeTableGenerator unsignedAttrGenerator, Provider sigProvider, 
+            Provider digProvider)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        String digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(digestOID);
+        MessageDigest dig = CMSSignedHelper.INSTANCE.getDigestInstance(digestName, digProvider);
+        SignerIntInfoGeneratorImpl signerInf = new SignerIntInfoGeneratorImpl(key, signerIdentifier, digestOID, encryptionOID, signedAttrGenerator, unsignedAttrGenerator, sigProvider, rand);
+        _signerInfs.add(new DigestAndSignerInfoGeneratorHolder(signerInf, dig, digestOID));
+        _messageDigests.add(dig);
+    }
+
+    public OutputStream open(OutputStream out)
+        throws IOException
+    {
+        return open(out, false);
+    }
+
+    public OutputStream open(OutputStream out, boolean encapsulate)
+        throws IOException
+    {
+        return open(CMSObjectIdentifiers.data, out, encapsulate);
+    }
+
+    public OutputStream open(OutputStream out, boolean encapsulate, OutputStream dataOutputStream)
+        throws IOException
+    {
+        return open(CMSObjectIdentifiers.data, out, encapsulate, dataOutputStream);
+    }
+
+    /**
+     * @deprecated Method open is deprecated
+     */
+
+    public OutputStream open(OutputStream out, String eContentType, boolean encapsulate)
+        throws IOException
+    {
+        return open(out, eContentType, encapsulate, null);
+    }
+
+    public OutputStream open(ASN1ObjectIdentifier eContentType, OutputStream out, boolean encapsulate)
+        throws IOException
+    {
+        return open(eContentType, out, encapsulate, null);
+    }
+
+    /**
+     * @deprecated Method open is deprecated
+     */
+
+    public OutputStream open(OutputStream out, String eContentType, boolean encapsulate, OutputStream dataOutputStream)
+        throws IOException
+    {
+        return open(new ASN1ObjectIdentifier(eContentType), out, encapsulate, dataOutputStream);
+    }
+
+    public OutputStream open(ASN1ObjectIdentifier eContentType, OutputStream out, boolean encapsulate, OutputStream dataOutputStream)
+        throws IOException
+    {
+        BERSequenceGenerator sGen = new BERSequenceGenerator(out);
+        sGen.addObject(CMSObjectIdentifiers.signedData);
+        BERSequenceGenerator sigGen = new BERSequenceGenerator(sGen.getRawOutputStream(), 0, true);
+        sigGen.addObject(calculateVersion(eContentType));
+        ASN1EncodableVector digestAlgs = new ASN1EncodableVector();
+        SignerInformation signer;
+        for(Iterator it = _signers.iterator(); it.hasNext(); digestAlgs.add(CMSSignedHelper.INSTANCE.fixAlgID(signer.getDigestAlgorithmID())))
+            signer = (SignerInformation)it.next();
+
+        DigestAndSignerInfoGeneratorHolder holder;
+        for(Iterator it = _signerInfs.iterator(); it.hasNext(); digestAlgs.add(holder.getDigestAlgorithm()))
+            holder = (DigestAndSignerInfoGeneratorHolder)it.next();
+
+        SignerInfoGenerator signerGen;
+        for(Iterator it = signerGens.iterator(); it.hasNext(); digestAlgs.add(signerGen.getDigestAlgorithm()))
+            signerGen = (SignerInfoGenerator)it.next();
+
+        sigGen.getRawOutputStream().write((new DERSet(digestAlgs)).getEncoded());
+        BERSequenceGenerator eiGen = new BERSequenceGenerator(sigGen.getRawOutputStream());
+        eiGen.addObject(eContentType);
+        OutputStream encapStream = encapsulate ? CMSUtils.createBEROctetOutputStream(eiGen.getRawOutputStream(), 0, true, _bufferSize) : null;
+        OutputStream contentStream = CMSUtils.getSafeTeeOutputStream(dataOutputStream, encapStream);
+        OutputStream digStream = CMSUtils.attachDigestsToOutputStream(_messageDigests, contentStream);
+        OutputStream sigStream = CMSUtils.attachSignersToOutputStream(signerGens, digStream);
+        return new CmsSignedDataOutputStream(sigStream, eContentType, sGen, sigGen, eiGen);
+    }
+
+    void generate(OutputStream out, String eContentType, boolean encapsulate, OutputStream dataOutputStream, CMSProcessable content)
+        throws CMSException, IOException
+    {
+        OutputStream signedOut = open(out, eContentType, encapsulate, dataOutputStream);
+        if(content != null)
+            content.write(signedOut);
+        signedOut.close();
+    }
+
+    private DERInteger calculateVersion(ASN1ObjectIdentifier contentOid)
+    {
+        boolean otherCert = false;
+        boolean otherCrl = false;
+        boolean attrCertV1Found = false;
+        boolean attrCertV2Found = false;
+        if(certs != null)
+        {
+            Iterator it = certs.iterator();
+            do
+            {
+                if(!it.hasNext())
+                    break;
+                Object obj = it.next();
+                if(obj instanceof ASN1TaggedObject)
+                {
+                    ASN1TaggedObject tagged = (ASN1TaggedObject)obj;
+                    if(tagged.getTagNo() == 1)
+                        attrCertV1Found = true;
+                    else
+                    if(tagged.getTagNo() == 2)
+                        attrCertV2Found = true;
+                    else
+                    if(tagged.getTagNo() == 3)
+                        otherCert = true;
+                }
+            } while(true);
+        }
+        if(otherCert)
+            return new DERInteger(5);
+        if(crls != null)
+        {
+            Iterator it = crls.iterator();
+            do
+            {
+                if(!it.hasNext())
+                    break;
+                Object obj = it.next();
+                if(obj instanceof ASN1TaggedObject)
+                    otherCrl = true;
+            } while(true);
+        }
+        if(otherCrl)
+            return new DERInteger(5);
+        if(attrCertV2Found)
+            return new DERInteger(4);
+        if(attrCertV1Found)
+            return new DERInteger(3);
+        if(checkForVersion3(_signers))
+            return new DERInteger(3);
+        if(!CMSObjectIdentifiers.data.equals(contentOid))
+            return new DERInteger(3);
+        else
+            return new DERInteger(1);
+    }
+
+    private boolean checkForVersion3(List signerInfos)
+    {
+        for(Iterator it = signerInfos.iterator(); it.hasNext();)
+        {
+            SignerInfo s = SignerInfo.getInstance(((SignerInformation)it.next()).toSignerInfo());
+            if(s.getVersion().getValue().intValue() == 3)
+                return true;
+        }
+
+        return false;
+    }
+
+    private List _signerInfs;
+    private List _messageDigests;
+    private int _bufferSize;
+
+}

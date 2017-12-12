@@ -1,0 +1,108 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   FileBackedMimeBodyPart.java
+
+package org.bouncycastle.mail.smime.util;
+
+import java.io.*;
+import java.util.Enumeration;
+import javax.mail.MessagingException;
+import javax.mail.internet.InternetHeaders;
+import javax.mail.internet.MimeBodyPart;
+
+// Referenced classes of package org.bouncycastle.mail.smime.util:
+//            SharedFileInputStream
+
+public class FileBackedMimeBodyPart extends MimeBodyPart
+{
+
+    public FileBackedMimeBodyPart(File file)
+        throws MessagingException, IOException
+    {
+        super(new SharedFileInputStream(file));
+        _file = file;
+    }
+
+    public FileBackedMimeBodyPart(InputStream content, File file)
+        throws MessagingException, IOException
+    {
+        this(saveStreamToFile(content, file));
+    }
+
+    public FileBackedMimeBodyPart(InternetHeaders headers, InputStream body, File file)
+        throws MessagingException, IOException
+    {
+        this(saveStreamToFile(headers, body, file));
+    }
+
+    public void writeTo(OutputStream out)
+        throws IOException, MessagingException
+    {
+        if(!_file.exists())
+        {
+            throw new IOException((new StringBuilder()).append("file ").append(_file.getCanonicalPath()).append(" no longer exists.").toString());
+        } else
+        {
+            super.writeTo(out);
+            return;
+        }
+    }
+
+    public void dispose()
+        throws IOException
+    {
+        ((SharedFileInputStream)contentStream).getRoot().dispose();
+        if(_file.exists() && !_file.delete())
+            throw new IOException((new StringBuilder()).append("deletion of underlying file <").append(_file.getCanonicalPath()).append("> failed.").toString());
+        else
+            return;
+    }
+
+    private static File saveStreamToFile(InputStream content, File tempFile)
+        throws IOException
+    {
+        saveContentToStream(new FileOutputStream(tempFile), content);
+        return tempFile;
+    }
+
+    private static File saveStreamToFile(InternetHeaders headers, InputStream content, File tempFile)
+        throws IOException
+    {
+        OutputStream out = new FileOutputStream(tempFile);
+        for(Enumeration en = headers.getAllHeaderLines(); en.hasMoreElements(); writeHeader(out, (String)en.nextElement()));
+        writeSeperator(out);
+        saveContentToStream(out, content);
+        return tempFile;
+    }
+
+    private static void writeHeader(OutputStream out, String header)
+        throws IOException
+    {
+        for(int i = 0; i != header.length(); i++)
+            out.write(header.charAt(i));
+
+        writeSeperator(out);
+    }
+
+    private static void writeSeperator(OutputStream out)
+        throws IOException
+    {
+        out.write(13);
+        out.write(10);
+    }
+
+    private static void saveContentToStream(OutputStream out, InputStream content)
+        throws IOException
+    {
+        byte buf[] = new byte[32760];
+        int len;
+        while((len = content.read(buf, 0, buf.length)) > 0) 
+            out.write(buf, 0, len);
+        out.close();
+        content.close();
+    }
+
+    private static final int BUF_SIZE = 32760;
+    private final File _file;
+}

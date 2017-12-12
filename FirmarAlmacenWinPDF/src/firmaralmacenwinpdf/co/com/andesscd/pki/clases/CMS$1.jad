@@ -1,0 +1,36 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CMS.java
+
+package co.com.andesscd.pki.clases;
+
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CMS
+
+static class CMS$1
+{
+
+    static final int $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[];
+
+    static 
+    {
+        $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria = new int[enteHoraria.values().length];
+        try
+        {
+            $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[enteHoraria.LOCAL.ordinal()] = 1;
+        }
+        catch(NoSuchFieldError ex) { }
+        try
+        {
+            $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[enteHoraria.SNTP.ordinal()] = 2;
+        }
+        catch(NoSuchFieldError ex) { }
+        try
+        {
+            $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[enteHoraria.TSA.ordinal()] = 3;
+        }
+        catch(NoSuchFieldError ex) { }
+    }
+}

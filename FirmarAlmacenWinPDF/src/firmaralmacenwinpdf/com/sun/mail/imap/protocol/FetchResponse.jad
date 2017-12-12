@@ -1,0 +1,222 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   FetchResponse.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.*;
+import java.io.IOException;
+import java.util.*;
+
+// Referenced classes of package com.sun.mail.imap.protocol:
+//            IMAPResponse, Item, ENVELOPE, FLAGS, 
+//            INTERNALDATE, BODYSTRUCTURE, BODY, RFC822SIZE, 
+//            RFC822DATA, UID, FetchItem
+
+public class FetchResponse extends IMAPResponse
+{
+
+    public FetchResponse(Protocol p)
+        throws IOException, ProtocolException
+    {
+        super(p);
+        fitems = null;
+        parse();
+    }
+
+    public FetchResponse(IMAPResponse r)
+        throws IOException, ProtocolException
+    {
+        this(r, null);
+    }
+
+    public FetchResponse(IMAPResponse r, FetchItem fitems[])
+        throws IOException, ProtocolException
+    {
+        super(r);
+        this.fitems = fitems;
+        parse();
+    }
+
+    public int getItemCount()
+    {
+        return items.length;
+    }
+
+    public Item getItem(int index)
+    {
+        return items[index];
+    }
+
+    public Item getItem(Class c)
+    {
+        for(int i = 0; i < items.length; i++)
+            if(c.isInstance(items[i]))
+                return items[i];
+
+        return null;
+    }
+
+    public static Item getItem(Response r[], int msgno, Class c)
+    {
+        if(r == null)
+            return null;
+label0:
+        for(int i = 0; i < r.length; i++)
+        {
+            if(r[i] == null || !(r[i] instanceof FetchResponse) || ((FetchResponse)r[i]).getNumber() != msgno)
+                continue;
+            FetchResponse f = (FetchResponse)r[i];
+            int j = 0;
+            do
+            {
+                if(j >= f.items.length)
+                    continue label0;
+                if(c.isInstance(f.items[j]))
+                    return f.items[j];
+                j++;
+            } while(true);
+        }
+
+        return null;
+    }
+
+    public Map getExtensionItems()
+    {
+        if(extensionItems == null)
+            extensionItems = new HashMap();
+        return extensionItems;
+    }
+
+    private void parse()
+        throws ParsingException
+    {
+        skipSpaces();
+        if(buffer[index] != 40)
+            throw new ParsingException((new StringBuilder()).append("error in FETCH parsing, missing '(' at index ").append(index).toString());
+        Vector v = new Vector();
+        Item i = null;
+        do
+        {
+            index++;
+            if(index >= size)
+                throw new ParsingException((new StringBuilder()).append("error in FETCH parsing, ran off end of buffer, size ").append(size).toString());
+            i = parseItem();
+            if(i != null)
+                v.addElement(i);
+            else
+            if(!parseExtensionItem())
+                throw new ParsingException((new StringBuilder()).append("error in FETCH parsing, unrecognized item at index ").append(index).toString());
+        } while(buffer[index] != 41);
+        index++;
+        items = new Item[v.size()];
+        v.copyInto(items);
+    }
+
+    private Item parseItem()
+        throws ParsingException
+    {
+        switch(buffer[index])
+        {
+        default:
+            break;
+
+        case 69: // 'E'
+        case 101: // 'e'
+            if(match(ENVELOPE.name))
+                return new ENVELOPE(this);
+            break;
+
+        case 70: // 'F'
+        case 102: // 'f'
+            if(match(FLAGS.name))
+                return new FLAGS(this);
+            break;
+
+        case 73: // 'I'
+        case 105: // 'i'
+            if(match(INTERNALDATE.name))
+                return new INTERNALDATE(this);
+            break;
+
+        case 66: // 'B'
+        case 98: // 'b'
+            if(match(BODYSTRUCTURE.name))
+                return new BODYSTRUCTURE(this);
+            if(!match(BODY.name))
+                break;
+            if(buffer[index] == 91)
+                return new BODY(this);
+            else
+                return new BODYSTRUCTURE(this);
+
+        case 82: // 'R'
+        case 114: // 'r'
+            if(match(RFC822SIZE.name))
+                return new RFC822SIZE(this);
+            if(!match(RFC822DATA.name))
+                break;
+            if(!match(HEADER))
+                if(!match(TEXT));
+            return new RFC822DATA(this);
+
+        case 85: // 'U'
+        case 117: // 'u'
+            if(match(UID.name))
+                return new UID(this);
+            break;
+        }
+        return null;
+    }
+
+    private boolean parseExtensionItem()
+        throws ParsingException
+    {
+        if(fitems == null)
+            return false;
+        for(int i = 0; i < fitems.length; i++)
+            if(match(fitems[i].getName()))
+            {
+                getExtensionItems().put(fitems[i].getName(), fitems[i].parseItem(this));
+                return true;
+            }
+
+        return false;
+    }
+
+    private boolean match(char itemName[])
+    {
+        int len = itemName.length;
+        int i = 0;
+        int j = index;
+        while(i < len) 
+            if(Character.toUpperCase((char)buffer[j++]) != itemName[i++])
+                return false;
+        index += len;
+        return true;
+    }
+
+    private boolean match(String itemName)
+    {
+        int len = itemName.length();
+        int i = 0;
+        int j = index;
+        while(i < len) 
+            if(Character.toUpperCase((char)buffer[j++]) != itemName.charAt(i++))
+                return false;
+        index += len;
+        return true;
+    }
+
+    private Item items[];
+    private Map extensionItems;
+    private final FetchItem fitems[];
+    private static final char HEADER[] = {
+        '.', 'H', 'E', 'A', 'D', 'E', 'R'
+    };
+    private static final char TEXT[] = {
+        '.', 'T', 'E', 'X', 'T'
+    };
+
+}

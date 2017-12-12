@@ -1,0 +1,297 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   AndesSCDApplet.java
+
+package co.com.andesscd.pki.clases;
+
+import co.com.andesscd.Auxiliar;
+import co.com.andesscd.Base64Coder;
+import java.applet.Applet;
+import java.awt.HeadlessException;
+import java.io.*;
+import java.math.BigInteger;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.cert.X509Certificate;
+import java.util.*;
+import javax.security.auth.x500.X500Principal;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CMS
+
+public class AndesSCDApplet extends Applet
+{
+
+    public AndesSCDApplet()
+    {
+    }
+
+    public void init()
+    {
+        System.out.println("El applet ha iniciado 4");
+        try
+        {
+            CMS.setFull(null);
+        }
+        catch(Exception e)
+        {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    protected static String quote(String string)
+    {
+        if(string == null || string.length() == 0)
+            return "\"\"";
+        char c = '\0';
+        int len = string.length();
+        StringBuilder sb = new StringBuilder(len + 4);
+        sb.append('"');
+        for(int i = 0; i < len; i++)
+        {
+            c = string.charAt(i);
+            switch(c)
+            {
+            case 34: // '"'
+            case 92: // '\\'
+                sb.append('\\');
+                sb.append(c);
+                break;
+
+            case 47: // '/'
+                sb.append('\\');
+                sb.append(c);
+                break;
+
+            case 8: // '\b'
+                sb.append("\\b");
+                break;
+
+            case 9: // '\t'
+                sb.append("\\t");
+                break;
+
+            case 10: // '\n'
+                sb.append("\\n");
+                break;
+
+            case 12: // '\f'
+                sb.append("\\f");
+                break;
+
+            case 13: // '\r'
+                sb.append("\\r");
+                break;
+
+            default:
+                if(c < ' ')
+                {
+                    String t = (new StringBuilder()).append("000").append(Integer.toHexString(c)).toString();
+                    sb.append((new StringBuilder()).append("\\u").append(t.substring(t.length() - 4)).toString());
+                } else
+                {
+                    sb.append(c);
+                }
+                break;
+            }
+        }
+
+        sb.append('"');
+        return sb.toString();
+    }
+
+    public String listarWindowsStore(int serialRadix)
+    {
+        String json = "[";
+        HashMap certificados;
+        certificados = (HashMap)AccessController.doPrivileged(new PrivilegedAction() {
+
+            public Object run()
+            {
+                try
+                {
+                    return CMS.listarWindowsStore();
+                }
+                catch(Exception e)
+                {
+                    System.out.println(e.getMessage());
+                    JOptionPane.showMessageDialog(null, (new StringBuilder()).append("No fue posible listar los certificados del almacen de windows. ").append(e.getMessage()).toString(), "Error", 0);
+                    return null;
+                }
+            }
+
+            final AndesSCDApplet this$0;
+
+            
+            {
+                this$0 = AndesSCDApplet.this;
+                super();
+            }
+        }
+);
+        if(certificados != null)
+            break MISSING_BLOCK_LABEL_52;
+        String s = "[]";
+        json = (new StringBuilder()).append(json).append("]").toString();
+        return json;
+        for(Iterator it = certificados.entrySet().iterator(); it.hasNext();)
+        {
+            String o = "{";
+            java.util.Map.Entry e = (java.util.Map.Entry)it.next();
+            X509Certificate cert = (X509Certificate)e.getValue();
+            String subject = cert.getSubjectX500Principal().toString();
+            o = (new StringBuilder()).append(o).append("\"alias\":").append(quote((String)e.getKey())).append(", \"serial\":").append(quote(cert.getSerialNumber().toString(serialRadix))).append(", \"dn\":").append(quote(subject)).append("").toString();
+            o = (new StringBuilder()).append(o).append("}").toString();
+            if(it.hasNext())
+                o = (new StringBuilder()).append(o).append(", ").toString();
+            json = (new StringBuilder()).append(json).append(o).toString();
+        }
+
+        System.out.println((new StringBuilder()).append("Cantidad de certificados: ").append(certificados.size()).toString());
+        json = (new StringBuilder()).append(json).append("]").toString();
+        return json;
+        Exception e;
+        e;
+        System.out.println(e.getMessage());
+        JOptionPane.showMessageDialog(null, (new StringBuilder()).append("No fue posible listar los certificados del almacen de windows. ").append(e.getMessage()).toString(), "Error", 0);
+        json = (new StringBuilder()).append(json).append("]").toString();
+        return json;
+        Exception exception;
+        exception;
+        json = (new StringBuilder()).append(json).append("]").toString();
+        return json;
+    }
+
+    public void setFuenteHorariaLocal()
+    {
+        CMS.setFuenteHorariaLocal();
+    }
+
+    public void setFuenteHorariaSNTP(String urlFuenteHoraria)
+    {
+        CMS.setFuenteHorariaSNTP(urlFuenteHoraria);
+    }
+
+    public void setFuenteHorariaTSA(String urlFuenteHoraria, String loginFuenteHoraria, String passwordFuenteHoraria)
+    {
+        CMS.setFuenteHorariaTSA(urlFuenteHoraria, loginFuenteHoraria, passwordFuenteHoraria);
+    }
+
+    public String firmar(String datos, String alias, String password, int intentos)
+    {
+        class _cls1Accion
+            implements PrivilegedAction
+        {
+
+            public Object run()
+            {
+                do
+                    try
+                    {
+                        intentos--;
+                        firma = CMS.firmar(datos, alias, password);
+                        return firma;
+                    }
+                    catch(Exception e)
+                    {
+                        String error = e.getMessage();
+                        System.out.println(e.getMessage());
+                        System.out.println("Intentando firmar nuevamente");
+                        if(intentos <= 0)
+                        {
+                            JOptionPane.showMessageDialog(null, error, "Error", 0);
+                            return null;
+                        }
+                    }
+                while(true);
+            }
+
+            String datos;
+            String alias;
+            String password;
+            String tsaUrl;
+            String tsaUser;
+            String tsaPassword;
+            String firma;
+            int intentos;
+            final AndesSCDApplet this$0;
+
+            public _cls1Accion(String datos, String alias, String password, int intentos)
+            {
+                this$0 = AndesSCDApplet.this;
+                super();
+                this.datos = datos;
+                this.alias = alias;
+                this.password = password;
+                tsaUrl = tsaUrl;
+                tsaUser = tsaUser;
+                tsaPassword = tsaPassword;
+                this.intentos = intentos;
+            }
+        }
+
+        _cls1Accion accion = new _cls1Accion(datos, alias, password, intentos);
+        AccessController.doPrivileged(accion);
+        return accion.firma;
+    }
+
+    public String file2Base64()
+    {
+        class _cls2Accion
+            implements PrivilegedAction
+        {
+
+            public Object run()
+            {
+                try
+                {
+                    JFileChooser fc = new JFileChooser();
+                    int returnVal = fc.showOpenDialog(null);
+                    if(returnVal == 0)
+                    {
+                        File file = fc.getSelectedFile();
+                        if(file.isFile())
+                        {
+                            base64 = new String(Base64Coder.encode(Auxiliar.inputStream2ByteArray(new FileInputStream(file))));
+                            path = file.getAbsolutePath();
+                            name = file.getName();
+                        }
+                    }
+                    return base64;
+                }
+                catch(Exception e)
+                {
+                    System.out.println(e.getMessage());
+                    JOptionPane.showMessageDialog(null, (new StringBuilder()).append("No fue posible convertir el archovo a base 64: ").append(e.getMessage()).toString(), "Error", 0);
+                    return null;
+                }
+            }
+
+            String path;
+            String name;
+            String base64;
+            final AndesSCDApplet this$0;
+
+            public _cls2Accion()
+            {
+                this$0 = AndesSCDApplet.this;
+                super();
+                path = "";
+                name = "";
+                base64 = "";
+            }
+        }
+
+        _cls2Accion accion = new _cls2Accion();
+        AccessController.doPrivileged(accion);
+        path = accion.path;
+        name = accion.name;
+        return accion.base64;
+    }
+
+    public String path;
+    public String name;
+}

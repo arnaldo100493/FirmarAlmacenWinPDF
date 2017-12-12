@@ -1,0 +1,51 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Jpeg2000.java
+
+package co.com.pdf.text;
+
+import java.util.ArrayList;
+
+// Referenced classes of package co.com.pdf.text:
+//            Jpeg2000
+
+public static class Jpeg2000$ColorSpecBox extends ArrayList
+{
+
+    public int getMeth()
+    {
+        return ((Integer)get(0)).intValue();
+    }
+
+    public int getPrec()
+    {
+        return ((Integer)get(1)).intValue();
+    }
+
+    public int getApprox()
+    {
+        return ((Integer)get(2)).intValue();
+    }
+
+    public int getEnumCs()
+    {
+        return ((Integer)get(3)).intValue();
+    }
+
+    public byte[] getColorProfile()
+    {
+        return colorProfile;
+    }
+
+    void setColorProfile(byte colorProfile[])
+    {
+        this.colorProfile = colorProfile;
+    }
+
+    private byte colorProfile[];
+
+    public Jpeg2000$ColorSpecBox()
+    {
+    }
+}

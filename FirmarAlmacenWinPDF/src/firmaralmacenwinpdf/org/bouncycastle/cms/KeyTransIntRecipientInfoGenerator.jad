@@ -1,0 +1,89 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KeyTransIntRecipientInfoGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.X509Certificate;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.*;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            IntRecipientInfoGenerator, CMSUtils, CMSEnvelopedHelper
+
+class KeyTransIntRecipientInfoGenerator
+    implements IntRecipientInfoGenerator
+{
+
+    KeyTransIntRecipientInfoGenerator()
+    {
+    }
+
+    void setRecipientCert(X509Certificate recipientCert)
+    {
+        recipientTBSCert = CMSUtils.getTBSCertificateStructure(recipientCert);
+        recipientPublicKey = recipientCert.getPublicKey();
+        info = recipientTBSCert.getSubjectPublicKeyInfo();
+    }
+
+    void setRecipientPublicKey(PublicKey recipientPublicKey)
+    {
+        this.recipientPublicKey = recipientPublicKey;
+        try
+        {
+            info = SubjectPublicKeyInfo.getInstance(ASN1Object.fromByteArray(recipientPublicKey.getEncoded()));
+        }
+        catch(IOException e)
+        {
+            throw new IllegalArgumentException("can't extract key algorithm from this key");
+        }
+    }
+
+    void setSubjectKeyIdentifier(ASN1OctetString subjectKeyIdentifier)
+    {
+        this.subjectKeyIdentifier = subjectKeyIdentifier;
+    }
+
+    public RecipientInfo generate(SecretKey contentEncryptionKey, SecureRandom random, Provider prov)
+        throws GeneralSecurityException
+    {
+        AlgorithmIdentifier keyEncryptionAlgorithm = info.getAlgorithmId();
+        byte encryptedKeyBytes[] = null;
+        Cipher keyEncryptionCipher = CMSEnvelopedHelper.INSTANCE.createAsymmetricCipher(keyEncryptionAlgorithm.getObjectId().getId(), prov);
+        try
+        {
+            keyEncryptionCipher.init(3, recipientPublicKey, random);
+            encryptedKeyBytes = keyEncryptionCipher.wrap(contentEncryptionKey);
+        }
+        catch(GeneralSecurityException e) { }
+        catch(IllegalStateException e) { }
+        catch(UnsupportedOperationException e) { }
+        catch(ProviderException e) { }
+        if(encryptedKeyBytes == null)
+        {
+            keyEncryptionCipher.init(1, recipientPublicKey, random);
+            encryptedKeyBytes = keyEncryptionCipher.doFinal(contentEncryptionKey.getEncoded());
+        }
+        RecipientIdentifier recipId;
+        if(recipientTBSCert != null)
+        {
+            IssuerAndSerialNumber issuerAndSerial = new IssuerAndSerialNumber(recipientTBSCert.getIssuer(), recipientTBSCert.getSerialNumber().getValue());
+            recipId = new RecipientIdentifier(issuerAndSerial);
+        } else
+        {
+            recipId = new RecipientIdentifier(subjectKeyIdentifier);
+        }
+        return new RecipientInfo(new KeyTransRecipientInfo(recipId, keyEncryptionAlgorithm, new DEROctetString(encryptedKeyBytes)));
+    }
+
+    private TBSCertificateStructure recipientTBSCert;
+    private PublicKey recipientPublicKey;
+    private ASN1OctetString subjectKeyIdentifier;
+    private SubjectPublicKeyInfo info;
+}

@@ -1,0 +1,80 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ExceptionConverter.java
+
+package co.com.pdf.text;
+
+import java.io.PrintStream;
+import java.io.PrintWriter;
+
+public class ExceptionConverter extends RuntimeException
+{
+
+    public ExceptionConverter(Exception ex)
+    {
+        super(ex);
+        this.ex = ex;
+        prefix = (ex instanceof RuntimeException) ? "" : "ExceptionConverter: ";
+    }
+
+    public static final RuntimeException convertException(Exception ex)
+    {
+        if(ex instanceof RuntimeException)
+            return (RuntimeException)ex;
+        else
+            return new ExceptionConverter(ex);
+    }
+
+    public Exception getException()
+    {
+        return ex;
+    }
+
+    public String getMessage()
+    {
+        return ex.getMessage();
+    }
+
+    public String getLocalizedMessage()
+    {
+        return ex.getLocalizedMessage();
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append(prefix).append(ex).toString();
+    }
+
+    public void printStackTrace()
+    {
+        printStackTrace(System.err);
+    }
+
+    public void printStackTrace(PrintStream s)
+    {
+        synchronized(s)
+        {
+            s.print(prefix);
+            ex.printStackTrace(s);
+        }
+    }
+
+    public void printStackTrace(PrintWriter s)
+    {
+        synchronized(s)
+        {
+            s.print(prefix);
+            ex.printStackTrace(s);
+        }
+    }
+
+    public Throwable fillInStackTrace()
+    {
+        return this;
+    }
+
+    private static final long serialVersionUID = 0x782614f206d87cb7L;
+    private Exception ex;
+    private String prefix;
+}

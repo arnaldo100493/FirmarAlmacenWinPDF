@@ -1,0 +1,73 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CompressedData.java
+
+package org.bouncycastle.asn1.cms;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.asn1.cms:
+//            ContentInfo
+
+public class CompressedData extends ASN1Encodable
+{
+
+    public CompressedData(AlgorithmIdentifier compressionAlgorithm, ContentInfo encapContentInfo)
+    {
+        version = new DERInteger(0);
+        this.compressionAlgorithm = compressionAlgorithm;
+        this.encapContentInfo = encapContentInfo;
+    }
+
+    public CompressedData(ASN1Sequence seq)
+    {
+        version = (DERInteger)seq.getObjectAt(0);
+        compressionAlgorithm = AlgorithmIdentifier.getInstance(seq.getObjectAt(1));
+        encapContentInfo = ContentInfo.getInstance(seq.getObjectAt(2));
+    }
+
+    public static CompressedData getInstance(ASN1TaggedObject _ato, boolean _explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(_ato, _explicit));
+    }
+
+    public static CompressedData getInstance(Object _obj)
+    {
+        if(_obj == null || (_obj instanceof CompressedData))
+            return (CompressedData)_obj;
+        if(_obj instanceof ASN1Sequence)
+            return new CompressedData((ASN1Sequence)_obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid CompressedData: ").append(_obj.getClass().getName()).toString());
+    }
+
+    public DERInteger getVersion()
+    {
+        return version;
+    }
+
+    public AlgorithmIdentifier getCompressionAlgorithmIdentifier()
+    {
+        return compressionAlgorithm;
+    }
+
+    public ContentInfo getEncapContentInfo()
+    {
+        return encapContentInfo;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(version);
+        v.add(compressionAlgorithm);
+        v.add(encapContentInfo);
+        return new BERSequence(v);
+    }
+
+    private DERInteger version;
+    private AlgorithmIdentifier compressionAlgorithm;
+    private ContentInfo encapContentInfo;
+}

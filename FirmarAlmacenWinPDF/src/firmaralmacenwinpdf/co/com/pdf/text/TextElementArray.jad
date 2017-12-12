@@ -1,0 +1,17 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TextElementArray.java
+
+package co.com.pdf.text;
+
+
+// Referenced classes of package co.com.pdf.text:
+//            Element
+
+public interface TextElementArray
+    extends Element
+{
+
+    public abstract boolean add(Element element);
+}

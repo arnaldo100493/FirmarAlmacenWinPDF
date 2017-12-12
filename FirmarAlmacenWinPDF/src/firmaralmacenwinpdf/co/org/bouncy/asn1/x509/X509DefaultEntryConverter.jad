@@ -1,0 +1,43 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509DefaultEntryConverter.java
+
+package co.org.bouncy.asn1.x509;
+
+import co.org.bouncy.asn1.*;
+import java.io.IOException;
+
+// Referenced classes of package co.org.bouncy.asn1.x509:
+//            X509NameEntryConverter, X509Name
+
+public class X509DefaultEntryConverter extends X509NameEntryConverter
+{
+
+    public X509DefaultEntryConverter()
+    {
+    }
+
+    public ASN1Primitive getConvertedValue(ASN1ObjectIdentifier oid, String value)
+    {
+        if(value.length() != 0 && value.charAt(0) == '#')
+            try
+            {
+                return convertHexEncoded(value, 1);
+            }
+            catch(IOException e)
+            {
+                throw new RuntimeException((new StringBuilder()).append("can't recode value for oid ").append(oid.getId()).toString());
+            }
+        if(value.length() != 0 && value.charAt(0) == '\\')
+            value = value.substring(1);
+        if(oid.equals(X509Name.EmailAddress) || oid.equals(X509Name.DC))
+            return new DERIA5String(value);
+        if(oid.equals(X509Name.DATE_OF_BIRTH))
+            return new DERGeneralizedTime(value);
+        if(oid.equals(X509Name.C) || oid.equals(X509Name.SN) || oid.equals(X509Name.DN_QUALIFIER) || oid.equals(X509Name.TELEPHONE_NUMBER))
+            return new DERPrintableString(value);
+        else
+            return new DERUTF8String(value);
+    }
+}

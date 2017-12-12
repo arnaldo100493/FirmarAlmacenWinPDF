@@ -1,0 +1,139 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Rectangle2D.java
+
+package co.com.pdf.awt.geom;
+
+import co.com.pdf.awt.geom.misc.Messages;
+import java.util.NoSuchElementException;
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            PathIterator, Rectangle2D, AffineTransform
+
+class Rectangle2D$Iterator
+    implements PathIterator
+{
+
+    public int getWindingRule()
+    {
+        return 1;
+    }
+
+    public boolean isDone()
+    {
+        return index > 5;
+    }
+
+    public void next()
+    {
+        index++;
+    }
+
+    public int currentSegment(double coords[])
+    {
+        if(isDone())
+            throw new NoSuchElementException(Messages.getString("awt.4B"));
+        if(index == 5)
+            return 4;
+        int type;
+        if(index == 0)
+        {
+            type = 0;
+            coords[0] = x;
+            coords[1] = y;
+        } else
+        {
+            type = 1;
+            switch(index)
+            {
+            case 1: // '\001'
+                coords[0] = x + width;
+                coords[1] = y;
+                break;
+
+            case 2: // '\002'
+                coords[0] = x + width;
+                coords[1] = y + height;
+                break;
+
+            case 3: // '\003'
+                coords[0] = x;
+                coords[1] = y + height;
+                break;
+
+            case 4: // '\004'
+                coords[0] = x;
+                coords[1] = y;
+                break;
+            }
+        }
+        if(t != null)
+            t.transform(coords, 0, coords, 0, 1);
+        return type;
+    }
+
+    public int currentSegment(float coords[])
+    {
+        if(isDone())
+            throw new NoSuchElementException(Messages.getString("awt.4B"));
+        if(index == 5)
+            return 4;
+        int type;
+        if(index == 0)
+        {
+            coords[0] = (float)x;
+            coords[1] = (float)y;
+            type = 0;
+        } else
+        {
+            type = 1;
+            switch(index)
+            {
+            case 1: // '\001'
+                coords[0] = (float)(x + width);
+                coords[1] = (float)y;
+                break;
+
+            case 2: // '\002'
+                coords[0] = (float)(x + width);
+                coords[1] = (float)(y + height);
+                break;
+
+            case 3: // '\003'
+                coords[0] = (float)x;
+                coords[1] = (float)(y + height);
+                break;
+
+            case 4: // '\004'
+                coords[0] = (float)x;
+                coords[1] = (float)y;
+                break;
+            }
+        }
+        if(t != null)
+            t.transform(coords, 0, coords, 0, 1);
+        return type;
+    }
+
+    double x;
+    double y;
+    double width;
+    double height;
+    AffineTransform t;
+    int index;
+    final Rectangle2D this$0;
+
+    Rectangle2D$Iterator(Rectangle2D r, AffineTransform at)
+    {
+        this$0 = Rectangle2D.this;
+        super();
+        x = r.getX();
+        y = r.getY();
+        width = r.getWidth();
+        height = r.getHeight();
+        t = at;
+        if(width < 0.0D || height < 0.0D)
+            index = 6;
+    }
+}

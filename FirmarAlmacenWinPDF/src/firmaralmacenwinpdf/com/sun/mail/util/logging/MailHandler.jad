@@ -1,0 +1,2586 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailHandler.java
+
+package com.sun.mail.util.logging;
+
+import com.sun.mail.smtp.SMTPTransport;
+import java.io.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.net.*;
+import java.nio.charset.Charset;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.*;
+import java.util.logging.*;
+import javax.activation.DataHandler;
+import javax.activation.FileTypeMap;
+import javax.mail.*;
+import javax.mail.internet.*;
+import javax.mail.util.ByteArrayDataSource;
+
+// Referenced classes of package com.sun.mail.util.logging:
+//            LogManagerProperties
+
+public class MailHandler extends Handler
+{
+    private static final class TailNameFormatter extends Formatter
+    {
+
+        public final String format(LogRecord record)
+        {
+            return "";
+        }
+
+        public final String getTail(Handler h)
+        {
+            return name;
+        }
+
+        public final boolean equals(Object o)
+        {
+            if(o instanceof TailNameFormatter)
+                return name.equals(((TailNameFormatter)o).name);
+            else
+                return false;
+        }
+
+        public final int hashCode()
+        {
+            return getClass().hashCode() + name.hashCode();
+        }
+
+        public final String toString()
+        {
+            return name;
+        }
+
+        private final String name;
+        static final boolean $assertionsDisabled = !com/sun/mail/util/logging/MailHandler.desiredAssertionStatus();
+
+
+        TailNameFormatter(String name)
+        {
+            if(!$assertionsDisabled && name == null)
+            {
+                throw new AssertionError();
+            } else
+            {
+                this.name = name;
+                return;
+            }
+        }
+    }
+
+    private static final class GetAndSetContext
+        implements PrivilegedAction
+    {
+
+        public final Object run()
+        {
+            Thread current = Thread.currentThread();
+            ClassLoader ccl = current.getContextClassLoader();
+            ClassLoader loader;
+            if(source == null)
+                loader = null;
+            else
+            if(source instanceof ClassLoader)
+                loader = (ClassLoader)source;
+            else
+            if(source instanceof Class)
+                loader = ((Class)source).getClassLoader();
+            else
+                loader = source.getClass().getClassLoader();
+            if(ccl != loader)
+            {
+                current.setContextClassLoader(loader);
+                return ccl;
+            } else
+            {
+                return this;
+            }
+        }
+
+        private final Object source;
+
+        GetAndSetContext(Object source)
+        {
+            this.source = source;
+        }
+    }
+
+    private static final class DefaultAuthenticator extends Authenticator
+    {
+
+        protected final PasswordAuthentication getPasswordAuthentication()
+        {
+            return new PasswordAuthentication(getDefaultUserName(), pass);
+        }
+
+        private final String pass;
+        static final boolean $assertionsDisabled = !com/sun/mail/util/logging/MailHandler.desiredAssertionStatus();
+
+
+        DefaultAuthenticator(String pass)
+        {
+            if(!$assertionsDisabled && pass == null)
+            {
+                throw new AssertionError();
+            } else
+            {
+                this.pass = pass;
+                return;
+            }
+        }
+    }
+
+
+    public MailHandler()
+    {
+        init((Properties)null);
+        sealed = true;
+    }
+
+    public MailHandler(int capacity)
+    {
+        init((Properties)null);
+        sealed = true;
+        setCapacity0(capacity);
+    }
+
+    public MailHandler(Properties props)
+    {
+        if(props == null)
+        {
+            throw new NullPointerException();
+        } else
+        {
+            init(props);
+            sealed = true;
+            setMailProperties0(props);
+            return;
+        }
+    }
+
+    public boolean isLoggable(LogRecord record)
+    {
+        int levelValue = getLevel().intValue();
+        if(record.getLevel().intValue() < levelValue || levelValue == offValue)
+            return false;
+        Filter body = getFilter();
+        if(body == null || body.isLoggable(record))
+            return true;
+        else
+            return isAttachmentLoggable(record);
+    }
+
+    public void publish(LogRecord record)
+    {
+        if(!tryMutex())
+            break MISSING_BLOCK_LABEL_42;
+        if(isLoggable(record))
+        {
+            record.getSourceMethodName();
+            publish0(record);
+        }
+        releaseMutex();
+        break MISSING_BLOCK_LABEL_47;
+        Exception exception;
+        exception;
+        releaseMutex();
+        throw exception;
+        reportUnPublishedError(record);
+    }
+
+    private void publish0(LogRecord record)
+    {
+        Message msg;
+        boolean priority;
+        synchronized(this)
+        {
+            if(size == data.length && size < capacity)
+                grow();
+            if(size < data.length)
+            {
+                data[size] = record;
+                size++;
+                priority = isPushable(record);
+                if(priority || size >= capacity)
+                    msg = writeLogRecords(1);
+                else
+                    msg = null;
+            } else
+            {
+                priority = false;
+                msg = null;
+            }
+        }
+        if(msg != null)
+            send(msg, priority, 1);
+    }
+
+    private void reportUnPublishedError(LogRecord record)
+    {
+        if(!MUTEX_PUBLISH.equals(MUTEX.get()))
+            break MISSING_BLOCK_LABEL_158;
+        MUTEX.set(MUTEX_REPORT);
+        String msg;
+        if(record != null)
+        {
+            SimpleFormatter f = new SimpleFormatter();
+            msg = (new StringBuilder()).append("Log record ").append(record.getSequenceNumber()).append(" was not published. ").append(head(f)).append(format(f, record)).append(tail(f, "")).toString();
+        } else
+        {
+            msg = null;
+        }
+        Exception e = new IllegalStateException((new StringBuilder()).append("Recursive publish detected by thread ").append(Thread.currentThread()).toString());
+        reportError(msg, e, 1);
+        MUTEX.set(MUTEX_PUBLISH);
+        break MISSING_BLOCK_LABEL_158;
+        Exception exception;
+        exception;
+        MUTEX.set(MUTEX_PUBLISH);
+        throw exception;
+    }
+
+    private boolean tryMutex()
+    {
+        if(MUTEX.get() == null)
+        {
+            MUTEX.set(MUTEX_PUBLISH);
+            return true;
+        } else
+        {
+            return false;
+        }
+    }
+
+    private void releaseMutex()
+    {
+        MUTEX.remove();
+    }
+
+    public void push()
+    {
+        push(true, 2);
+    }
+
+    public void flush()
+    {
+        push(false, 2);
+    }
+
+    public void close()
+    {
+        Object ccl;
+        checkAccess();
+        ccl = getAndSetContextClassLoader();
+        Message msg = null;
+        MailHandler mailhandler = this;
+        JVM INSTR monitorenter ;
+        msg = writeLogRecords(3);
+        super.setLevel(Level.OFF);
+        if(capacity > 0)
+            capacity = -capacity;
+        if(size == 0 && data.length != 1)
+            data = new LogRecord[1];
+        break MISSING_BLOCK_LABEL_123;
+        Exception exception;
+        exception;
+        super.setLevel(Level.OFF);
+        if(capacity > 0)
+            capacity = -capacity;
+        if(size == 0 && data.length != 1)
+            data = new LogRecord[1];
+        throw exception;
+        Exception exception1;
+        exception1;
+        mailhandler;
+        JVM INSTR monitorexit ;
+        throw exception1;
+        setContextClassLoader(ccl);
+        break MISSING_BLOCK_LABEL_164;
+        Exception exception2;
+        exception2;
+        setContextClassLoader(ccl);
+        throw exception2;
+    }
+
+    public synchronized void setLevel(Level newLevel)
+    {
+        if(capacity > 0)
+        {
+            super.setLevel(newLevel);
+        } else
+        {
+            if(newLevel == null)
+                throw new NullPointerException();
+            checkAccess();
+        }
+    }
+
+    public final synchronized Level getPushLevel()
+    {
+        return pushLevel;
+    }
+
+    public final synchronized void setPushLevel(Level level)
+    {
+        checkAccess();
+        if(level == null)
+            throw new NullPointerException();
+        if(isWriting)
+        {
+            throw new IllegalStateException();
+        } else
+        {
+            pushLevel = level;
+            return;
+        }
+    }
+
+    public final synchronized Filter getPushFilter()
+    {
+        return pushFilter;
+    }
+
+    public final synchronized void setPushFilter(Filter filter)
+    {
+        checkAccess();
+        if(isWriting)
+        {
+            throw new IllegalStateException();
+        } else
+        {
+            pushFilter = filter;
+            return;
+        }
+    }
+
+    public final synchronized Comparator getComparator()
+    {
+        return comparator;
+    }
+
+    public final synchronized void setComparator(Comparator c)
+    {
+        checkAccess();
+        if(isWriting)
+        {
+            throw new IllegalStateException();
+        } else
+        {
+            comparator = c;
+            return;
+        }
+    }
+
+    public final synchronized int getCapacity()
+    {
+        if(!$assertionsDisabled && (capacity == 0x80000000 || capacity == 0))
+            throw new AssertionError(capacity);
+        else
+            return Math.abs(capacity);
+    }
+
+    public final synchronized Authenticator getAuthenticator()
+    {
+        checkAccess();
+        return auth;
+    }
+
+    public final void setAuthenticator(Authenticator auth)
+    {
+        setAuthenticator0(auth);
+    }
+
+    public final transient void setAuthenticator(char password[])
+    {
+        if(password == null)
+            setAuthenticator0((Authenticator)null);
+        else
+            setAuthenticator0(new DefaultAuthenticator(new String(password)));
+    }
+
+    private void setAuthenticator0(Authenticator auth)
+    {
+        checkAccess();
+        Session settings;
+        synchronized(this)
+        {
+            if(isWriting)
+                throw new IllegalStateException();
+            this.auth = auth;
+            settings = fixUpSession();
+        }
+        verifySettings(settings);
+    }
+
+    public final void setMailProperties(Properties props)
+    {
+        setMailProperties0(props);
+    }
+
+    private void setMailProperties0(Properties props)
+    {
+        checkAccess();
+        props = (Properties)props.clone();
+        Session settings;
+        synchronized(this)
+        {
+            if(isWriting)
+                throw new IllegalStateException();
+            mailProps = props;
+            settings = fixUpSession();
+        }
+        verifySettings(settings);
+    }
+
+    public final Properties getMailProperties()
+    {
+        checkAccess();
+        Properties props;
+        synchronized(this)
+        {
+            props = mailProps;
+        }
+        return (Properties)props.clone();
+    }
+
+    public final Filter[] getAttachmentFilters()
+    {
+        return (Filter[])readOnlyAttachmentFilters().clone();
+    }
+
+    public final transient void setAttachmentFilters(Filter filters[])
+    {
+        checkAccess();
+        filters = (Filter[])copyOf(filters, filters.length, [Ljava/util/logging/Filter;);
+        synchronized(this)
+        {
+            if(attachmentFormatters.length != filters.length)
+                throw attachmentMismatch(attachmentFormatters.length, filters.length);
+            if(isWriting)
+                throw new IllegalStateException();
+            attachmentFilters = filters;
+        }
+    }
+
+    public final Formatter[] getAttachmentFormatters()
+    {
+        Formatter formatters[];
+        synchronized(this)
+        {
+            formatters = attachmentFormatters;
+        }
+        return (Formatter[])formatters.clone();
+    }
+
+    public final transient void setAttachmentFormatters(Formatter formatters[])
+    {
+        checkAccess();
+        if(formatters.length == 0)
+        {
+            formatters = emptyFormatterArray();
+        } else
+        {
+            formatters = (Formatter[])copyOf(formatters, formatters.length, [Ljava/util/logging/Formatter;);
+            for(int i = 0; i < formatters.length; i++)
+                if(formatters[i] == null)
+                    throw new NullPointerException(atIndexMsg(i));
+
+        }
+        synchronized(this)
+        {
+            if(isWriting)
+                throw new IllegalStateException();
+            attachmentFormatters = formatters;
+            fixUpAttachmentFilters();
+            fixUpAttachmentNames();
+        }
+    }
+
+    public final Formatter[] getAttachmentNames()
+    {
+        Formatter formatters[];
+        synchronized(this)
+        {
+            formatters = attachmentNames;
+        }
+        return (Formatter[])formatters.clone();
+    }
+
+    public final transient void setAttachmentNames(String names[])
+    {
+        checkAccess();
+        Formatter formatters[];
+        if(names.length == 0)
+            formatters = emptyFormatterArray();
+        else
+            formatters = new Formatter[names.length];
+        for(int i = 0; i < names.length; i++)
+        {
+            String name = names[i];
+            if(name != null)
+            {
+                if(name.length() > 0)
+                    formatters[i] = new TailNameFormatter(name);
+                else
+                    throw new IllegalArgumentException(atIndexMsg(i));
+            } else
+            {
+                throw new NullPointerException(atIndexMsg(i));
+            }
+        }
+
+        synchronized(this)
+        {
+            if(attachmentFormatters.length != names.length)
+                throw attachmentMismatch(attachmentFormatters.length, names.length);
+            if(isWriting)
+                throw new IllegalStateException();
+            attachmentNames = formatters;
+        }
+    }
+
+    public final transient void setAttachmentNames(Formatter formatters[])
+    {
+        checkAccess();
+        formatters = (Formatter[])copyOf(formatters, formatters.length, [Ljava/util/logging/Formatter;);
+        for(int i = 0; i < formatters.length; i++)
+            if(formatters[i] == null)
+                throw new NullPointerException(atIndexMsg(i));
+
+        synchronized(this)
+        {
+            if(attachmentFormatters.length != formatters.length)
+                throw attachmentMismatch(attachmentFormatters.length, formatters.length);
+            if(isWriting)
+                throw new IllegalStateException();
+            attachmentNames = formatters;
+        }
+    }
+
+    public final synchronized Formatter getSubject()
+    {
+        return subjectFormatter;
+    }
+
+    public final void setSubject(String subject)
+    {
+        if(subject != null)
+        {
+            setSubject(((Formatter) (new TailNameFormatter(subject))));
+        } else
+        {
+            checkAccess();
+            throw new NullPointerException();
+        }
+    }
+
+    public final void setSubject(Formatter format)
+    {
+        checkAccess();
+        if(format == null)
+            throw new NullPointerException();
+        synchronized(this)
+        {
+            if(isWriting)
+                throw new IllegalStateException();
+            subjectFormatter = format;
+        }
+    }
+
+    protected void reportError(String msg, Exception ex, int code)
+    {
+        if(msg != null)
+            super.reportError((new StringBuilder()).append(Level.SEVERE.getName()).append(": ").append(msg).toString(), ex, code);
+        else
+            super.reportError(null, ex, code);
+    }
+
+    final void checkAccess()
+    {
+        if(sealed)
+            LogManagerProperties.getLogManager().checkAccess();
+    }
+
+    final String contentTypeOf(String head)
+    {
+        if(!isEmpty(head))
+        {
+            int MAX_CHARS = 25;
+            if(head.length() > 25)
+                head = head.substring(0, 25);
+            try
+            {
+                String encoding = getEncodingName();
+                ByteArrayInputStream in = new ByteArrayInputStream(head.getBytes(encoding));
+                if(!$assertionsDisabled && !in.markSupported())
+                    throw new AssertionError(in.getClass().getName());
+                else
+                    return URLConnection.guessContentTypeFromStream(in);
+            }
+            catch(IOException IOE)
+            {
+                reportError(IOE.getMessage(), IOE, 5);
+            }
+        }
+        return null;
+    }
+
+    final boolean isMissingContent(Message msg, Throwable t)
+    {
+        for(Throwable cause = t.getCause(); cause != null; cause = cause.getCause())
+            t = cause;
+
+        try
+        {
+            msg.writeTo(new ByteArrayOutputStream(1024));
+        }
+        catch(RuntimeException RE)
+        {
+            throw RE;
+        }
+        catch(Exception noContent)
+        {
+            String txt = noContent.getMessage();
+            if(!isEmpty(txt) && noContent.getClass() == t.getClass())
+                return txt.equals(t.getMessage());
+        }
+        return false;
+    }
+
+    private void reportError(Message msg, Exception ex, int code)
+    {
+        try
+        {
+            super.reportError(toRawString(msg), ex, code);
+        }
+        catch(MessagingException rawMe)
+        {
+            reportError(toMsgString(rawMe), ex, code);
+        }
+        catch(IOException rawIo)
+        {
+            reportError(toMsgString(rawIo), ex, code);
+        }
+    }
+
+    private String getContentType(String name)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String type = contentTypes.getContentType(name);
+        if("application/octet-stream".equalsIgnoreCase(type))
+            return null;
+        else
+            return type;
+    }
+
+    private String getEncodingName()
+    {
+        String encoding = getEncoding();
+        if(encoding == null)
+            encoding = MimeUtility.getDefaultJavaCharset();
+        return encoding;
+    }
+
+    private void setContent(MimeBodyPart part, CharSequence buf, String type)
+        throws MessagingException
+    {
+        String encoding = getEncodingName();
+        if(type != null && !"text/plain".equalsIgnoreCase(type))
+        {
+            type = contentWithEncoding(type, encoding);
+            try
+            {
+                javax.activation.DataSource source = new ByteArrayDataSource(buf.toString(), type);
+                part.setDataHandler(new DataHandler(source));
+            }
+            catch(IOException IOE)
+            {
+                reportError(IOE.getMessage(), IOE, 5);
+                part.setText(buf.toString(), encoding);
+            }
+        } else
+        {
+            part.setText(buf.toString(), MimeUtility.mimeCharset(encoding));
+        }
+    }
+
+    private String contentWithEncoding(String type, String encoding)
+    {
+        if(!$assertionsDisabled && encoding == null)
+            throw new AssertionError();
+        try
+        {
+            ContentType ct = new ContentType(type);
+            ct.setParameter("charset", MimeUtility.mimeCharset(encoding));
+            encoding = ct.toString();
+            if(!isEmpty(encoding))
+                type = encoding;
+        }
+        catch(MessagingException ME)
+        {
+            reportError(type, ME, 5);
+        }
+        return type;
+    }
+
+    private synchronized void setCapacity0(int newCapacity)
+    {
+        if(newCapacity <= 0)
+            throw new IllegalArgumentException("Capacity must be greater than zero.");
+        if(isWriting)
+            throw new IllegalStateException();
+        if(capacity < 0)
+            capacity = -newCapacity;
+        else
+            capacity = newCapacity;
+    }
+
+    private synchronized Filter[] readOnlyAttachmentFilters()
+    {
+        return attachmentFilters;
+    }
+
+    private static Formatter[] emptyFormatterArray()
+    {
+        return EMPTY_FORMATTERS;
+    }
+
+    private static Filter[] emptyFilterArray()
+    {
+        return EMPTY_FILTERS;
+    }
+
+    private boolean fixUpAttachmentNames()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        boolean fixed = false;
+        int expect = attachmentFormatters.length;
+        int current = attachmentNames.length;
+        if(current != expect)
+        {
+            attachmentNames = (Formatter[])copyOf(attachmentNames, expect);
+            fixed = current != 0;
+        }
+        if(expect == 0)
+        {
+            attachmentNames = emptyFormatterArray();
+            if(!$assertionsDisabled && attachmentNames.length != 0)
+                throw new AssertionError();
+        } else
+        {
+            for(int i = 0; i < expect; i++)
+                if(attachmentNames[i] == null)
+                    attachmentNames[i] = new TailNameFormatter(toString(attachmentFormatters[i]));
+
+        }
+        return fixed;
+    }
+
+    private boolean fixUpAttachmentFilters()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        boolean fixed = false;
+        int expect = attachmentFormatters.length;
+        int current = attachmentFilters.length;
+        if(current != expect)
+        {
+            attachmentFilters = (Filter[])copyOf(attachmentFilters, expect);
+            fixed = current != 0;
+            Filter body = super.getFilter();
+            if(body != null)
+            {
+                for(int i = current; i < expect; i++)
+                    attachmentFilters[i] = body;
+
+            }
+        }
+        if(expect == 0)
+        {
+            attachmentFilters = emptyFilterArray();
+            if(!$assertionsDisabled && attachmentFilters.length != 0)
+                throw new AssertionError();
+        }
+        return fixed;
+    }
+
+    private static Object[] copyOf(Object a[], int len)
+    {
+        return (Object[])copyOf(a, len, ((Object) (a)).getClass());
+    }
+
+    private static Object[] copyOf(Object a[], int len, Class type)
+    {
+        Object copy[] = (Object[])(Object[])Array.newInstance(type.getComponentType(), len);
+        System.arraycopy(((Object) (a)), 0, ((Object) (copy)), 0, Math.min(len, a.length));
+        return copy;
+    }
+
+    private void reset()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(size < data.length)
+            Arrays.fill(data, 0, size, null);
+        else
+            Arrays.fill(data, null);
+        size = 0;
+    }
+
+    private void grow()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        int len = data.length;
+        int newCapacity = len + (len >> 1) + 1;
+        if(newCapacity > capacity || newCapacity < len)
+            newCapacity = capacity;
+        if(!$assertionsDisabled && len == capacity)
+        {
+            throw new AssertionError(len);
+        } else
+        {
+            data = (LogRecord[])copyOf(data, newCapacity);
+            return;
+        }
+    }
+
+    private synchronized void init(Properties props)
+    {
+        LogManager manager = LogManagerProperties.getLogManager();
+        String p = getClass().getName();
+        mailProps = new Properties();
+        contentTypes = FileTypeMap.getDefaultFileTypeMap();
+        initErrorManager(manager, p);
+        initLevel(manager, p);
+        initFilter(manager, p);
+        initCapacity(manager, p);
+        initAuthenticator(manager, p);
+        initEncoding(manager, p);
+        initFormatter(manager, p);
+        initComparator(manager, p);
+        initPushLevel(manager, p);
+        initPushFilter(manager, p);
+        initSubject(manager, p);
+        initAttachmentFormaters(manager, p);
+        initAttachmentFilters(manager, p);
+        initAttachmentNames(manager, p);
+        if(props == null && manager.getProperty(p.concat(".verify")) != null)
+            verifySettings(initSession());
+        intern();
+    }
+
+    private void intern()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        try
+        {
+            Map seen = new HashMap();
+            try
+            {
+                intern(seen, super.getErrorManager());
+            }
+            catch(SecurityException se)
+            {
+                reportError(se.getMessage(), se, 4);
+            }
+            Object canidate;
+            Object result;
+            try
+            {
+                canidate = super.getFilter();
+                result = intern(seen, canidate);
+                if(result != canidate)
+                    super.setFilter((Filter)java/util/logging/Filter.cast(result));
+                canidate = super.getFormatter();
+                result = intern(seen, canidate);
+                if(result != canidate)
+                    super.setFormatter((Formatter)java/util/logging/Formatter.cast(result));
+            }
+            catch(SecurityException se)
+            {
+                reportError(se.getMessage(), se, 4);
+            }
+            canidate = subjectFormatter;
+            result = intern(seen, canidate);
+            if(result != canidate)
+                subjectFormatter = (Formatter)java/util/logging/Formatter.cast(result);
+            canidate = pushFilter;
+            result = intern(seen, canidate);
+            if(result != canidate)
+                pushFilter = (Filter)java/util/logging/Filter.cast(result);
+            for(int i = 0; i < attachmentFormatters.length; i++)
+            {
+                canidate = attachmentFormatters[i];
+                result = intern(seen, canidate);
+                if(result != canidate)
+                    attachmentFormatters[i] = (Formatter)java/util/logging/Formatter.cast(result);
+                canidate = attachmentFilters[i];
+                result = intern(seen, canidate);
+                if(result != canidate)
+                    attachmentFilters[i] = (Filter)java/util/logging/Filter.cast(result);
+                canidate = attachmentNames[i];
+                result = intern(seen, canidate);
+                if(result != canidate)
+                    attachmentNames[i] = (Formatter)java/util/logging/Formatter.cast(result);
+            }
+
+        }
+        catch(Exception skip)
+        {
+            reportError(skip.getMessage(), skip, 4);
+        }
+    }
+
+    private Object intern(Map m, Object o)
+        throws Exception
+    {
+        if(o == null)
+            return null;
+        Object key;
+        if(o.getClass().getName().equals(com/sun/mail/util/logging/MailHandler$TailNameFormatter.getName()))
+            key = o;
+        else
+            key = o.getClass().getConstructor(new Class[0]).newInstance(new Object[0]);
+        Object use;
+        if(key.getClass() == o.getClass())
+        {
+            Object found = m.get(key);
+            if(found == null)
+            {
+                boolean right = key.equals(o);
+                boolean left = o.equals(key);
+                if(right && left)
+                {
+                    found = m.put(o, o);
+                    if(found != null)
+                    {
+                        reportNonDiscriminating(key, found);
+                        found = m.remove(key);
+                        if(found != o)
+                        {
+                            reportNonDiscriminating(key, found);
+                            m.clear();
+                        }
+                    }
+                } else
+                if(right != left)
+                    reportNonSymmetric(o, key);
+                use = o;
+            } else
+            if(o.getClass() == found.getClass())
+            {
+                use = found;
+            } else
+            {
+                reportNonDiscriminating(o, found);
+                use = o;
+            }
+        } else
+        {
+            use = o;
+        }
+        return use;
+    }
+
+    private static boolean isEmpty(String s)
+    {
+        return s == null || s.length() == 0;
+    }
+
+    private static boolean hasValue(String name)
+    {
+        return !isEmpty(name) && !"null".equalsIgnoreCase(name);
+    }
+
+    private void initAttachmentFilters(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(!$assertionsDisabled && attachmentFormatters == null)
+            throw new AssertionError();
+        String list = manager.getProperty(p.concat(".attachment.filters"));
+        if(!isEmpty(list))
+        {
+            String names[] = list.split(",");
+            Filter a[] = new Filter[names.length];
+            for(int i = 0; i < a.length; i++)
+            {
+                names[i] = names[i].trim();
+                if("null".equalsIgnoreCase(names[i]))
+                    continue;
+                try
+                {
+                    a[i] = LogManagerProperties.newFilter(names[i]);
+                }
+                catch(SecurityException SE)
+                {
+                    throw SE;
+                }
+                catch(Exception E)
+                {
+                    reportError(E.getMessage(), E, 4);
+                }
+            }
+
+            attachmentFilters = a;
+            if(fixUpAttachmentFilters())
+                reportError("Attachment filters.", attachmentMismatch("Length mismatch."), 4);
+        } else
+        {
+            attachmentFilters = emptyFilterArray();
+            fixUpAttachmentFilters();
+        }
+    }
+
+    private void initAttachmentFormaters(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String list = manager.getProperty(p.concat(".attachment.formatters"));
+        if(!isEmpty(list))
+        {
+            String names[] = list.split(",");
+            Formatter a[];
+            if(names.length == 0)
+                a = emptyFormatterArray();
+            else
+                a = new Formatter[names.length];
+            for(int i = 0; i < a.length; i++)
+            {
+                names[i] = names[i].trim();
+                if(!"null".equalsIgnoreCase(names[i]))
+                {
+                    try
+                    {
+                        a[i] = LogManagerProperties.newFormatter(names[i]);
+                        if(a[i] instanceof TailNameFormatter)
+                        {
+                            Exception CNFE = new ClassNotFoundException(a[i].toString());
+                            reportError("Attachment formatter.", CNFE, 4);
+                            a[i] = new SimpleFormatter();
+                        }
+                        continue;
+                    }
+                    catch(SecurityException SE)
+                    {
+                        throw SE;
+                    }
+                    catch(Exception E)
+                    {
+                        reportError(E.getMessage(), E, 4);
+                    }
+                    a[i] = new SimpleFormatter();
+                } else
+                {
+                    Exception NPE = new NullPointerException(atIndexMsg(i));
+                    reportError("Attachment formatter.", NPE, 4);
+                    a[i] = new SimpleFormatter();
+                }
+            }
+
+            attachmentFormatters = a;
+        } else
+        {
+            attachmentFormatters = emptyFormatterArray();
+        }
+    }
+
+    private void initAttachmentNames(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(!$assertionsDisabled && attachmentFormatters == null)
+            throw new AssertionError();
+        String list = manager.getProperty(p.concat(".attachment.names"));
+        if(!isEmpty(list))
+        {
+            String names[] = list.split(",");
+            Formatter a[] = new Formatter[names.length];
+            for(int i = 0; i < a.length; i++)
+            {
+                names[i] = names[i].trim();
+                if(!"null".equalsIgnoreCase(names[i]))
+                {
+                    try
+                    {
+                        try
+                        {
+                            a[i] = LogManagerProperties.newFormatter(names[i]);
+                        }
+                        catch(ClassNotFoundException literal)
+                        {
+                            a[i] = new TailNameFormatter(names[i]);
+                        }
+                        catch(ClassCastException literal)
+                        {
+                            a[i] = new TailNameFormatter(names[i]);
+                        }
+                    }
+                    catch(SecurityException SE)
+                    {
+                        throw SE;
+                    }
+                    catch(Exception E)
+                    {
+                        reportError(E.getMessage(), E, 4);
+                    }
+                } else
+                {
+                    Exception NPE = new NullPointerException(atIndexMsg(i));
+                    reportError("Attachment names.", NPE, 4);
+                }
+            }
+
+            attachmentNames = a;
+            if(fixUpAttachmentNames())
+                reportError("Attachment names.", attachmentMismatch("Length mismatch."), 4);
+        } else
+        {
+            attachmentNames = emptyFormatterArray();
+            fixUpAttachmentNames();
+        }
+    }
+
+    private void initAuthenticator(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String name = manager.getProperty(p.concat(".authenticator"));
+        if(hasValue(name))
+            try
+            {
+                auth = LogManagerProperties.newAuthenticator(name);
+            }
+            catch(SecurityException SE)
+            {
+                throw SE;
+            }
+            catch(ClassNotFoundException literalAuth)
+            {
+                auth = new DefaultAuthenticator(name);
+            }
+            catch(ClassCastException literalAuth)
+            {
+                auth = new DefaultAuthenticator(name);
+            }
+            catch(Exception E)
+            {
+                reportError(E.getMessage(), E, 4);
+            }
+    }
+
+    private void initLevel(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        try
+        {
+            String val = manager.getProperty(p.concat(".level"));
+            if(val != null)
+                super.setLevel(Level.parse(val));
+            else
+                super.setLevel(Level.WARNING);
+        }
+        catch(SecurityException SE)
+        {
+            throw SE;
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 4);
+            try
+            {
+                super.setLevel(Level.WARNING);
+            }
+            catch(RuntimeException fail)
+            {
+                reportError(fail.getMessage(), fail, 4);
+            }
+        }
+    }
+
+    private void initFilter(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        try
+        {
+            String name = manager.getProperty(p.concat(".filter"));
+            if(hasValue(name))
+                super.setFilter(LogManagerProperties.newFilter(name));
+        }
+        catch(SecurityException SE)
+        {
+            throw SE;
+        }
+        catch(Exception E)
+        {
+            reportError(E.getMessage(), E, 4);
+        }
+    }
+
+    private void initCapacity(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        int DEFAULT_CAPACITY = 1000;
+        try
+        {
+            String value = manager.getProperty(p.concat(".capacity"));
+            if(value != null)
+                setCapacity0(Integer.parseInt(value));
+            else
+                setCapacity0(1000);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 4);
+        }
+        if(capacity <= 0)
+            capacity = 1000;
+        data = new LogRecord[1];
+    }
+
+    private void initEncoding(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        try
+        {
+            super.setEncoding(manager.getProperty(p.concat(".encoding")));
+        }
+        catch(SecurityException SE)
+        {
+            throw SE;
+        }
+        catch(UnsupportedEncodingException UEE)
+        {
+            reportError(UEE.getMessage(), UEE, 4);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 4);
+        }
+    }
+
+    private void initErrorManager(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String name = manager.getProperty(p.concat(".errorManager"));
+        if(name != null)
+            try
+            {
+                java.util.logging.ErrorManager em = LogManagerProperties.newErrorManager(name);
+                super.setErrorManager(em);
+            }
+            catch(SecurityException SE)
+            {
+                throw SE;
+            }
+            catch(Exception E)
+            {
+                reportError(E.getMessage(), E, 4);
+            }
+    }
+
+    private void initFormatter(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String name = manager.getProperty(p.concat(".formatter"));
+        if(hasValue(name))
+            try
+            {
+                Formatter formatter = LogManagerProperties.newFormatter(name);
+                if(!$assertionsDisabled && formatter == null)
+                    throw new AssertionError();
+                if(!(formatter instanceof TailNameFormatter))
+                    super.setFormatter(formatter);
+                else
+                    super.setFormatter(new SimpleFormatter());
+            }
+            catch(SecurityException SE)
+            {
+                throw SE;
+            }
+            catch(Exception E)
+            {
+                reportError(E.getMessage(), E, 4);
+                try
+                {
+                    super.setFormatter(new SimpleFormatter());
+                }
+                catch(RuntimeException fail)
+                {
+                    reportError(fail.getMessage(), fail, 4);
+                }
+            }
+        else
+            super.setFormatter(new SimpleFormatter());
+    }
+
+    private void initComparator(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String name = manager.getProperty(p.concat(".comparator"));
+        String reverse = manager.getProperty(p.concat(".comparator.reverse"));
+        try
+        {
+            if(hasValue(name))
+            {
+                comparator = LogManagerProperties.newComparator(name);
+                if(Boolean.parseBoolean(reverse))
+                {
+                    if(!$assertionsDisabled && comparator == null)
+                        throw new AssertionError("null");
+                    comparator = LogManagerProperties.reverseOrder(comparator);
+                }
+            } else
+            if(!isEmpty(reverse))
+                throw new IllegalArgumentException("No comparator to reverse.");
+        }
+        catch(SecurityException SE)
+        {
+            throw SE;
+        }
+        catch(Exception E)
+        {
+            reportError(E.getMessage(), E, 4);
+        }
+    }
+
+    private void initPushLevel(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        try
+        {
+            String val = manager.getProperty(p.concat(".pushLevel"));
+            if(val != null)
+                pushLevel = Level.parse(val);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 4);
+        }
+        if(pushLevel == null)
+            pushLevel = Level.OFF;
+    }
+
+    private void initPushFilter(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String name = manager.getProperty(p.concat(".pushFilter"));
+        if(hasValue(name))
+            try
+            {
+                pushFilter = LogManagerProperties.newFilter(name);
+            }
+            catch(SecurityException SE)
+            {
+                throw SE;
+            }
+            catch(Exception E)
+            {
+                reportError(E.getMessage(), E, 4);
+            }
+    }
+
+    private void initSubject(LogManager manager, String p)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        String name = manager.getProperty(p.concat(".subject"));
+        if(hasValue(name))
+            try
+            {
+                subjectFormatter = LogManagerProperties.newFormatter(name);
+            }
+            catch(SecurityException SE)
+            {
+                throw SE;
+            }
+            catch(ClassNotFoundException literalSubject)
+            {
+                subjectFormatter = new TailNameFormatter(name);
+            }
+            catch(ClassCastException literalSubject)
+            {
+                subjectFormatter = new TailNameFormatter(name);
+            }
+            catch(Exception E)
+            {
+                subjectFormatter = new TailNameFormatter(name);
+                reportError(E.getMessage(), E, 4);
+            }
+        else
+        if(name != null)
+            subjectFormatter = new TailNameFormatter(name);
+        if(subjectFormatter == null)
+            subjectFormatter = new TailNameFormatter("");
+    }
+
+    private boolean isAttachmentLoggable(LogRecord record)
+    {
+        Filter filters[] = readOnlyAttachmentFilters();
+        for(int i = 0; i < filters.length; i++)
+        {
+            Filter f = filters[i];
+            if(f == null || f.isLoggable(record))
+                return true;
+        }
+
+        return false;
+    }
+
+    private boolean isPushable(LogRecord record)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        int value = getPushLevel().intValue();
+        if(value == offValue || record.getLevel().intValue() < value)
+        {
+            return false;
+        } else
+        {
+            Filter filter = getPushFilter();
+            return filter == null || filter.isLoggable(record);
+        }
+    }
+
+    private void push(boolean priority, int code)
+    {
+        if(!tryMutex())
+            break MISSING_BLOCK_LABEL_43;
+        Message msg = writeLogRecords(code);
+        if(msg != null)
+            send(msg, priority, code);
+        releaseMutex();
+        break MISSING_BLOCK_LABEL_48;
+        Exception exception;
+        exception;
+        releaseMutex();
+        throw exception;
+        reportUnPublishedError(null);
+    }
+
+    private void send(Message msg, boolean priority, int code)
+    {
+        try
+        {
+            envelopeFor(msg, priority);
+            Transport.send(msg);
+        }
+        catch(Exception E)
+        {
+            reportError(msg, E, code);
+        }
+    }
+
+    private void sort()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(comparator != null)
+            try
+            {
+                if(size != 1)
+                    Arrays.sort(data, 0, size, comparator);
+                else
+                    comparator.compare(data[0], data[0]);
+            }
+            catch(RuntimeException RE)
+            {
+                reportError(RE.getMessage(), RE, 5);
+            }
+    }
+
+    private synchronized Message writeLogRecords(int code)
+    {
+        if(size == 0 || isWriting)
+            return null;
+        isWriting = true;
+        MimeMessage mimemessage;
+        sort();
+        if(session == null)
+            initSession();
+        MimeMessage msg = new MimeMessage(session);
+        msg.setDescription(descriptionFrom(comparator, pushLevel, pushFilter));
+        MimeBodyPart parts[] = new MimeBodyPart[attachmentFormatters.length];
+        StringBuilder buffers[] = new StringBuilder[parts.length];
+        String contentType = null;
+        StringBuilder buf = null;
+        appendSubject(msg, head(subjectFormatter));
+        MimeBodyPart body = createBodyPart();
+        Formatter bodyFormat = getFormatter();
+        Filter bodyFilter = getFilter();
+        Locale lastLocale = null;
+        for(int ix = 0; ix < size; ix++)
+        {
+            boolean formatted = false;
+            LogRecord r = data[ix];
+            data[ix] = null;
+            Locale locale = localeFor(r);
+            appendSubject(msg, format(subjectFormatter, r));
+            if(bodyFilter == null || bodyFilter.isLoggable(r))
+            {
+                if(buf == null)
+                {
+                    buf = new StringBuilder();
+                    String head = head(bodyFormat);
+                    buf.append(head);
+                    contentType = contentTypeOf(head);
+                }
+                formatted = true;
+                buf.append(format(bodyFormat, r));
+                if(locale != null && !locale.equals(lastLocale))
+                    appendContentLang(body, locale);
+            }
+            for(int i = 0; i < parts.length; i++)
+            {
+                Filter af = attachmentFilters[i];
+                if(af != null && !af.isLoggable(r))
+                    continue;
+                if(parts[i] == null)
+                {
+                    parts[i] = createBodyPart(i);
+                    buffers[i] = new StringBuilder();
+                    buffers[i].append(head(attachmentFormatters[i]));
+                    appendFileName(parts[i], head(attachmentNames[i]));
+                }
+                formatted = true;
+                appendFileName(parts[i], format(attachmentNames[i], r));
+                buffers[i].append(format(attachmentFormatters[i], r));
+                if(locale != null && !locale.equals(lastLocale))
+                    appendContentLang(parts[i], locale);
+            }
+
+            if(formatted)
+            {
+                if(locale != null && !locale.equals(lastLocale))
+                    appendContentLang(msg, locale);
+            } else
+            {
+                reportFilterError(r);
+            }
+            lastLocale = locale;
+        }
+
+        size = 0;
+        for(int i = parts.length - 1; i >= 0; i--)
+        {
+            if(parts[i] == null)
+                continue;
+            appendFileName(parts[i], tail(attachmentNames[i], "err"));
+            buffers[i].append(tail(attachmentFormatters[i], ""));
+            if(buffers[i].length() > 0)
+            {
+                String name = parts[i].getFileName();
+                if(isEmpty(name))
+                {
+                    name = toString(attachmentFormatters[i]);
+                    parts[i].setFileName(name);
+                }
+                setContent(parts[i], buffers[i], getContentType(name));
+            } else
+            {
+                setIncompleteCopy(msg);
+                parts[i] = null;
+            }
+            buffers[i] = null;
+        }
+
+        if(buf != null)
+            buf.append(tail(bodyFormat, ""));
+        else
+            buf = new StringBuilder(0);
+        appendSubject(msg, tail(subjectFormatter, ""));
+        MimeMultipart multipart = new MimeMultipart();
+        String altType = getContentType(bodyFormat.getClass().getName());
+        setContent(body, buf, altType != null ? altType : contentType);
+        multipart.addBodyPart(body);
+        for(int i = 0; i < parts.length; i++)
+            if(parts[i] != null)
+                multipart.addBodyPart(parts[i]);
+
+        msg.setContent(multipart);
+        mimemessage = msg;
+        isWriting = false;
+        if(size > 0)
+            reset();
+        return mimemessage;
+        RuntimeException re;
+        re;
+        reportError(re.getMessage(), re, code);
+        isWriting = false;
+        if(size > 0)
+            reset();
+        break MISSING_BLOCK_LABEL_901;
+        Exception e;
+        e;
+        reportError(e.getMessage(), e, code);
+        isWriting = false;
+        if(size > 0)
+            reset();
+        break MISSING_BLOCK_LABEL_901;
+        Exception exception;
+        exception;
+        isWriting = false;
+        if(size > 0)
+            reset();
+        throw exception;
+        return null;
+    }
+
+    private void verifySettings(Session session)
+    {
+        if(session != null)
+        {
+            Properties props = session.getProperties();
+            Object check = props.put("verify", "");
+            if(check instanceof String)
+            {
+                String value = (String)check;
+                if(hasValue(value))
+                    verifySettings0(session, value);
+            } else
+            if(check != null)
+                verifySettings0(session, check.getClass().toString());
+        }
+    }
+
+    private void verifySettings0(Session session, String verify)
+    {
+        MimeMessage abort;
+        String msg;
+        RuntimeException RE;
+        MessagingException ME;
+        if(!$assertionsDisabled && verify == null)
+            throw new AssertionError((String)null);
+        if(!"local".equals(verify) && !"remote".equals(verify) && !"limited".equals(verify) && !"resolve".equals(verify))
+        {
+            reportError("Verify must be 'limited', local', 'resolve' or 'remote'.", new IllegalArgumentException(verify), 4);
+            return;
+        }
+        abort = new MimeMessage(session);
+        if(!"limited".equals(verify))
+        {
+            msg = (new StringBuilder()).append("Local address is ").append(InternetAddress.getLocalAddress(session)).append('.').toString();
+            try
+            {
+                Charset.forName(getEncodingName());
+            }
+            // Misplaced declaration of an exception variable
+            catch(RuntimeException RE)
+            {
+                UnsupportedEncodingException UEE = new UnsupportedEncodingException(RE.toString());
+                UEE.initCause(RE);
+                reportError(msg, UEE, 5);
+            }
+        } else
+        {
+            msg = "Skipping local address check.";
+        }
+        synchronized(this)
+        {
+            appendSubject(abort, head(subjectFormatter));
+            appendSubject(abort, tail(subjectFormatter, ""));
+        }
+        setIncompleteCopy(abort);
+        envelopeFor(abort, true);
+        try
+        {
+            abort.saveChanges();
+        }
+        // Misplaced declaration of an exception variable
+        catch(MessagingException ME)
+        {
+            reportError(msg, ME, 5);
+        }
+        Address all[];
+        Transport t;
+        String local;
+        MessagingException closed;
+        all = abort.getAllRecipients();
+        if(all == null)
+            all = new InternetAddress[0];
+        try
+        {
+            Address any[] = all.length == 0 ? abort.getFrom() : all;
+            if(any != null && any.length != 0)
+            {
+                t = session.getTransport(any[0]);
+                session.getProperty("mail.transport.protocol");
+            } else
+            {
+                MessagingException me = new MessagingException("No recipient or from address.");
+                reportError(msg, me, 4);
+                throw me;
+            }
+        }
+        catch(MessagingException protocol)
+        {
+            try
+            {
+                t = session.getTransport();
+            }
+            catch(MessagingException fail)
+            {
+                throw attach(protocol, fail);
+            }
+        }
+        local = null;
+        if(!"remote".equals(verify))
+            break MISSING_BLOCK_LABEL_580;
+        closed = null;
+        t.connect();
+        if(t instanceof SMTPTransport)
+            local = ((SMTPTransport)t).getLocalHost();
+        t.sendMessage(abort, all);
+        MessagingException ME;
+        try
+        {
+            t.close();
+        }
+        // Misplaced declaration of an exception variable
+        catch(MessagingException ME)
+        {
+            closed = ME;
+        }
+        break MISSING_BLOCK_LABEL_453;
+        Exception exception1;
+        exception1;
+        try
+        {
+            t.close();
+        }
+        catch(MessagingException ME)
+        {
+            closed = ME;
+        }
+        throw exception1;
+        reportUnexpectedSend(abort, verify, null);
+        break MISSING_BLOCK_LABEL_556;
+        SendFailedException sfe;
+        sfe;
+        Address recip[] = sfe.getInvalidAddresses();
+        if(recip != null && recip.length != 0)
+        {
+            fixUpContent(abort, verify, sfe);
+            reportError(abort, sfe, 4);
+        }
+        recip = sfe.getValidSentAddresses();
+        if(recip != null && recip.length != 0)
+            reportUnexpectedSend(abort, verify, sfe);
+        break MISSING_BLOCK_LABEL_556;
+        sfe;
+        if(!isMissingContent(abort, sfe))
+        {
+            fixUpContent(abort, verify, sfe);
+            reportError(abort, sfe, 4);
+        }
+        if(closed != null)
+        {
+            fixUpContent(abort, verify, closed);
+            reportError(abort, closed, 3);
+        }
+        break MISSING_BLOCK_LABEL_866;
+        String protocol = t.getURLName().getProtocol();
+        session.getProperty("mail.host");
+        session.getProperty("mail.user");
+        session.getProperty((new StringBuilder()).append("mail.").append(protocol).append(".host").toString());
+        session.getProperty((new StringBuilder()).append("mail.").append(protocol).append(".port").toString());
+        session.getProperty((new StringBuilder()).append("mail.").append(protocol).append(".user").toString());
+        local = session.getProperty((new StringBuilder()).append("mail.").append(protocol).append(".localhost").toString());
+        if(isEmpty(local))
+            local = session.getProperty((new StringBuilder()).append("mail.").append(protocol).append(".localaddress").toString());
+        if("resolve".equals(verify))
+            try
+            {
+                verifyHost(t.getURLName().getHost());
+            }
+            catch(IOException IOE)
+            {
+                MessagingException ME = new MessagingException(msg, IOE);
+                fixUpContent(abort, verify, ME);
+                reportError(abort, ME, 4);
+            }
+            catch(RuntimeException RE)
+            {
+                MessagingException ME = new MessagingException(msg, RE);
+                fixUpContent(abort, verify, RE);
+                reportError(abort, ME, 4);
+            }
+        if(!"limited".equals(verify))
+        {
+            try
+            {
+                if(!"remote".equals(verify) && (t instanceof SMTPTransport))
+                    local = ((SMTPTransport)t).getLocalHost();
+                verifyHost(local);
+            }
+            catch(IOException IOE)
+            {
+                MessagingException ME = new MessagingException(msg, IOE);
+                fixUpContent(abort, verify, ME);
+                reportError(abort, ME, 4);
+            }
+            catch(RuntimeException RE)
+            {
+                MessagingException ME = new MessagingException(msg, RE);
+                fixUpContent(abort, verify, ME);
+                reportError(abort, ME, 4);
+            }
+            try
+            {
+                MimeMultipart multipart = new MimeMultipart();
+                MimeBodyPart body = new MimeBodyPart();
+                body.setDisposition("inline");
+                body.setDescription(verify);
+                setAcceptLang(body);
+                setContent(body, "", "text/plain");
+                multipart.addBodyPart(body);
+                abort.setContent(multipart);
+                abort.saveChanges();
+                abort.writeTo(new ByteArrayOutputStream(1024));
+            }
+            catch(IOException IOE)
+            {
+                MessagingException ME = new MessagingException(msg, IOE);
+                fixUpContent(abort, verify, ME);
+                reportError(abort, ME, 5);
+            }
+        }
+        if(all.length != 0)
+            verifyAddresses(all);
+        else
+            throw new MessagingException("No recipient addresses.");
+        Address from[] = abort.getFrom();
+        Address sender = abort.getSender();
+        if(sender instanceof InternetAddress)
+            ((InternetAddress)sender).validate();
+        if(abort.getHeader("From", ",") != null && from.length != 0)
+        {
+            verifyAddresses(from);
+            for(int i = 0; i < from.length; i++)
+                if(from[i].equals(sender))
+                {
+                    MessagingException ME = new MessagingException((new StringBuilder()).append("Sender address '").append(sender).append("' equals from address.").toString());
+                    throw new MessagingException(msg, ME);
+                }
+
+        } else
+        if(sender == null)
+        {
+            MessagingException ME = new MessagingException("No from or sender address.");
+            throw new MessagingException(msg, ME);
+        }
+        verifyAddresses(abort.getReplyTo());
+        break MISSING_BLOCK_LABEL_1326;
+        all;
+        fixUpContent(abort, verify, all);
+        reportError(abort, all, 4);
+        break MISSING_BLOCK_LABEL_1326;
+        all;
+        fixUpContent(abort, verify, all);
+        reportError(abort, all, 4);
+    }
+
+    private static InetAddress verifyHost(String host)
+        throws IOException
+    {
+        InetAddress a;
+        if(isEmpty(host))
+            a = InetAddress.getLocalHost();
+        else
+            a = InetAddress.getByName(host);
+        if(a.getCanonicalHostName().length() == 0)
+            throw new UnknownHostException();
+        else
+            return a;
+    }
+
+    private static void verifyAddresses(Address all[])
+        throws AddressException
+    {
+        if(all != null)
+        {
+            for(int i = 0; i < all.length; i++)
+            {
+                Address a = all[i];
+                if(a instanceof InternetAddress)
+                    ((InternetAddress)a).validate();
+            }
+
+        }
+    }
+
+    private void reportUnexpectedSend(MimeMessage msg, String verify, Exception cause)
+    {
+        MessagingException write = new MessagingException("An empty message was sent.", cause);
+        fixUpContent(msg, verify, write);
+        reportError(msg, write, 4);
+    }
+
+    private void fixUpContent(MimeMessage msg, String verify, Throwable t)
+    {
+        try
+        {
+            MimeBodyPart body;
+            String subjectType;
+            String msgDesc;
+            synchronized(this)
+            {
+                body = createBodyPart();
+                msgDesc = descriptionFrom(comparator, pushLevel, pushFilter);
+                subjectType = getClassId(subjectFormatter);
+            }
+            body.setDescription((new StringBuilder()).append("Formatted using ").append(t != null ? t.getClass().getName() : java/lang/Throwable.getName()).append(", filtered with ").append(verify).append(", and named by ").append(subjectType).append('.').toString());
+            setContent(body, toMsgString(t), "text/plain");
+            MimeMultipart multipart = new MimeMultipart();
+            multipart.addBodyPart(body);
+            msg.setContent(multipart);
+            msg.setDescription(msgDesc);
+            setAcceptLang(msg);
+            msg.saveChanges();
+        }
+        catch(MessagingException ME)
+        {
+            reportError("Unable to create body.", ME, 4);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError("Unable to create body.", RE, 4);
+        }
+    }
+
+    private Session fixUpSession()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        Session settings;
+        if(mailProps.getProperty("verify") != null)
+        {
+            settings = initSession();
+            if(!$assertionsDisabled && settings != session)
+                throw new AssertionError();
+        } else
+        {
+            session = null;
+            settings = null;
+        }
+        return settings;
+    }
+
+    private Session initSession()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            String p = getClass().getName();
+            LogManagerProperties proxy = new LogManagerProperties(mailProps, p);
+            session = Session.getInstance(proxy, auth);
+            return session;
+        }
+    }
+
+    private void envelopeFor(Message msg, boolean priority)
+    {
+        setAcceptLang(msg);
+        setFrom(msg);
+        if(!setRecipient(msg, "mail.to", javax.mail.Message.RecipientType.TO))
+            setDefaultRecipient(msg, javax.mail.Message.RecipientType.TO);
+        setRecipient(msg, "mail.cc", javax.mail.Message.RecipientType.CC);
+        setRecipient(msg, "mail.bcc", javax.mail.Message.RecipientType.BCC);
+        setReplyTo(msg);
+        setSender(msg);
+        setMailer(msg);
+        setAutoSubmitted(msg);
+        if(priority)
+            setPriority(msg);
+        try
+        {
+            msg.setSentDate(new Date());
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private MimeBodyPart createBodyPart()
+        throws MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            MimeBodyPart part = new MimeBodyPart();
+            part.setDisposition("inline");
+            part.setDescription(descriptionFrom(getFormatter(), getFilter(), subjectFormatter));
+            setAcceptLang(part);
+            return part;
+        }
+    }
+
+    private MimeBodyPart createBodyPart(int index)
+        throws MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            MimeBodyPart part = new MimeBodyPart();
+            part.setDisposition("attachment");
+            part.setDescription(descriptionFrom(attachmentFormatters[index], attachmentFilters[index], attachmentNames[index]));
+            setAcceptLang(part);
+            return part;
+        }
+    }
+
+    private String descriptionFrom(Comparator c, Level l, Filter f)
+    {
+        return (new StringBuilder()).append("Sorted using ").append(c != null ? c.getClass().getName() : "no comparator").append(", pushed when ").append(l.getName()).append(", and ").append(f != null ? f.getClass().getName() : "no push filter").append('.').toString();
+    }
+
+    private String descriptionFrom(Formatter f, Filter filter, Formatter name)
+    {
+        return (new StringBuilder()).append("Formatted using ").append(getClassId(f)).append(", filtered with ").append(filter != null ? filter.getClass().getName() : "no filter").append(", and named by ").append(getClassId(name)).append('.').toString();
+    }
+
+    private String getClassId(Formatter f)
+    {
+        if(f instanceof TailNameFormatter)
+            return java/lang/String.getName();
+        else
+            return f.getClass().getName();
+    }
+
+    private String toString(Formatter f)
+    {
+        String name = f.toString();
+        if(!isEmpty(name))
+            return name;
+        else
+            return getClassId(f);
+    }
+
+    private void appendFileName(Part part, String chunk)
+    {
+        if(chunk != null)
+        {
+            if(chunk.length() > 0)
+                appendFileName0(part, chunk);
+        } else
+        {
+            reportNullError(5);
+        }
+    }
+
+    private void appendFileName0(Part part, String chunk)
+    {
+        try
+        {
+            String old = part.getFileName();
+            part.setFileName(old == null ? chunk : old.concat(chunk));
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void appendSubject(Message msg, String chunk)
+    {
+        if(chunk != null)
+        {
+            if(chunk.length() > 0)
+                appendSubject0(msg, chunk);
+        } else
+        {
+            reportNullError(5);
+        }
+    }
+
+    private void appendSubject0(Message msg, String chunk)
+    {
+        try
+        {
+            String encoding = getEncodingName();
+            String old = msg.getSubject();
+            if(!$assertionsDisabled && !(msg instanceof MimeMessage))
+                throw new AssertionError();
+            ((MimeMessage)msg).setSubject(old == null ? chunk : old.concat(chunk), MimeUtility.mimeCharset(encoding));
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private Locale localeFor(LogRecord r)
+    {
+        ResourceBundle rb = r.getResourceBundle();
+        Locale l;
+        if(rb != null)
+        {
+            l = rb.getLocale();
+            if(l == null || isEmpty(l.getLanguage()))
+                l = Locale.getDefault();
+        } else
+        {
+            l = null;
+        }
+        return l;
+    }
+
+    private void appendContentLang(MimePart p, Locale l)
+    {
+        try
+        {
+            String lang = LogManagerProperties.toLanguageTag(l);
+            if(lang.length() != 0)
+            {
+                String header = p.getHeader("Content-Language", null);
+                if(isEmpty(header))
+                    p.setHeader("Content-Language", lang);
+                else
+                if(!header.equalsIgnoreCase(lang))
+                {
+                    lang = ",".concat(lang);
+                    int idx = 0;
+                    do
+                    {
+                        if((idx = header.indexOf(lang, idx)) <= -1)
+                            break;
+                        idx += lang.length();
+                    } while(idx != header.length() && header.charAt(idx) != ',');
+                    if(idx < 0)
+                    {
+                        int len = header.lastIndexOf("\r\n\t");
+                        if(len < 0)
+                            len = 20 + header.length();
+                        else
+                            len = (header.length() - len) + 8;
+                        if(len + lang.length() > 76)
+                            header = header.concat("\r\n\t".concat(lang));
+                        else
+                            header = header.concat(lang);
+                        p.setHeader("Content-Language", header);
+                    }
+                }
+            }
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void setAcceptLang(Part p)
+    {
+        try
+        {
+            String lang = LogManagerProperties.toLanguageTag(Locale.getDefault());
+            if(lang.length() != 0)
+                p.setHeader("Accept-Language", lang);
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void reportFilterError(LogRecord record)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            SimpleFormatter f = new SimpleFormatter();
+            String msg = (new StringBuilder()).append("Log record ").append(record.getSequenceNumber()).append(" was filtered from all message parts.  ").append(head(f)).append(format(f, record)).append(tail(f, "")).toString();
+            String txt = (new StringBuilder()).append(getFilter()).append(", ").append(Arrays.asList(readOnlyAttachmentFilters())).toString();
+            reportError(msg, new IllegalArgumentException(txt), 5);
+            return;
+        }
+    }
+
+    private void reportNonSymmetric(Object o, Object found)
+    {
+        reportError("Non symmetric equals implementation.", new IllegalArgumentException((new StringBuilder()).append(o.getClass().getName()).append(" is not equal to ").append(found.getClass().getName()).toString()), 4);
+    }
+
+    private void reportNonDiscriminating(Object o, Object found)
+    {
+        reportError("Non discriminating equals implementation.", new IllegalArgumentException((new StringBuilder()).append(o.getClass().getName()).append(" should not be equal to ").append(found.getClass().getName()).toString()), 4);
+    }
+
+    private void reportNullError(int code)
+    {
+        reportError("null", new NullPointerException(), code);
+    }
+
+    private String head(Formatter f)
+    {
+        try
+        {
+            return f.getHead(this);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 5);
+        }
+        return "";
+    }
+
+    private String format(Formatter f, LogRecord r)
+    {
+        try
+        {
+            return f.format(r);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 5);
+        }
+        return "";
+    }
+
+    private String tail(Formatter f, String def)
+    {
+        try
+        {
+            return f.getTail(this);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError(RE.getMessage(), RE, 5);
+        }
+        return def;
+    }
+
+    private void setMailer(Message msg)
+    {
+        try
+        {
+            Class mail = com/sun/mail/util/logging/MailHandler;
+            Class k = getClass();
+            String value;
+            if(k == mail)
+            {
+                value = mail.getName();
+            } else
+            {
+                try
+                {
+                    value = MimeUtility.encodeText(k.getName());
+                }
+                catch(UnsupportedEncodingException E)
+                {
+                    reportError(E.getMessage(), E, 5);
+                    value = k.getName().replaceAll("[^\\x00-\\x7F]", "\032");
+                }
+                value = MimeUtility.fold(10, (new StringBuilder()).append(mail.getName()).append(" using the ").append(value).append(" extension.").toString());
+            }
+            msg.setHeader("X-Mailer", value);
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void setPriority(Message msg)
+    {
+        try
+        {
+            msg.setHeader("Importance", "High");
+            msg.setHeader("Priority", "urgent");
+            msg.setHeader("X-Priority", "2");
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void setIncompleteCopy(Message msg)
+    {
+        try
+        {
+            msg.setHeader("Incomplete-Copy", "");
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void setAutoSubmitted(Message msg)
+    {
+        try
+        {
+            msg.setHeader("auto-submitted", "auto-generated");
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void setFrom(Message msg)
+    {
+        String from = msg.getSession().getProperty("mail.from");
+        if(from != null)
+            try
+            {
+                Address address[] = InternetAddress.parse(from, false);
+                if(address.length > 0)
+                    if(address.length == 1)
+                        msg.setFrom(address[0]);
+                    else
+                        msg.addFrom(address);
+            }
+            catch(MessagingException ME)
+            {
+                reportError(ME.getMessage(), ME, 5);
+                setDefaultFrom(msg);
+            }
+        else
+            setDefaultFrom(msg);
+    }
+
+    private void setDefaultFrom(Message msg)
+    {
+        try
+        {
+            msg.setFrom();
+        }
+        catch(MessagingException ME)
+        {
+            reportError(ME.getMessage(), ME, 5);
+        }
+    }
+
+    private void setDefaultRecipient(Message msg, javax.mail.Message.RecipientType type)
+    {
+        try
+        {
+            Address a = InternetAddress.getLocalAddress(msg.getSession());
+            if(a != null)
+            {
+                msg.setRecipient(type, a);
+            } else
+            {
+                MimeMessage m = new MimeMessage(msg.getSession());
+                m.setFrom();
+                Address from[] = m.getFrom();
+                if(from.length > 0)
+                    msg.setRecipients(type, from);
+                else
+                    throw new MessagingException("No local address.");
+            }
+        }
+        catch(MessagingException ME)
+        {
+            reportError("Unable to compute a default recipient.", ME, 5);
+        }
+        catch(RuntimeException RE)
+        {
+            reportError("Unable to compute a default recipient.", RE, 5);
+        }
+    }
+
+    private void setReplyTo(Message msg)
+    {
+        String reply = msg.getSession().getProperty("mail.reply.to");
+        if(!isEmpty(reply))
+            try
+            {
+                Address address[] = InternetAddress.parse(reply, false);
+                if(address.length > 0)
+                    msg.setReplyTo(address);
+            }
+            catch(MessagingException ME)
+            {
+                reportError(ME.getMessage(), ME, 5);
+            }
+    }
+
+    private void setSender(Message msg)
+    {
+        if(!$assertionsDisabled && !(msg instanceof MimeMessage))
+            throw new AssertionError(msg);
+        String sender = msg.getSession().getProperty("mail.sender");
+        if(!isEmpty(sender))
+            try
+            {
+                InternetAddress address[] = InternetAddress.parse(sender, false);
+                if(address.length > 0)
+                {
+                    ((MimeMessage)msg).setSender(address[0]);
+                    if(address.length > 1)
+                        reportError("Ignoring other senders.", tooManyAddresses(address, 1), 5);
+                }
+            }
+            catch(MessagingException ME)
+            {
+                reportError(ME.getMessage(), ME, 5);
+            }
+    }
+
+    private AddressException tooManyAddresses(Address address[], int offset)
+    {
+        Object l = Arrays.asList(address).subList(offset, address.length);
+        return new AddressException(l.toString());
+    }
+
+    private boolean setRecipient(Message msg, String key, javax.mail.Message.RecipientType type)
+    {
+        String value = msg.getSession().getProperty(key);
+        boolean containsKey = value != null;
+        if(!isEmpty(value))
+            try
+            {
+                Address address[] = InternetAddress.parse(value, false);
+                if(address.length > 0)
+                    msg.setRecipients(type, address);
+            }
+            catch(MessagingException ME)
+            {
+                reportError(ME.getMessage(), ME, 5);
+            }
+        return containsKey;
+    }
+
+    private String toRawString(Message msg)
+        throws MessagingException, IOException
+    {
+        if(msg != null)
+        {
+            int nbytes = Math.max(msg.getSize() + 1024, 1024);
+            ByteArrayOutputStream out = new ByteArrayOutputStream(nbytes);
+            msg.writeTo(out);
+            return out.toString("US-ASCII");
+        } else
+        {
+            return null;
+        }
+    }
+
+    private String toMsgString(Throwable t)
+    {
+        if(t == null)
+            return "null";
+        String encoding = getEncodingName();
+        try
+        {
+            ByteArrayOutputStream out = new ByteArrayOutputStream(1024);
+            PrintWriter pw = new PrintWriter(new OutputStreamWriter(out, encoding));
+            pw.println(t.getMessage());
+            t.printStackTrace(pw);
+            pw.flush();
+            pw.close();
+            return out.toString(encoding);
+        }
+        catch(IOException badMimeCharset)
+        {
+            return (new StringBuilder()).append(t.toString()).append(' ').append(badMimeCharset.toString()).toString();
+        }
+    }
+
+    private Object getAndSetContextClassLoader()
+    {
+        try
+        {
+            return AccessController.doPrivileged(GET_AND_SET_CCL);
+        }
+        catch(SecurityException ignore)
+        {
+            return GET_AND_SET_CCL;
+        }
+    }
+
+    private void setContextClassLoader(Object ccl)
+    {
+        if(ccl == null || (ccl instanceof ClassLoader))
+            AccessController.doPrivileged(new GetAndSetContext(ccl));
+    }
+
+    private static RuntimeException attachmentMismatch(String msg)
+    {
+        return new IndexOutOfBoundsException(msg);
+    }
+
+    private static RuntimeException attachmentMismatch(int expected, int found)
+    {
+        return attachmentMismatch((new StringBuilder()).append("Attachments mismatched, expected ").append(expected).append(" but given ").append(found).append('.').toString());
+    }
+
+    private static MessagingException attach(MessagingException required, Exception optional)
+    {
+        if(optional != null && !required.setNextException(optional) && (optional instanceof MessagingException))
+        {
+            MessagingException head = (MessagingException)optional;
+            if(head.setNextException(required))
+                return head;
+        }
+        return required;
+    }
+
+    private static String atIndexMsg(int i)
+    {
+        return (new StringBuilder()).append("At index: ").append(i).append('.').toString();
+    }
+
+    private static final Filter EMPTY_FILTERS[] = new Filter[0];
+    private static final Formatter EMPTY_FORMATTERS[] = new Formatter[0];
+    private static final int MIN_HEADER_SIZE = 1024;
+    private static final int offValue;
+    private static final GetAndSetContext GET_AND_SET_CCL = new GetAndSetContext(com/sun/mail/util/logging/MailHandler);
+    private static final ThreadLocal MUTEX = new ThreadLocal();
+    private static final Level MUTEX_PUBLISH;
+    private static final Level MUTEX_REPORT;
+    private volatile boolean sealed;
+    private boolean isWriting;
+    private Properties mailProps;
+    private Authenticator auth;
+    private Session session;
+    private LogRecord data[];
+    private int size;
+    private int capacity;
+    private Comparator comparator;
+    private Formatter subjectFormatter;
+    private Level pushLevel;
+    private Filter pushFilter;
+    private Filter attachmentFilters[];
+    private Formatter attachmentFormatters[];
+    private Formatter attachmentNames[];
+    private FileTypeMap contentTypes;
+    static final boolean $assertionsDisabled = !com/sun/mail/util/logging/MailHandler.desiredAssertionStatus();
+
+    static 
+    {
+        offValue = Level.OFF.intValue();
+        MUTEX_PUBLISH = Level.ALL;
+        MUTEX_REPORT = Level.OFF;
+    }
+}

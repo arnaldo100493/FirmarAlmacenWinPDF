@@ -1,0 +1,199 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Anchor.java
+
+package co.com.pdf.text;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.*;
+
+// Referenced classes of package co.com.pdf.text:
+//            Phrase, Chunk, DocumentException, Element, 
+//            ElementListener, Font
+
+public class Anchor extends Phrase
+{
+
+    public Anchor()
+    {
+        super(16F);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(float leading)
+    {
+        super(leading);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(Chunk chunk)
+    {
+        super(chunk);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(String string)
+    {
+        super(string);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(String string, Font font)
+    {
+        super(string, font);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(float leading, Chunk chunk)
+    {
+        super(leading, chunk);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(float leading, String string)
+    {
+        super(leading, string);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(float leading, String string, Font font)
+    {
+        super(leading, string, font);
+        name = null;
+        reference = null;
+    }
+
+    public Anchor(Phrase phrase)
+    {
+        super(phrase);
+        name = null;
+        reference = null;
+        if(phrase instanceof Anchor)
+        {
+            Anchor a = (Anchor)phrase;
+            setName(a.name);
+            setReference(a.reference);
+        }
+    }
+
+    public boolean process(ElementListener listener)
+    {
+        try
+        {
+            Iterator i = getChunks().iterator();
+            boolean localDestination = reference != null && reference.startsWith("#");
+            boolean notGotoOK = true;
+            Chunk chunk;
+            for(; i.hasNext(); listener.add(chunk))
+            {
+                chunk = (Chunk)i.next();
+                if(name != null && notGotoOK && !chunk.isEmpty())
+                {
+                    chunk.setLocalDestination(name);
+                    notGotoOK = false;
+                }
+                if(localDestination)
+                    chunk.setLocalGoto(reference.substring(1));
+            }
+
+            return true;
+        }
+        catch(DocumentException de)
+        {
+            return false;
+        }
+    }
+
+    public List getChunks()
+    {
+        boolean localDestination = reference != null && reference.startsWith("#");
+        boolean notGotoOK = true;
+        List tmp = new ArrayList();
+        for(Iterator i = iterator(); i.hasNext();)
+        {
+            Element element = (Element)i.next();
+            if(element instanceof Chunk)
+            {
+                Chunk chunk = (Chunk)element;
+                notGotoOK = applyAnchor(chunk, notGotoOK, localDestination);
+                tmp.add(chunk);
+            } else
+            {
+                Iterator i$ = element.getChunks().iterator();
+                while(i$.hasNext()) 
+                {
+                    Chunk c = (Chunk)i$.next();
+                    notGotoOK = applyAnchor(c, notGotoOK, localDestination);
+                    tmp.add(c);
+                }
+            }
+        }
+
+        return tmp;
+    }
+
+    protected boolean applyAnchor(Chunk chunk, boolean notGotoOK, boolean localDestination)
+    {
+        if(name != null && notGotoOK && !chunk.isEmpty())
+        {
+            chunk.setLocalDestination(name);
+            notGotoOK = false;
+        }
+        if(localDestination)
+            chunk.setLocalGoto(reference.substring(1));
+        else
+        if(reference != null)
+            chunk.setAnchor(reference);
+        return notGotoOK;
+    }
+
+    public int type()
+    {
+        return 17;
+    }
+
+    public void setName(String name)
+    {
+        this.name = name;
+    }
+
+    public void setReference(String reference)
+    {
+        this.reference = reference;
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public String getReference()
+    {
+        return reference;
+    }
+
+    public URL getUrl()
+    {
+        try
+        {
+            return new URL(reference);
+        }
+        catch(MalformedURLException mue)
+        {
+            return null;
+        }
+    }
+
+    private static final long serialVersionUID = 0xf42c192fe1186451L;
+    protected String name;
+    protected String reference;
+}

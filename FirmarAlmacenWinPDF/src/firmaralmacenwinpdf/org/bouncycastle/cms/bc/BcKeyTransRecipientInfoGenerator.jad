@@ -1,0 +1,24 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BcKeyTransRecipientInfoGenerator.java
+
+package org.bouncycastle.cms.bc;
+
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cms.KeyTransRecipientInfoGenerator;
+import org.bouncycastle.operator.bc.BcAsymmetricKeyWrapper;
+
+public abstract class BcKeyTransRecipientInfoGenerator extends KeyTransRecipientInfoGenerator
+{
+
+    public BcKeyTransRecipientInfoGenerator(X509CertificateHolder recipientCert, BcAsymmetricKeyWrapper wrapper)
+    {
+        super(recipientCert.getIssuerAndSerialNumber(), wrapper);
+    }
+
+    public BcKeyTransRecipientInfoGenerator(byte subjectKeyIdentifier[], BcAsymmetricKeyWrapper wrapper)
+    {
+        super(subjectKeyIdentifier, wrapper);
+    }
+}

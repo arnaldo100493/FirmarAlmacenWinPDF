@@ -1,0 +1,221 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Argument.java
+
+package com.sun.mail.iap;
+
+import com.sun.mail.util.ASCIIUtility;
+import java.io.*;
+import java.util.Vector;
+
+// Referenced classes of package com.sun.mail.iap:
+//            AString, Atom, Literal, LiteralException, 
+//            ProtocolException, Protocol, Response
+
+public class Argument
+{
+
+    public Argument()
+    {
+        items = new Vector(1);
+    }
+
+    public void append(Argument arg)
+    {
+        items.ensureCapacity(items.size() + arg.items.size());
+        for(int i = 0; i < arg.items.size(); i++)
+            items.addElement(arg.items.elementAt(i));
+
+    }
+
+    public void writeString(String s)
+    {
+        items.addElement(new AString(ASCIIUtility.getBytes(s)));
+    }
+
+    public void writeString(String s, String charset)
+        throws UnsupportedEncodingException
+    {
+        if(charset == null)
+            writeString(s);
+        else
+            items.addElement(new AString(s.getBytes(charset)));
+    }
+
+    public void writeBytes(byte b[])
+    {
+        items.addElement(b);
+    }
+
+    public void writeBytes(ByteArrayOutputStream b)
+    {
+        items.addElement(b);
+    }
+
+    public void writeBytes(Literal b)
+    {
+        items.addElement(b);
+    }
+
+    public void writeAtom(String s)
+    {
+        items.addElement(new Atom(s));
+    }
+
+    public void writeNumber(int i)
+    {
+        items.addElement(new Integer(i));
+    }
+
+    public void writeNumber(long i)
+    {
+        items.addElement(new Long(i));
+    }
+
+    public void writeArgument(Argument c)
+    {
+        items.addElement(c);
+    }
+
+    public void write(Protocol protocol)
+        throws IOException, ProtocolException
+    {
+        int size = items == null ? 0 : items.size();
+        DataOutputStream os = (DataOutputStream)protocol.getOutputStream();
+        for(int i = 0; i < size; i++)
+        {
+            if(i > 0)
+                os.write(32);
+            Object o = items.elementAt(i);
+            if(o instanceof Atom)
+            {
+                os.writeBytes(((Atom)o).string);
+                continue;
+            }
+            if(o instanceof Number)
+            {
+                os.writeBytes(((Number)o).toString());
+                continue;
+            }
+            if(o instanceof AString)
+            {
+                astring(((AString)o).bytes, protocol);
+                continue;
+            }
+            if(o instanceof byte[])
+            {
+                literal((byte[])(byte[])o, protocol);
+                continue;
+            }
+            if(o instanceof ByteArrayOutputStream)
+            {
+                literal((ByteArrayOutputStream)o, protocol);
+                continue;
+            }
+            if(o instanceof Literal)
+            {
+                literal((Literal)o, protocol);
+                continue;
+            }
+            if(o instanceof Argument)
+            {
+                os.write(40);
+                ((Argument)o).write(protocol);
+                os.write(41);
+            }
+        }
+
+    }
+
+    private void astring(byte bytes[], Protocol protocol)
+        throws IOException, ProtocolException
+    {
+        DataOutputStream os = (DataOutputStream)protocol.getOutputStream();
+        int len = bytes.length;
+        if(len > 1024)
+        {
+            literal(bytes, protocol);
+            return;
+        }
+        boolean quote = len == 0;
+        boolean escape = false;
+        for(int i = 0; i < len; i++)
+        {
+            byte b = bytes[i];
+            if(b == 0 || b == 13 || b == 10 || (b & 0xff) > 127)
+            {
+                literal(bytes, protocol);
+                return;
+            }
+            if(b != 42 && b != 37 && b != 40 && b != 41 && b != 123 && b != 34 && b != 92 && (b & 0xff) > 32)
+                continue;
+            quote = true;
+            if(b == 34 || b == 92)
+                escape = true;
+        }
+
+        if(quote)
+            os.write(34);
+        if(escape)
+        {
+            for(int i = 0; i < len; i++)
+            {
+                byte b = bytes[i];
+                if(b == 34 || b == 92)
+                    os.write(92);
+                os.write(b);
+            }
+
+        } else
+        {
+            os.write(bytes);
+        }
+        if(quote)
+            os.write(34);
+    }
+
+    private void literal(byte b[], Protocol protocol)
+        throws IOException, ProtocolException
+    {
+        startLiteral(protocol, b.length).write(b);
+    }
+
+    private void literal(ByteArrayOutputStream b, Protocol protocol)
+        throws IOException, ProtocolException
+    {
+        b.writeTo(startLiteral(protocol, b.size()));
+    }
+
+    private void literal(Literal b, Protocol protocol)
+        throws IOException, ProtocolException
+    {
+        b.writeTo(startLiteral(protocol, b.size()));
+    }
+
+    private OutputStream startLiteral(Protocol protocol, int size)
+        throws IOException, ProtocolException
+    {
+        DataOutputStream os = (DataOutputStream)protocol.getOutputStream();
+        boolean nonSync = protocol.supportsNonSyncLiterals();
+        os.write(123);
+        os.writeBytes(Integer.toString(size));
+        if(nonSync)
+            os.writeBytes("+}\r\n");
+        else
+            os.writeBytes("}\r\n");
+        os.flush();
+        if(!nonSync)
+            do
+            {
+                Response r = protocol.readResponse();
+                if(r.isContinuation())
+                    break;
+                if(r.isTagged())
+                    throw new LiteralException(r);
+            } while(true);
+        return os;
+    }
+
+    protected Vector items;
+}

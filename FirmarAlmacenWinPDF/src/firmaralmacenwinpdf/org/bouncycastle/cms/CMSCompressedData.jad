@@ -1,0 +1,119 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSCompressedData.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.zip.InflaterInputStream;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.cms.CompressedData;
+import org.bouncycastle.asn1.cms.ContentInfo;
+import org.bouncycastle.operator.InputExpander;
+import org.bouncycastle.operator.InputExpanderProvider;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSException, CMSUtils
+
+public class CMSCompressedData
+{
+
+    public CMSCompressedData(byte compressedData[])
+        throws CMSException
+    {
+        this(CMSUtils.readContentInfo(compressedData));
+    }
+
+    public CMSCompressedData(InputStream compressedData)
+        throws CMSException
+    {
+        this(CMSUtils.readContentInfo(compressedData));
+    }
+
+    public CMSCompressedData(ContentInfo contentInfo)
+        throws CMSException
+    {
+        this.contentInfo = contentInfo;
+    }
+
+    /**
+     * @deprecated Method getContent is deprecated
+     */
+
+    public byte[] getContent()
+        throws CMSException
+    {
+        CompressedData comData = CompressedData.getInstance(contentInfo.getContent());
+        ContentInfo content = comData.getEncapContentInfo();
+        ASN1OctetString bytes = (ASN1OctetString)content.getContent();
+        InflaterInputStream zIn = new InflaterInputStream(bytes.getOctetStream());
+        try
+        {
+            return CMSUtils.streamToByteArray(zIn);
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("exception reading compressed stream.", e);
+        }
+    }
+
+    /**
+     * @deprecated Method getContent is deprecated
+     */
+
+    public byte[] getContent(int limit)
+        throws CMSException
+    {
+        CompressedData comData = CompressedData.getInstance(contentInfo.getContent());
+        ContentInfo content = comData.getEncapContentInfo();
+        ASN1OctetString bytes = (ASN1OctetString)content.getContent();
+        InflaterInputStream zIn = new InflaterInputStream(bytes.getOctetStream());
+        try
+        {
+            return CMSUtils.streamToByteArray(zIn, limit);
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("exception reading compressed stream.", e);
+        }
+    }
+
+    public ASN1ObjectIdentifier getContentType()
+    {
+        return contentInfo.getContentType();
+    }
+
+    public byte[] getContent(InputExpanderProvider expanderProvider)
+        throws CMSException
+    {
+        CompressedData comData = CompressedData.getInstance(contentInfo.getContent());
+        ContentInfo content = comData.getEncapContentInfo();
+        ASN1OctetString bytes = (ASN1OctetString)content.getContent();
+        InputExpander expander = expanderProvider.get(comData.getCompressionAlgorithmIdentifier());
+        InputStream zIn = expander.getInputStream(bytes.getOctetStream());
+        try
+        {
+            return CMSUtils.streamToByteArray(zIn);
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("exception reading compressed stream.", e);
+        }
+    }
+
+    public ContentInfo getContentInfo()
+    {
+        return contentInfo;
+    }
+
+    public byte[] getEncoded()
+        throws IOException
+    {
+        return contentInfo.getEncoded();
+    }
+
+    ContentInfo contentInfo;
+}

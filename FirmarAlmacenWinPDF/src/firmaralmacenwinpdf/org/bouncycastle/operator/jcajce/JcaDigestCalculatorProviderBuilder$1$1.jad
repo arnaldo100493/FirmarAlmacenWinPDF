@@ -1,0 +1,79 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JcaDigestCalculatorProviderBuilder.java
+
+package org.bouncycastle.operator.jcajce;
+
+import java.io.OutputStream;
+import java.security.GeneralSecurityException;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.operator.*;
+
+// Referenced classes of package org.bouncycastle.operator.jcajce:
+//            JcaDigestCalculatorProviderBuilder, OperatorHelper
+
+class JcaDigestCalculatorProviderBuilder$1$1
+    implements DigestCalculator
+{
+
+    public AlgorithmIdentifier getAlgorithmIdentifier()
+    {
+        return val$algorithm;
+    }
+
+    public OutputStream getOutputStream()
+    {
+        return val$stream;
+    }
+
+    public byte[] getDigest()
+    {
+        return val$stream.getDigest();
+    }
+
+    final AlgorithmIdentifier val$algorithm;
+    final stOutputStream val$stream;
+    final JcaDigestCalculatorProviderBuilder._cls1 this$1;
+
+    JcaDigestCalculatorProviderBuilder$1$1()
+    {
+        this$1 = final__pcls1;
+        val$algorithm = algorithmidentifier;
+        val$stream = stOutputStream.this;
+        super();
+    }
+
+    // Unreferenced inner class org/bouncycastle/operator/jcajce/JcaDigestCalculatorProviderBuilder$1
+
+/* anonymous class */
+    class JcaDigestCalculatorProviderBuilder._cls1
+        implements DigestCalculatorProvider
+    {
+
+        public DigestCalculator get(final AlgorithmIdentifier algorithm)
+            throws OperatorCreationException
+        {
+            JcaDigestCalculatorProviderBuilder.DigestOutputStream stream;
+            try
+            {
+                java.security.MessageDigest dig = JcaDigestCalculatorProviderBuilder.access$000(JcaDigestCalculatorProviderBuilder.this).createDigest(algorithm);
+                stream = new JcaDigestCalculatorProviderBuilder.DigestOutputStream(JcaDigestCalculatorProviderBuilder.this, dig);
+            }
+            catch(GeneralSecurityException e)
+            {
+                throw new OperatorCreationException((new StringBuilder()).append("exception on setup: ").append(e).toString(), e);
+            }
+            return stream. new JcaDigestCalculatorProviderBuilder._cls1._cls1();
+        }
+
+        final JcaDigestCalculatorProviderBuilder this$0;
+
+            
+            {
+                this$0 = JcaDigestCalculatorProviderBuilder.this;
+                super();
+            }
+    }
+
+}

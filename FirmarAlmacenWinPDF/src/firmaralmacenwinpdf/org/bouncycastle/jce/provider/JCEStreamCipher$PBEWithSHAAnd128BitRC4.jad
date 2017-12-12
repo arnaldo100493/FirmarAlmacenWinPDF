@@ -1,0 +1,20 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JCEStreamCipher.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.crypto.engines.RC4Engine;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JCEStreamCipher
+
+public static class JCEStreamCipher$PBEWithSHAAnd128BitRC4 extends JCEStreamCipher
+{
+
+    public JCEStreamCipher$PBEWithSHAAnd128BitRC4()
+    {
+        super(new RC4Engine(), 0);
+    }
+}

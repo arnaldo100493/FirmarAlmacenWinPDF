@@ -1,0 +1,227 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPSaslAuthenticator.java
+
+package com.sun.mail.smtp;
+
+import com.sun.mail.util.*;
+import java.util.Properties;
+import java.util.logging.Level;
+import javax.mail.MessagingException;
+import javax.security.auth.callback.*;
+import javax.security.sasl.*;
+
+// Referenced classes of package com.sun.mail.smtp:
+//            SaslAuthenticator, SMTPTransport
+
+public class SMTPSaslAuthenticator
+    implements SaslAuthenticator
+{
+
+    public SMTPSaslAuthenticator(SMTPTransport pr, String name, Properties props, MailLogger logger, String host)
+    {
+        this.pr = pr;
+        this.name = name;
+        this.props = props;
+        this.logger = logger;
+        this.host = host;
+    }
+
+    public boolean authenticate(String mechs[], final String realm, String authzid, final String u, final String p)
+        throws MessagingException
+    {
+        boolean done;
+        SaslClient sc;
+        int resp;
+        done = false;
+        if(logger.isLoggable(Level.FINE))
+        {
+            logger.fine("SASL Mechanisms:");
+            for(int i = 0; i < mechs.length; i++)
+                logger.fine((new StringBuilder()).append(" ").append(mechs[i]).toString());
+
+            logger.fine("");
+        }
+        CallbackHandler cbh = new CallbackHandler() {
+
+            public void handle(Callback callbacks[])
+            {
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("SASL callback length: ").append(callbacks.length).toString());
+label0:
+                for(int i = 0; i < callbacks.length; i++)
+                {
+                    if(logger.isLoggable(Level.FINE))
+                        logger.fine((new StringBuilder()).append("SASL callback ").append(i).append(": ").append(callbacks[i]).toString());
+                    if(callbacks[i] instanceof NameCallback)
+                    {
+                        NameCallback ncb = (NameCallback)callbacks[i];
+                        ncb.setName(u);
+                        continue;
+                    }
+                    if(callbacks[i] instanceof PasswordCallback)
+                    {
+                        PasswordCallback pcb = (PasswordCallback)callbacks[i];
+                        pcb.setPassword(p.toCharArray());
+                        continue;
+                    }
+                    RealmChoiceCallback rcb;
+                    if(callbacks[i] instanceof RealmCallback)
+                    {
+                        rcb = (RealmCallback)callbacks[i];
+                        rcb.setText(realm == null ? rcb.getDefaultText() : realm);
+                        continue;
+                    }
+                    if(!(callbacks[i] instanceof RealmChoiceCallback))
+                        continue;
+                    rcb = (RealmChoiceCallback)callbacks[i];
+                    if(realm == null)
+                    {
+                        rcb.setSelectedIndex(rcb.getDefaultChoice());
+                        continue;
+                    }
+                    String choices[] = rcb.getChoices();
+                    int k = 0;
+                    do
+                    {
+                        if(k >= choices.length)
+                            continue label0;
+                        if(choices[k].equals(realm))
+                        {
+                            rcb.setSelectedIndex(k);
+                            continue label0;
+                        }
+                        k++;
+                    } while(true);
+                }
+
+            }
+
+            final String val$u;
+            final String val$p;
+            final String val$realm;
+            final SMTPSaslAuthenticator this$0;
+
+            
+            {
+                this$0 = SMTPSaslAuthenticator.this;
+                u = s;
+                p = s1;
+                realm = s2;
+                super();
+            }
+        }
+;
+        try
+        {
+            sc = Sasl.createSaslClient(mechs, authzid, name, host, props, cbh);
+        }
+        catch(SaslException sex)
+        {
+            logger.log(Level.FINE, "Failed to create SASL client: ", sex);
+            return false;
+        }
+        if(sc == null)
+        {
+            logger.fine("No SASL support");
+            return false;
+        }
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("SASL client ").append(sc.getMechanismName()).toString());
+        try
+        {
+            String mech = sc.getMechanismName();
+            String ir = null;
+            if(sc.hasInitialResponse())
+            {
+                byte ba[] = sc.evaluateChallenge(new byte[0]);
+                ba = BASE64EncoderStream.encode(ba);
+                ir = ASCIIUtility.toString(ba, 0, ba.length);
+            }
+            if(ir != null)
+                resp = pr.simpleCommand((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(ir).toString());
+            else
+                resp = pr.simpleCommand((new StringBuilder()).append("AUTH ").append(mech).toString());
+            if(resp == 530)
+            {
+                pr.startTLS();
+                if(ir != null)
+                    resp = pr.simpleCommand((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(ir).toString());
+                else
+                    resp = pr.simpleCommand((new StringBuilder()).append("AUTH ").append(mech).toString());
+            }
+            if(resp == 235)
+                return true;
+        }
+        catch(Exception ex)
+        {
+            logger.log(Level.FINE, "SASL AUTHENTICATE Exception", ex);
+            return false;
+        }
+        if(resp != 334)
+            return false;
+        while(!done) 
+            try
+            {
+                if(resp == 334)
+                {
+                    byte ba[] = null;
+                    if(!sc.isComplete())
+                    {
+                        ba = ASCIIUtility.getBytes(responseText(pr));
+                        if(ba.length > 0)
+                            ba = BASE64DecoderStream.decode(ba);
+                        if(logger.isLoggable(Level.FINE))
+                            logger.fine((new StringBuilder()).append("SASL challenge: ").append(ASCIIUtility.toString(ba, 0, ba.length)).append(" :").toString());
+                        ba = sc.evaluateChallenge(ba);
+                    }
+                    if(ba == null)
+                    {
+                        logger.fine("SASL: no response");
+                        resp = pr.simpleCommand("*");
+                    } else
+                    {
+                        if(logger.isLoggable(Level.FINE))
+                            logger.fine((new StringBuilder()).append("SASL response: ").append(ASCIIUtility.toString(ba, 0, ba.length)).append(" :").toString());
+                        ba = BASE64EncoderStream.encode(ba);
+                        resp = pr.simpleCommand(ba);
+                    }
+                } else
+                {
+                    done = true;
+                }
+            }
+            catch(Exception ioex)
+            {
+                logger.log(Level.FINE, "SASL Exception", ioex);
+                done = true;
+            }
+        if(sc.isComplete())
+        {
+            String qop = (String)sc.getNegotiatedProperty("javax.security.sasl.qop");
+            if(qop != null && (qop.equalsIgnoreCase("auth-int") || qop.equalsIgnoreCase("auth-conf")))
+            {
+                logger.fine("SASL Mechanism requires integrity or confidentiality");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static final String responseText(SMTPTransport pr)
+    {
+        String resp = pr.getLastServerResponse().trim();
+        if(resp.length() > 4)
+            return resp.substring(4);
+        else
+            return "";
+    }
+
+    private SMTPTransport pr;
+    private String name;
+    private Properties props;
+    private MailLogger logger;
+    private String host;
+
+}

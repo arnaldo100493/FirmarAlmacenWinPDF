@@ -1,0 +1,47 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GOST3410Util.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.jce.interfaces.*;
+import org.bouncycastle.jce.spec.GOST3410PublicKeyParameterSetSpec;
+
+public class GOST3410Util
+{
+
+    public GOST3410Util()
+    {
+    }
+
+    public static AsymmetricKeyParameter generatePublicKeyParameter(PublicKey key)
+        throws InvalidKeyException
+    {
+        if(key instanceof GOST3410PublicKey)
+        {
+            GOST3410PublicKey k = (GOST3410PublicKey)key;
+            GOST3410PublicKeyParameterSetSpec p = k.getParameters().getPublicKeyParameters();
+            return new GOST3410PublicKeyParameters(k.getY(), new GOST3410Parameters(p.getP(), p.getQ(), p.getA()));
+        } else
+        {
+            throw new InvalidKeyException((new StringBuilder()).append("can't identify GOST3410 public key: ").append(key.getClass().getName()).toString());
+        }
+    }
+
+    public static AsymmetricKeyParameter generatePrivateKeyParameter(PrivateKey key)
+        throws InvalidKeyException
+    {
+        if(key instanceof GOST3410PrivateKey)
+        {
+            GOST3410PrivateKey k = (GOST3410PrivateKey)key;
+            GOST3410PublicKeyParameterSetSpec p = k.getParameters().getPublicKeyParameters();
+            return new GOST3410PrivateKeyParameters(k.getX(), new GOST3410Parameters(p.getP(), p.getQ(), p.getA()));
+        } else
+        {
+            throw new InvalidKeyException("can't identify GOST3410 private key.");
+        }
+    }
+}

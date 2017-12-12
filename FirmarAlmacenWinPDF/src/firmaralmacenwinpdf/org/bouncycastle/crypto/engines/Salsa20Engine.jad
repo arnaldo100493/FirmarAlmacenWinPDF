@@ -1,0 +1,264 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Salsa20Engine.java
+
+package org.bouncycastle.crypto.engines;
+
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.ParametersWithIV;
+import org.bouncycastle.util.Strings;
+
+public class Salsa20Engine
+    implements StreamCipher
+{
+
+    public Salsa20Engine()
+    {
+        index = 0;
+        engineState = new int[16];
+        x = new int[16];
+        keyStream = new byte[64];
+        workingKey = null;
+        workingIV = null;
+        initialised = false;
+    }
+
+    public void init(boolean forEncryption, CipherParameters params)
+    {
+        if(!(params instanceof ParametersWithIV))
+            throw new IllegalArgumentException("Salsa20 Init parameters must include an IV");
+        ParametersWithIV ivParams = (ParametersWithIV)params;
+        byte iv[] = ivParams.getIV();
+        if(iv == null || iv.length != 8)
+            throw new IllegalArgumentException("Salsa20 requires exactly 8 bytes of IV");
+        if(!(ivParams.getParameters() instanceof KeyParameter))
+        {
+            throw new IllegalArgumentException("Salsa20 Init parameters must include a key");
+        } else
+        {
+            KeyParameter key = (KeyParameter)ivParams.getParameters();
+            workingKey = key.getKey();
+            workingIV = iv;
+            setKey(workingKey, workingIV);
+            return;
+        }
+    }
+
+    public String getAlgorithmName()
+    {
+        return "Salsa20";
+    }
+
+    public byte returnByte(byte in)
+    {
+        if(limitExceeded())
+            throw new MaxBytesExceededException("2^70 byte limit per IV; Change IV");
+        if(index == 0)
+        {
+            salsa20WordToByte(engineState, keyStream);
+            engineState[8]++;
+            if(engineState[8] == 0)
+                engineState[9]++;
+        }
+        byte out = (byte)(keyStream[index] ^ in);
+        index = index + 1 & 0x3f;
+        return out;
+    }
+
+    public void processBytes(byte in[], int inOff, int len, byte out[], int outOff)
+    {
+        if(!initialised)
+            throw new IllegalStateException((new StringBuilder()).append(getAlgorithmName()).append(" not initialised").toString());
+        if(inOff + len > in.length)
+            throw new DataLengthException("input buffer too short");
+        if(outOff + len > out.length)
+            throw new DataLengthException("output buffer too short");
+        if(limitExceeded(len))
+            throw new MaxBytesExceededException("2^70 byte limit per IV would be exceeded; Change IV");
+        for(int i = 0; i < len; i++)
+        {
+            if(index == 0)
+            {
+                salsa20WordToByte(engineState, keyStream);
+                engineState[8]++;
+                if(engineState[8] == 0)
+                    engineState[9]++;
+            }
+            out[i + outOff] = (byte)(keyStream[index] ^ in[i + inOff]);
+            index = index + 1 & 0x3f;
+        }
+
+    }
+
+    public void reset()
+    {
+        setKey(workingKey, workingIV);
+    }
+
+    private void setKey(byte keyBytes[], byte ivBytes[])
+    {
+        workingKey = keyBytes;
+        workingIV = ivBytes;
+        index = 0;
+        resetCounter();
+        int offset = 0;
+        engineState[1] = byteToIntLittle(workingKey, 0);
+        engineState[2] = byteToIntLittle(workingKey, 4);
+        engineState[3] = byteToIntLittle(workingKey, 8);
+        engineState[4] = byteToIntLittle(workingKey, 12);
+        byte constants[];
+        if(workingKey.length == 32)
+        {
+            constants = sigma;
+            offset = 16;
+        } else
+        {
+            constants = tau;
+        }
+        engineState[11] = byteToIntLittle(workingKey, offset);
+        engineState[12] = byteToIntLittle(workingKey, offset + 4);
+        engineState[13] = byteToIntLittle(workingKey, offset + 8);
+        engineState[14] = byteToIntLittle(workingKey, offset + 12);
+        engineState[0] = byteToIntLittle(constants, 0);
+        engineState[5] = byteToIntLittle(constants, 4);
+        engineState[10] = byteToIntLittle(constants, 8);
+        engineState[15] = byteToIntLittle(constants, 12);
+        engineState[6] = byteToIntLittle(workingIV, 0);
+        engineState[7] = byteToIntLittle(workingIV, 4);
+        engineState[8] = engineState[9] = 0;
+        initialised = true;
+    }
+
+    private void salsa20WordToByte(int input[], byte output[])
+    {
+        System.arraycopy(input, 0, x, 0, input.length);
+        for(int i = 0; i < 10; i++)
+        {
+            x[4] ^= rotl(x[0] + x[12], 7);
+            x[8] ^= rotl(x[4] + x[0], 9);
+            x[12] ^= rotl(x[8] + x[4], 13);
+            x[0] ^= rotl(x[12] + x[8], 18);
+            x[9] ^= rotl(x[5] + x[1], 7);
+            x[13] ^= rotl(x[9] + x[5], 9);
+            x[1] ^= rotl(x[13] + x[9], 13);
+            x[5] ^= rotl(x[1] + x[13], 18);
+            x[14] ^= rotl(x[10] + x[6], 7);
+            x[2] ^= rotl(x[14] + x[10], 9);
+            x[6] ^= rotl(x[2] + x[14], 13);
+            x[10] ^= rotl(x[6] + x[2], 18);
+            x[3] ^= rotl(x[15] + x[11], 7);
+            x[7] ^= rotl(x[3] + x[15], 9);
+            x[11] ^= rotl(x[7] + x[3], 13);
+            x[15] ^= rotl(x[11] + x[7], 18);
+            x[1] ^= rotl(x[0] + x[3], 7);
+            x[2] ^= rotl(x[1] + x[0], 9);
+            x[3] ^= rotl(x[2] + x[1], 13);
+            x[0] ^= rotl(x[3] + x[2], 18);
+            x[6] ^= rotl(x[5] + x[4], 7);
+            x[7] ^= rotl(x[6] + x[5], 9);
+            x[4] ^= rotl(x[7] + x[6], 13);
+            x[5] ^= rotl(x[4] + x[7], 18);
+            x[11] ^= rotl(x[10] + x[9], 7);
+            x[8] ^= rotl(x[11] + x[10], 9);
+            x[9] ^= rotl(x[8] + x[11], 13);
+            x[10] ^= rotl(x[9] + x[8], 18);
+            x[12] ^= rotl(x[15] + x[14], 7);
+            x[13] ^= rotl(x[12] + x[15], 9);
+            x[14] ^= rotl(x[13] + x[12], 13);
+            x[15] ^= rotl(x[14] + x[13], 18);
+        }
+
+        int offset = 0;
+        for(int i = 0; i < 16; i++)
+        {
+            intToByteLittle(x[i] + input[i], output, offset);
+            offset += 4;
+        }
+
+        for(int i = 16; i < x.length; i++)
+        {
+            intToByteLittle(x[i], output, offset);
+            offset += 4;
+        }
+
+    }
+
+    private byte[] intToByteLittle(int x, byte out[], int off)
+    {
+        out[off] = (byte)x;
+        out[off + 1] = (byte)(x >>> 8);
+        out[off + 2] = (byte)(x >>> 16);
+        out[off + 3] = (byte)(x >>> 24);
+        return out;
+    }
+
+    private int rotl(int x, int y)
+    {
+        return x << y | x >>> -y;
+    }
+
+    private int byteToIntLittle(byte x[], int offset)
+    {
+        return x[offset] & 0xff | (x[offset + 1] & 0xff) << 8 | (x[offset + 2] & 0xff) << 16 | x[offset + 3] << 24;
+    }
+
+    private void resetCounter()
+    {
+        cW0 = 0;
+        cW1 = 0;
+        cW2 = 0;
+    }
+
+    private boolean limitExceeded()
+    {
+        cW0++;
+        if(cW0 == 0)
+        {
+            cW1++;
+            if(cW1 == 0)
+            {
+                cW2++;
+                return (cW2 & 0x20) != 0;
+            }
+        }
+        return false;
+    }
+
+    private boolean limitExceeded(int len)
+    {
+        if(cW0 >= 0)
+        {
+            cW0 += len;
+        } else
+        {
+            cW0 += len;
+            if(cW0 >= 0)
+            {
+                cW1++;
+                if(cW1 == 0)
+                {
+                    cW2++;
+                    return (cW2 & 0x20) != 0;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static final int stateSize = 16;
+    private static final byte sigma[] = Strings.toByteArray("expand 32-byte k");
+    private static final byte tau[] = Strings.toByteArray("expand 16-byte k");
+    private int index;
+    private int engineState[];
+    private int x[];
+    private byte keyStream[];
+    private byte workingKey[];
+    private byte workingIV[];
+    private boolean initialised;
+    private int cW0;
+    private int cW1;
+    private int cW2;
+
+}

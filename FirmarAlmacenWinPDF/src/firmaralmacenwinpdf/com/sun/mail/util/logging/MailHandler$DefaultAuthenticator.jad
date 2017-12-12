@@ -1,0 +1,37 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailHandler.java
+
+package com.sun.mail.util.logging;
+
+import javax.mail.Authenticator;
+import javax.mail.PasswordAuthentication;
+
+// Referenced classes of package com.sun.mail.util.logging:
+//            MailHandler
+
+private static final class MailHandler$DefaultAuthenticator extends Authenticator
+{
+
+    protected final PasswordAuthentication getPasswordAuthentication()
+    {
+        return new PasswordAuthentication(getDefaultUserName(), pass);
+    }
+
+    private final String pass;
+    static final boolean $assertionsDisabled = !com/sun/mail/util/logging/MailHandler.desiredAssertionStatus();
+
+
+    MailHandler$DefaultAuthenticator(String pass)
+    {
+        if(!$assertionsDisabled && pass == null)
+        {
+            throw new AssertionError();
+        } else
+        {
+            this.pass = pass;
+            return;
+        }
+    }
+}

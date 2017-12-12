@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERSequenceParser.java
+
+package co.org.bouncy.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package co.org.bouncy.asn1:
+//            DERSequence, ASN1SequenceParser, ASN1StreamParser, ASN1Encodable, 
+//            ASN1Primitive
+
+public class DERSequenceParser
+    implements ASN1SequenceParser
+{
+
+    DERSequenceParser(ASN1StreamParser parser)
+    {
+        _parser = parser;
+    }
+
+    public ASN1Encodable readObject()
+        throws IOException
+    {
+        return _parser.readObject();
+    }
+
+    public ASN1Primitive getLoadedObject()
+        throws IOException
+    {
+        return new DERSequence(_parser.readVector());
+    }
+
+    public ASN1Primitive toASN1Primitive()
+    {
+        try
+        {
+            return getLoadedObject();
+        }
+        catch(IOException e)
+        {
+            throw new IllegalStateException(e.getMessage());
+        }
+    }
+
+    private ASN1StreamParser _parser;
+}

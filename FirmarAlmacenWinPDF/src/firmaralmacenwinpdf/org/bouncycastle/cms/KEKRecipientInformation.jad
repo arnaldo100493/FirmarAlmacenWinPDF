@@ -1,0 +1,71 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KEKRecipientInformation.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.security.*;
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.cms.KEKIdentifier;
+import org.bouncycastle.asn1.cms.KEKRecipientInfo;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            RecipientInformation, KEKRecipientId, CMSException, KEKRecipient, 
+//            CMSUtils, CMSEnvelopedHelper, CMSSecureReadable, AuthAttributesProvider, 
+//            CMSTypedStream, Recipient, RecipientOperator
+
+public class KEKRecipientInformation extends RecipientInformation
+{
+
+    KEKRecipientInformation(KEKRecipientInfo info, AlgorithmIdentifier messageAlgorithm, CMSSecureReadable secureReadable, AuthAttributesProvider additionalData)
+    {
+        super(info.getKeyEncryptionAlgorithm(), messageAlgorithm, secureReadable, additionalData);
+        this.info = info;
+        KEKIdentifier kekId = info.getKekid();
+        rid = new KEKRecipientId(kekId.getKeyIdentifier().getOctets());
+    }
+
+    public CMSTypedStream getContentStream(Key key, String prov)
+        throws CMSException, NoSuchProviderException
+    {
+        return getContentStream(key, CMSUtils.getProvider(prov));
+    }
+
+    public CMSTypedStream getContentStream(Key key, Provider prov)
+        throws CMSException
+    {
+        try
+        {
+            Cipher keyCipher = CMSEnvelopedHelper.INSTANCE.createSymmetricCipher(keyEncAlg.getObjectId().getId(), prov);
+            keyCipher.init(4, key);
+            Key sKey = keyCipher.unwrap(info.getEncryptedKey().getOctets(), getContentAlgorithmName(), 3);
+            return getContentFromSessionKey(sKey, prov);
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            throw new CMSException("can't find algorithm.", e);
+        }
+        catch(InvalidKeyException e)
+        {
+            throw new CMSException("key invalid in message.", e);
+        }
+        catch(NoSuchPaddingException e)
+        {
+            throw new CMSException("required padding not supported.", e);
+        }
+    }
+
+    protected RecipientOperator getRecipientOperator(Recipient recipient)
+        throws CMSException, IOException
+    {
+        return ((KEKRecipient)recipient).getRecipientOperator(keyEncAlg, messageAlgorithm, info.getEncryptedKey().getOctets());
+    }
+
+    private KEKRecipientInfo info;
+}

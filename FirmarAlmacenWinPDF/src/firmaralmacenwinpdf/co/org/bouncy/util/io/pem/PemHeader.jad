@@ -1,0 +1,65 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PemHeader.java
+
+package co.org.bouncy.util.io.pem;
+
+
+public class PemHeader
+{
+
+    public PemHeader(String name, String value)
+    {
+        this.name = name;
+        this.value = value;
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public String getValue()
+    {
+        return value;
+    }
+
+    public int hashCode()
+    {
+        return getHashCode(name) + 31 * getHashCode(value);
+    }
+
+    public boolean equals(Object o)
+    {
+        if(!(o instanceof PemHeader))
+        {
+            return false;
+        } else
+        {
+            PemHeader other = (PemHeader)o;
+            return other == this || isEqual(name, other.name) && isEqual(value, other.value);
+        }
+    }
+
+    private int getHashCode(String s)
+    {
+        if(s == null)
+            return 1;
+        else
+            return s.hashCode();
+    }
+
+    private boolean isEqual(String s1, String s2)
+    {
+        if(s1 == s2)
+            return true;
+        if(s1 == null || s2 == null)
+            return false;
+        else
+            return s1.equals(s2);
+    }
+
+    private String name;
+    private String value;
+}

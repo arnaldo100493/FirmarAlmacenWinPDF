@@ -1,0 +1,44 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CMS.java
+
+package co.com.andesscd.pki.clases;
+
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CMS
+
+public static final class CMS$FuenteHoraria extends Enum
+{
+
+    public static CMS$FuenteHoraria[] values()
+    {
+        return (CMS$FuenteHoraria[])$VALUES.clone();
+    }
+
+    public static CMS$FuenteHoraria valueOf(String name)
+    {
+        return (CMS$FuenteHoraria)Enum.valueOf(co/com/andesscd/pki/clases/CMS$FuenteHoraria, name);
+    }
+
+    public static final CMS$FuenteHoraria LOCAL;
+    public static final CMS$FuenteHoraria SNTP;
+    public static final CMS$FuenteHoraria TSA;
+    private static final CMS$FuenteHoraria $VALUES[];
+
+    static 
+    {
+        LOCAL = new CMS$FuenteHoraria("LOCAL", 0);
+        SNTP = new CMS$FuenteHoraria("SNTP", 1);
+        TSA = new CMS$FuenteHoraria("TSA", 2);
+        $VALUES = (new CMS$FuenteHoraria[] {
+            LOCAL, SNTP, TSA
+        });
+    }
+
+    private CMS$FuenteHoraria(String s, int i)
+    {
+        super(s, i);
+    }
+}

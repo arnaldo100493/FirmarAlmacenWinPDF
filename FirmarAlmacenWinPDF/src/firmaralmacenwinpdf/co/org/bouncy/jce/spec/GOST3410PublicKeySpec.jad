@@ -1,0 +1,47 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GOST3410PublicKeySpec.java
+
+package co.org.bouncy.jce.spec;
+
+import java.math.BigInteger;
+import java.security.spec.KeySpec;
+
+public class GOST3410PublicKeySpec
+    implements KeySpec
+{
+
+    public GOST3410PublicKeySpec(BigInteger y, BigInteger p, BigInteger q, BigInteger a)
+    {
+        this.y = y;
+        this.p = p;
+        this.q = q;
+        this.a = a;
+    }
+
+    public BigInteger getY()
+    {
+        return y;
+    }
+
+    public BigInteger getP()
+    {
+        return p;
+    }
+
+    public BigInteger getQ()
+    {
+        return q;
+    }
+
+    public BigInteger getA()
+    {
+        return a;
+    }
+
+    private BigInteger y;
+    private BigInteger p;
+    private BigInteger q;
+    private BigInteger a;
+}

@@ -1,0 +1,105 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertificationRequestInfo.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x509.X509Name;
+
+public class CertificationRequestInfo extends ASN1Encodable
+{
+
+    public static CertificationRequestInfo getInstance(Object obj)
+    {
+        if(obj instanceof CertificationRequestInfo)
+            return (CertificationRequestInfo)obj;
+        if(obj instanceof ASN1Sequence)
+            return new CertificationRequestInfo((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public CertificationRequestInfo(X500Name subject, SubjectPublicKeyInfo pkInfo, ASN1Set attributes)
+    {
+        version = new DERInteger(0);
+        this.attributes = null;
+        this.subject = X509Name.getInstance(subject.getDERObject());
+        subjectPKInfo = pkInfo;
+        this.attributes = attributes;
+        if(subject == null || version == null || subjectPKInfo == null)
+            throw new IllegalArgumentException("Not all mandatory fields set in CertificationRequestInfo generator.");
+        else
+            return;
+    }
+
+    public CertificationRequestInfo(X509Name subject, SubjectPublicKeyInfo pkInfo, ASN1Set attributes)
+    {
+        version = new DERInteger(0);
+        this.attributes = null;
+        this.subject = subject;
+        subjectPKInfo = pkInfo;
+        this.attributes = attributes;
+        if(subject == null || version == null || subjectPKInfo == null)
+            throw new IllegalArgumentException("Not all mandatory fields set in CertificationRequestInfo generator.");
+        else
+            return;
+    }
+
+    public CertificationRequestInfo(ASN1Sequence seq)
+    {
+        version = new DERInteger(0);
+        attributes = null;
+        version = (DERInteger)seq.getObjectAt(0);
+        subject = X509Name.getInstance(seq.getObjectAt(1));
+        subjectPKInfo = SubjectPublicKeyInfo.getInstance(seq.getObjectAt(2));
+        if(seq.size() > 3)
+        {
+            DERTaggedObject tagobj = (DERTaggedObject)seq.getObjectAt(3);
+            attributes = ASN1Set.getInstance(tagobj, false);
+        }
+        if(subject == null || version == null || subjectPKInfo == null)
+            throw new IllegalArgumentException("Not all mandatory fields set in CertificationRequestInfo generator.");
+        else
+            return;
+    }
+
+    public DERInteger getVersion()
+    {
+        return version;
+    }
+
+    public X509Name getSubject()
+    {
+        return subject;
+    }
+
+    public SubjectPublicKeyInfo getSubjectPublicKeyInfo()
+    {
+        return subjectPKInfo;
+    }
+
+    public ASN1Set getAttributes()
+    {
+        return attributes;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(version);
+        v.add(subject);
+        v.add(subjectPKInfo);
+        if(attributes != null)
+            v.add(new DERTaggedObject(false, 0, attributes));
+        return new DERSequence(v);
+    }
+
+    DERInteger version;
+    X509Name subject;
+    SubjectPublicKeyInfo subjectPKInfo;
+    ASN1Set attributes;
+}

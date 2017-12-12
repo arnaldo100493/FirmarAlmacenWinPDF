@@ -1,0 +1,53 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ACL.java
+
+package com.sun.mail.imap;
+
+
+// Referenced classes of package com.sun.mail.imap:
+//            Rights
+
+public class ACL
+    implements Cloneable
+{
+
+    public ACL(String name)
+    {
+        this.name = name;
+        rights = new Rights();
+    }
+
+    public ACL(String name, Rights rights)
+    {
+        this.name = name;
+        this.rights = rights;
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public void setRights(Rights rights)
+    {
+        this.rights = rights;
+    }
+
+    public Rights getRights()
+    {
+        return rights;
+    }
+
+    public Object clone()
+        throws CloneNotSupportedException
+    {
+        ACL acl = (ACL)super.clone();
+        acl.rights = (Rights)rights.clone();
+        return acl;
+    }
+
+    private String name;
+    private Rights rights;
+}

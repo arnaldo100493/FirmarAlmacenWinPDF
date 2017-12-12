@@ -1,0 +1,287 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RenderingHints.java
+
+package co.com.pdf.awt.geom.misc;
+
+import java.util.*;
+
+public class RenderingHints
+    implements Map, Cloneable
+{
+    private static class KeyValue
+    {
+
+        private final Key key;
+
+
+        protected KeyValue(Key key)
+        {
+            this.key = key;
+        }
+    }
+
+    private static class KeyImpl extends Key
+    {
+
+        public boolean isCompatibleValue(Object val)
+        {
+            if(!(val instanceof KeyValue))
+                return false;
+            else
+                return ((KeyValue)val).key == this;
+        }
+
+        protected KeyImpl(int key)
+        {
+            super(key);
+        }
+    }
+
+    public static abstract class Key
+    {
+
+        public final boolean equals(Object o)
+        {
+            return this == o;
+        }
+
+        public final int hashCode()
+        {
+            return System.identityHashCode(this);
+        }
+
+        protected final int intKey()
+        {
+            return key;
+        }
+
+        public abstract boolean isCompatibleValue(Object obj);
+
+        private final int key;
+
+        protected Key(int key)
+        {
+            this.key = key;
+        }
+    }
+
+
+    public RenderingHints(Map map)
+    {
+        this.map = new HashMap();
+        if(map != null)
+            putAll(map);
+    }
+
+    public RenderingHints(Key key, Object value)
+    {
+        map = new HashMap();
+        put(key, value);
+    }
+
+    public void add(RenderingHints hints)
+    {
+        map.putAll(hints.map);
+    }
+
+    public Object put(Object key, Object value)
+    {
+        if(!((Key)key).isCompatibleValue(value))
+            throw new IllegalArgumentException();
+        else
+            return map.put(key, value);
+    }
+
+    public Object remove(Object key)
+    {
+        return map.remove(key);
+    }
+
+    public Object get(Object key)
+    {
+        return map.get(key);
+    }
+
+    public Set keySet()
+    {
+        return map.keySet();
+    }
+
+    public Set entrySet()
+    {
+        return map.entrySet();
+    }
+
+    public void putAll(Map m)
+    {
+        if(m instanceof RenderingHints)
+        {
+            map.putAll(((RenderingHints)m).map);
+        } else
+        {
+            Set entries = m.entrySet();
+            if(entries != null)
+            {
+                Key key;
+                Object val;
+                for(Iterator it = entries.iterator(); it.hasNext(); put(key, val))
+                {
+                    java.util.Map.Entry entry = (java.util.Map.Entry)it.next();
+                    key = (Key)entry.getKey();
+                    val = entry.getValue();
+                }
+
+            }
+        }
+    }
+
+    public Collection values()
+    {
+        return map.values();
+    }
+
+    public boolean containsValue(Object value)
+    {
+        return map.containsValue(value);
+    }
+
+    public boolean containsKey(Object key)
+    {
+        if(key == null)
+            throw new NullPointerException();
+        else
+            return map.containsKey(key);
+    }
+
+    public boolean isEmpty()
+    {
+        return map.isEmpty();
+    }
+
+    public void clear()
+    {
+        map.clear();
+    }
+
+    public int size()
+    {
+        return map.size();
+    }
+
+    public boolean equals(Object o)
+    {
+        if(!(o instanceof Map))
+            return false;
+        Map m = (Map)o;
+        Set keys = keySet();
+        if(!keys.equals(m.keySet()))
+            return false;
+        for(Iterator it = keys.iterator(); it.hasNext();)
+        {
+            Key key = (Key)it.next();
+            Object v1 = get(key);
+            Object v2 = m.get(key);
+            if(v1 != null ? !v1.equals(v2) : v2 != null)
+                return false;
+        }
+
+        return true;
+    }
+
+    public int hashCode()
+    {
+        return map.hashCode();
+    }
+
+    public Object clone()
+    {
+        RenderingHints clone = new RenderingHints(null);
+        clone.map = (HashMap)map.clone();
+        return clone;
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append("RenderingHints[").append(map.toString()).append("]").toString();
+    }
+
+    public static final Key KEY_ALPHA_INTERPOLATION;
+    public static final Object VALUE_ALPHA_INTERPOLATION_DEFAULT;
+    public static final Object VALUE_ALPHA_INTERPOLATION_SPEED;
+    public static final Object VALUE_ALPHA_INTERPOLATION_QUALITY;
+    public static final Key KEY_ANTIALIASING;
+    public static final Object VALUE_ANTIALIAS_DEFAULT;
+    public static final Object VALUE_ANTIALIAS_ON;
+    public static final Object VALUE_ANTIALIAS_OFF;
+    public static final Key KEY_COLOR_RENDERING;
+    public static final Object VALUE_COLOR_RENDER_DEFAULT;
+    public static final Object VALUE_COLOR_RENDER_SPEED;
+    public static final Object VALUE_COLOR_RENDER_QUALITY;
+    public static final Key KEY_DITHERING;
+    public static final Object VALUE_DITHER_DEFAULT;
+    public static final Object VALUE_DITHER_DISABLE;
+    public static final Object VALUE_DITHER_ENABLE;
+    public static final Key KEY_FRACTIONALMETRICS;
+    public static final Object VALUE_FRACTIONALMETRICS_DEFAULT;
+    public static final Object VALUE_FRACTIONALMETRICS_ON;
+    public static final Object VALUE_FRACTIONALMETRICS_OFF;
+    public static final Key KEY_INTERPOLATION;
+    public static final Object VALUE_INTERPOLATION_BICUBIC;
+    public static final Object VALUE_INTERPOLATION_BILINEAR;
+    public static final Object VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+    public static final Key KEY_RENDERING;
+    public static final Object VALUE_RENDER_DEFAULT;
+    public static final Object VALUE_RENDER_SPEED;
+    public static final Object VALUE_RENDER_QUALITY;
+    public static final Key KEY_STROKE_CONTROL;
+    public static final Object VALUE_STROKE_DEFAULT;
+    public static final Object VALUE_STROKE_NORMALIZE;
+    public static final Object VALUE_STROKE_PURE;
+    public static final Key KEY_TEXT_ANTIALIASING;
+    public static final Object VALUE_TEXT_ANTIALIAS_DEFAULT;
+    public static final Object VALUE_TEXT_ANTIALIAS_ON;
+    public static final Object VALUE_TEXT_ANTIALIAS_OFF;
+    private HashMap map;
+
+    static 
+    {
+        KEY_ALPHA_INTERPOLATION = new KeyImpl(1);
+        VALUE_ALPHA_INTERPOLATION_DEFAULT = new KeyValue(KEY_ALPHA_INTERPOLATION);
+        VALUE_ALPHA_INTERPOLATION_SPEED = new KeyValue(KEY_ALPHA_INTERPOLATION);
+        VALUE_ALPHA_INTERPOLATION_QUALITY = new KeyValue(KEY_ALPHA_INTERPOLATION);
+        KEY_ANTIALIASING = new KeyImpl(2);
+        VALUE_ANTIALIAS_DEFAULT = new KeyValue(KEY_ANTIALIASING);
+        VALUE_ANTIALIAS_ON = new KeyValue(KEY_ANTIALIASING);
+        VALUE_ANTIALIAS_OFF = new KeyValue(KEY_ANTIALIASING);
+        KEY_COLOR_RENDERING = new KeyImpl(3);
+        VALUE_COLOR_RENDER_DEFAULT = new KeyValue(KEY_COLOR_RENDERING);
+        VALUE_COLOR_RENDER_SPEED = new KeyValue(KEY_COLOR_RENDERING);
+        VALUE_COLOR_RENDER_QUALITY = new KeyValue(KEY_COLOR_RENDERING);
+        KEY_DITHERING = new KeyImpl(4);
+        VALUE_DITHER_DEFAULT = new KeyValue(KEY_DITHERING);
+        VALUE_DITHER_DISABLE = new KeyValue(KEY_DITHERING);
+        VALUE_DITHER_ENABLE = new KeyValue(KEY_DITHERING);
+        KEY_FRACTIONALMETRICS = new KeyImpl(5);
+        VALUE_FRACTIONALMETRICS_DEFAULT = new KeyValue(KEY_FRACTIONALMETRICS);
+        VALUE_FRACTIONALMETRICS_ON = new KeyValue(KEY_FRACTIONALMETRICS);
+        VALUE_FRACTIONALMETRICS_OFF = new KeyValue(KEY_FRACTIONALMETRICS);
+        KEY_INTERPOLATION = new KeyImpl(6);
+        VALUE_INTERPOLATION_BICUBIC = new KeyValue(KEY_INTERPOLATION);
+        VALUE_INTERPOLATION_BILINEAR = new KeyValue(KEY_INTERPOLATION);
+        VALUE_INTERPOLATION_NEAREST_NEIGHBOR = new KeyValue(KEY_INTERPOLATION);
+        KEY_RENDERING = new KeyImpl(7);
+        VALUE_RENDER_DEFAULT = new KeyValue(KEY_RENDERING);
+        VALUE_RENDER_SPEED = new KeyValue(KEY_RENDERING);
+        VALUE_RENDER_QUALITY = new KeyValue(KEY_RENDERING);
+        KEY_STROKE_CONTROL = new KeyImpl(8);
+        VALUE_STROKE_DEFAULT = new KeyValue(KEY_STROKE_CONTROL);
+        VALUE_STROKE_NORMALIZE = new KeyValue(KEY_STROKE_CONTROL);
+        VALUE_STROKE_PURE = new KeyValue(KEY_STROKE_CONTROL);
+        KEY_TEXT_ANTIALIASING = new KeyImpl(9);
+        VALUE_TEXT_ANTIALIAS_DEFAULT = new KeyValue(KEY_TEXT_ANTIALIASING);
+        VALUE_TEXT_ANTIALIAS_ON = new KeyValue(KEY_TEXT_ANTIALIASING);
+        VALUE_TEXT_ANTIALIAS_OFF = new KeyValue(KEY_TEXT_ANTIALIASING);
+    }
+}

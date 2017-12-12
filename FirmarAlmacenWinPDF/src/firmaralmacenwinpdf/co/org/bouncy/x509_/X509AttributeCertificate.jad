@@ -1,0 +1,52 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509AttributeCertificate.java
+
+package co.org.bouncy.x509_;
+
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.cert.*;
+import java.util.Date;
+
+// Referenced classes of package co.org.bouncy.x509_:
+//            AttributeCertificateHolder, AttributeCertificateIssuer, X509Attribute
+
+public interface X509AttributeCertificate
+    extends X509Extension
+{
+
+    public abstract int getVersion();
+
+    public abstract BigInteger getSerialNumber();
+
+    public abstract Date getNotBefore();
+
+    public abstract Date getNotAfter();
+
+    public abstract AttributeCertificateHolder getHolder();
+
+    public abstract AttributeCertificateIssuer getIssuer();
+
+    public abstract X509Attribute[] getAttributes();
+
+    public abstract X509Attribute[] getAttributes(String s);
+
+    public abstract boolean[] getIssuerUniqueID();
+
+    public abstract void checkValidity()
+        throws CertificateExpiredException, CertificateNotYetValidException;
+
+    public abstract void checkValidity(Date date)
+        throws CertificateExpiredException, CertificateNotYetValidException;
+
+    public abstract byte[] getSignature();
+
+    public abstract void verify(PublicKey publickey, String s)
+        throws CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException;
+
+    public abstract byte[] getEncoded()
+        throws IOException;
+}

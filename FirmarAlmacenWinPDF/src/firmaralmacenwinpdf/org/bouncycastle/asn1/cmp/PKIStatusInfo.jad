@@ -1,0 +1,110 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PKIStatusInfo.java
+
+package org.bouncycastle.asn1.cmp;
+
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.cmp:
+//            PKIFreeText, PKIStatus, PKIFailureInfo
+
+public class PKIStatusInfo extends ASN1Encodable
+{
+
+    public static PKIStatusInfo getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static PKIStatusInfo getInstance(Object obj)
+    {
+        if(obj instanceof PKIStatusInfo)
+            return (PKIStatusInfo)obj;
+        if(obj instanceof ASN1Sequence)
+            return new PKIStatusInfo((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public PKIStatusInfo(ASN1Sequence seq)
+    {
+        status = DERInteger.getInstance(seq.getObjectAt(0));
+        statusString = null;
+        failInfo = null;
+        if(seq.size() > 2)
+        {
+            statusString = PKIFreeText.getInstance(seq.getObjectAt(1));
+            failInfo = DERBitString.getInstance(seq.getObjectAt(2));
+        } else
+        if(seq.size() > 1)
+        {
+            Object obj = seq.getObjectAt(1);
+            if(obj instanceof DERBitString)
+                failInfo = DERBitString.getInstance(obj);
+            else
+                statusString = PKIFreeText.getInstance(obj);
+        }
+    }
+
+    public PKIStatusInfo(int status)
+    {
+        this.status = new DERInteger(status);
+    }
+
+    public PKIStatusInfo(PKIStatus status)
+    {
+        this.status = DERInteger.getInstance(status.toASN1Object());
+    }
+
+    public PKIStatusInfo(int status, PKIFreeText statusString)
+    {
+        this.status = new DERInteger(status);
+        this.statusString = statusString;
+    }
+
+    public PKIStatusInfo(PKIStatus status, PKIFreeText statusString)
+    {
+        this.status = DERInteger.getInstance(status.toASN1Object());
+        this.statusString = statusString;
+    }
+
+    public PKIStatusInfo(int status, PKIFreeText statusString, PKIFailureInfo failInfo)
+    {
+        this.status = new DERInteger(status);
+        this.statusString = statusString;
+        this.failInfo = failInfo;
+    }
+
+    public BigInteger getStatus()
+    {
+        return status.getValue();
+    }
+
+    public PKIFreeText getStatusString()
+    {
+        return statusString;
+    }
+
+    public DERBitString getFailInfo()
+    {
+        return failInfo;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(status);
+        if(statusString != null)
+            v.add(statusString);
+        if(failInfo != null)
+            v.add(failInfo);
+        return new DERSequence(v);
+    }
+
+    DERInteger status;
+    PKIFreeText statusString;
+    DERBitString failInfo;
+}

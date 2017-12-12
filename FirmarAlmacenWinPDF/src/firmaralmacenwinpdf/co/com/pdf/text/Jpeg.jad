@@ -1,0 +1,356 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Jpeg.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.error_messages.MessageLocalization;
+import co.com.pdf.text.pdf.ICC_Profile;
+import java.io.*;
+import java.net.URL;
+
+// Referenced classes of package co.com.pdf.text:
+//            Image, BadElementException, Utilities
+
+public class Jpeg extends Image
+{
+
+    Jpeg(Image image)
+    {
+        super(image);
+    }
+
+    public Jpeg(URL url)
+        throws BadElementException, IOException
+    {
+        super(url);
+        processParameters();
+    }
+
+    public Jpeg(byte img[])
+        throws BadElementException, IOException
+    {
+        super((URL)null);
+        rawData = img;
+        originalData = img;
+        processParameters();
+    }
+
+    public Jpeg(byte img[], float width, float height)
+        throws BadElementException, IOException
+    {
+        this(img);
+        scaledWidth = width;
+        scaledHeight = height;
+    }
+
+    private static final int getShort(InputStream is)
+        throws IOException
+    {
+        return (is.read() << 8) + is.read();
+    }
+
+    private static final int marker(int marker)
+    {
+        for(int i = 0; i < VALID_MARKERS.length; i++)
+            if(marker == VALID_MARKERS[i])
+                return 0;
+
+        for(int i = 0; i < NOPARAM_MARKERS.length; i++)
+            if(marker == NOPARAM_MARKERS[i])
+                return 2;
+
+        for(int i = 0; i < UNSUPPORTED_MARKERS.length; i++)
+            if(marker == UNSUPPORTED_MARKERS[i])
+                return 1;
+
+        return -1;
+    }
+
+    private void processParameters()
+        throws BadElementException, IOException
+    {
+        InputStream is;
+        type = 32;
+        originalType = 1;
+        is = null;
+        String errorID;
+        if(rawData == null)
+        {
+            is = url.openStream();
+            errorID = url.toString();
+        } else
+        {
+            is = new ByteArrayInputStream(rawData);
+            errorID = "Byte array";
+        }
+        if(is.read() != 255 || is.read() != 216)
+            throw new BadElementException(MessageLocalization.getComposedMessage("1.is.not.a.valid.jpeg.file", new Object[] {
+                errorID
+            }));
+        boolean firstPass = true;
+        do
+        {
+            int v;
+            do
+            {
+                v = is.read();
+                if(v < 0)
+                    throw new IOException(MessageLocalization.getComposedMessage("premature.eof.while.reading.jpg", new Object[0]));
+            } while(v != 255);
+            int marker = is.read();
+            if(firstPass && marker == 224)
+            {
+                firstPass = false;
+                int len = getShort(is);
+                if(len < 16)
+                {
+                    Utilities.skip(is, len - 2);
+                } else
+                {
+                    byte bcomp[] = new byte[JFIF_ID.length];
+                    int r = is.read(bcomp);
+                    if(r != bcomp.length)
+                        throw new BadElementException(MessageLocalization.getComposedMessage("1.corrupted.jfif.marker", new Object[] {
+                            errorID
+                        }));
+                    boolean found = true;
+                    int k = 0;
+                    do
+                    {
+                        if(k >= bcomp.length)
+                            break;
+                        if(bcomp[k] != JFIF_ID[k])
+                        {
+                            found = false;
+                            break;
+                        }
+                        k++;
+                    } while(true);
+                    if(!found)
+                    {
+                        Utilities.skip(is, len - 2 - bcomp.length);
+                    } else
+                    {
+                        Utilities.skip(is, 2);
+                        int units = is.read();
+                        int dx = getShort(is);
+                        int dy = getShort(is);
+                        if(units == 1)
+                        {
+                            dpiX = dx;
+                            dpiY = dy;
+                        } else
+                        if(units == 2)
+                        {
+                            dpiX = (int)((float)dx * 2.54F + 0.5F);
+                            dpiY = (int)((float)dy * 2.54F + 0.5F);
+                        }
+                        Utilities.skip(is, len - 2 - bcomp.length - 7);
+                    }
+                }
+                continue;
+            }
+            if(marker == 238)
+            {
+                int len = getShort(is) - 2;
+                byte byteappe[] = new byte[len];
+                for(int k = 0; k < len; k++)
+                    byteappe[k] = (byte)is.read();
+
+                if(byteappe.length >= 12)
+                {
+                    String appe = new String(byteappe, 0, 5, "ISO-8859-1");
+                    if(appe.equals("Adobe"))
+                        invert = true;
+                }
+                continue;
+            }
+            if(marker == 226)
+            {
+                int len = getShort(is) - 2;
+                byte byteapp2[] = new byte[len];
+                for(int k = 0; k < len; k++)
+                    byteapp2[k] = (byte)is.read();
+
+                if(byteapp2.length >= 14)
+                {
+                    String app2 = new String(byteapp2, 0, 11, "ISO-8859-1");
+                    if(app2.equals("ICC_PROFILE"))
+                    {
+                        int order = byteapp2[12] & 0xff;
+                        int count = byteapp2[13] & 0xff;
+                        if(order < 1)
+                            order = 1;
+                        if(count < 1)
+                            count = 1;
+                        if(icc == null)
+                            icc = new byte[count][];
+                        icc[order - 1] = byteapp2;
+                    }
+                }
+                continue;
+            }
+            if(marker == 237)
+            {
+                int len = getShort(is) - 2;
+                byte byteappd[] = new byte[len];
+                int k;
+                for(k = 0; k < len; k++)
+                    byteappd[k] = (byte)is.read();
+
+                k = 0;
+                k = 0;
+                do
+                {
+                    if(k >= len - PS_8BIM_RESO.length)
+                        break;
+                    boolean found = true;
+                    int j = 0;
+                    do
+                    {
+                        if(j >= PS_8BIM_RESO.length)
+                            break;
+                        if(byteappd[k + j] != PS_8BIM_RESO[j])
+                        {
+                            found = false;
+                            break;
+                        }
+                        j++;
+                    } while(true);
+                    if(found)
+                        break;
+                    k++;
+                } while(true);
+                k += PS_8BIM_RESO.length;
+                if(k < len - PS_8BIM_RESO.length)
+                {
+                    byte namelength = byteappd[k];
+                    namelength++;
+                    if(namelength % 2 == 1)
+                        namelength++;
+                    k += namelength;
+                    int resosize = (byteappd[k] << 24) + (byteappd[k + 1] << 16) + (byteappd[k + 2] << 8) + byteappd[k + 3];
+                    if(resosize == 16)
+                    {
+                        k += 4;
+                        int dx = (byteappd[k] << 8) + (byteappd[k + 1] & 0xff);
+                        k += 2;
+                        k += 2;
+                        int unitsx = (byteappd[k] << 8) + (byteappd[k + 1] & 0xff);
+                        k += 2;
+                        k += 2;
+                        int dy = (byteappd[k] << 8) + (byteappd[k + 1] & 0xff);
+                        k += 2;
+                        k += 2;
+                        int unitsy = (byteappd[k] << 8) + (byteappd[k + 1] & 0xff);
+                        if(unitsx == 1 || unitsx == 2)
+                        {
+                            dx = unitsx != 2 ? dx : (int)((float)dx * 2.54F + 0.5F);
+                            if(dpiX == 0 || dpiX == dx)
+                                dpiX = dx;
+                        }
+                        if(unitsy == 1 || unitsy == 2)
+                        {
+                            dy = unitsy != 2 ? dy : (int)((float)dy * 2.54F + 0.5F);
+                            if(dpiY == 0 || dpiY == dy)
+                                dpiY = dy;
+                        }
+                    }
+                }
+                continue;
+            }
+            firstPass = false;
+            int markertype = marker(marker);
+            if(markertype == 0)
+            {
+                Utilities.skip(is, 2);
+                if(is.read() != 8)
+                    throw new BadElementException(MessageLocalization.getComposedMessage("1.must.have.8.bits.per.component", new Object[] {
+                        errorID
+                    }));
+                scaledHeight = getShort(is);
+                setTop(scaledHeight);
+                scaledWidth = getShort(is);
+                setRight(scaledWidth);
+                colorspace = is.read();
+                bpc = 8;
+                break;
+            }
+            if(markertype == 1)
+                throw new BadElementException(MessageLocalization.getComposedMessage("1.unsupported.jpeg.marker.2", new Object[] {
+                    errorID, String.valueOf(marker)
+                }));
+            if(markertype != 2)
+                Utilities.skip(is, getShort(is) - 2);
+        } while(true);
+        if(is != null)
+            is.close();
+        break MISSING_BLOCK_LABEL_1260;
+        Exception exception;
+        exception;
+        if(is != null)
+            is.close();
+        throw exception;
+        plainWidth = getWidth();
+        plainHeight = getHeight();
+        if(icc != null)
+        {
+            int total = 0;
+            for(int k = 0; k < icc.length; k++)
+            {
+                if(icc[k] == null)
+                {
+                    icc = (byte[][])null;
+                    return;
+                }
+                total += icc[k].length - 14;
+            }
+
+            byte ficc[] = new byte[total];
+            total = 0;
+            for(int k = 0; k < icc.length; k++)
+            {
+                System.arraycopy(icc[k], 14, ficc, total, icc[k].length - 14);
+                total += icc[k].length - 14;
+            }
+
+            try
+            {
+                ICC_Profile icc_prof = ICC_Profile.getInstance(ficc, colorspace);
+                tagICC(icc_prof);
+            }
+            catch(IllegalArgumentException e) { }
+            icc = (byte[][])null;
+        }
+        return;
+    }
+
+    public static final int NOT_A_MARKER = -1;
+    public static final int VALID_MARKER = 0;
+    public static final int VALID_MARKERS[] = {
+        192, 193, 194
+    };
+    public static final int UNSUPPORTED_MARKER = 1;
+    public static final int UNSUPPORTED_MARKERS[] = {
+        195, 197, 198, 199, 200, 201, 202, 203, 205, 206, 
+        207
+    };
+    public static final int NOPARAM_MARKER = 2;
+    public static final int NOPARAM_MARKERS[] = {
+        208, 209, 210, 211, 212, 213, 214, 215, 216, 1
+    };
+    public static final int M_APP0 = 224;
+    public static final int M_APP2 = 226;
+    public static final int M_APPE = 238;
+    public static final int M_APPD = 237;
+    public static final byte JFIF_ID[] = {
+        74, 70, 73, 70, 0
+    };
+    public static final byte PS_8BIM_RESO[] = {
+        56, 66, 73, 77, 3, -19
+    };
+    private byte icc[][];
+
+}

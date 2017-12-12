@@ -1,0 +1,95 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509ExtensionUtil.java
+
+package org.bouncycastle.x509.extension;
+
+import java.io.IOException;
+import java.security.cert.CertificateParsingException;
+import java.security.cert.X509Certificate;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.*;
+
+public class X509ExtensionUtil
+{
+
+    public X509ExtensionUtil()
+    {
+    }
+
+    public static ASN1Object fromExtensionValue(byte encodedValue[])
+        throws IOException
+    {
+        ASN1OctetString octs = (ASN1OctetString)ASN1Object.fromByteArray(encodedValue);
+        return ASN1Object.fromByteArray(octs.getOctets());
+    }
+
+    public static Collection getIssuerAlternativeNames(X509Certificate cert)
+        throws CertificateParsingException
+    {
+        byte extVal[] = cert.getExtensionValue(X509Extensions.IssuerAlternativeName.getId());
+        return getAlternativeNames(extVal);
+    }
+
+    public static Collection getSubjectAlternativeNames(X509Certificate cert)
+        throws CertificateParsingException
+    {
+        byte extVal[] = cert.getExtensionValue(X509Extensions.SubjectAlternativeName.getId());
+        return getAlternativeNames(extVal);
+    }
+
+    private static Collection getAlternativeNames(byte extVal[])
+        throws CertificateParsingException
+    {
+        if(extVal == null)
+            return Collections.EMPTY_LIST;
+        try
+        {
+            Collection temp = new ArrayList();
+            List list;
+            for(Enumeration it = DERSequence.getInstance(fromExtensionValue(extVal)).getObjects(); it.hasMoreElements(); temp.add(list))
+            {
+                GeneralName genName = GeneralName.getInstance(it.nextElement());
+                list = new ArrayList();
+                list.add(new Integer(genName.getTagNo()));
+                switch(genName.getTagNo())
+                {
+                case 0: // '\0'
+                case 3: // '\003'
+                case 5: // '\005'
+                    list.add(genName.getName().getDERObject());
+                    break;
+
+                case 4: // '\004'
+                    list.add(X509Name.getInstance(genName.getName()).toString());
+                    break;
+
+                case 1: // '\001'
+                case 2: // '\002'
+                case 6: // '\006'
+                    list.add(((ASN1String)genName.getName()).getString());
+                    break;
+
+                case 8: // '\b'
+                    list.add(DERObjectIdentifier.getInstance(genName.getName()).getId());
+                    break;
+
+                case 7: // '\007'
+                    list.add(DEROctetString.getInstance(genName.getName()).getOctets());
+                    break;
+
+                default:
+                    throw new IOException((new StringBuilder()).append("Bad tag number: ").append(genName.getTagNo()).toString());
+                }
+            }
+
+            return Collections.unmodifiableCollection(temp);
+        }
+        catch(Exception e)
+        {
+            throw new CertificateParsingException(e.getMessage());
+        }
+    }
+}

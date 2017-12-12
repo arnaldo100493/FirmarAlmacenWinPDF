@@ -1,0 +1,53 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PKCS7Padding.java
+
+package co.org.bouncy.crypto.paddings;
+
+import co.org.bouncy.crypto.InvalidCipherTextException;
+import java.security.SecureRandom;
+
+// Referenced classes of package co.org.bouncy.crypto.paddings:
+//            BlockCipherPadding
+
+public class PKCS7Padding
+    implements BlockCipherPadding
+{
+
+    public PKCS7Padding()
+    {
+    }
+
+    public void init(SecureRandom securerandom)
+        throws IllegalArgumentException
+    {
+    }
+
+    public String getPaddingName()
+    {
+        return "PKCS7";
+    }
+
+    public int addPadding(byte in[], int inOff)
+    {
+        byte code = (byte)(in.length - inOff);
+        for(; inOff < in.length; inOff++)
+            in[inOff] = code;
+
+        return code;
+    }
+
+    public int padCount(byte in[])
+        throws InvalidCipherTextException
+    {
+        int count = in[in.length - 1] & 0xff;
+        if(count > in.length || count == 0)
+            throw new InvalidCipherTextException("pad block corrupted");
+        for(int i = 1; i <= count; i++)
+            if(in[in.length - i] != count)
+                throw new InvalidCipherTextException("pad block corrupted");
+
+        return count;
+    }
+}

@@ -1,0 +1,29 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X962NamedCurves.java
+
+package org.bouncycastle.asn1.x9;
+
+import java.math.BigInteger;
+import org.bouncycastle.math.ec.ECCurve;
+import org.bouncycastle.util.encoders.Hex;
+
+// Referenced classes of package org.bouncycastle.asn1.x9:
+//            X9ECParametersHolder, X9ECParameters, X962NamedCurves
+
+static class X962NamedCurves$10 extends X9ECParametersHolder
+{
+
+    protected X9ECParameters createParameters()
+    {
+        BigInteger c2m163v3n = new BigInteger("03FFFFFFFFFFFFFFFFFFFE1AEE140F110AFF961309", 16);
+        BigInteger c2m163v3h = BigInteger.valueOf(2L);
+        ECCurve c2m163v3 = new org.bouncycastle.math.ec.ECCurve.F2m(163, 1, 2, 8, new BigInteger("07A526C63D3E25A256A007699F5447E32AE456B50E", 16), new BigInteger("03F7061798EB99E238FD6F1BF95B48FEEB4854252B", 16), c2m163v3n, c2m163v3h);
+        return new X9ECParameters(c2m163v3, c2m163v3.decodePoint(Hex.decode("0202F9F87B7C574D0BDECF8A22E6524775F98CDEBDCB")), c2m163v3n, c2m163v3h, null);
+    }
+
+    X962NamedCurves$10()
+    {
+    }
+}

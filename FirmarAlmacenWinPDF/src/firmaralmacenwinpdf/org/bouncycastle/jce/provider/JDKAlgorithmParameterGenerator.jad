@@ -1,0 +1,305 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKAlgorithmParameterGenerator.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.DSAParameterSpec;
+import javax.crypto.spec.*;
+import org.bouncycastle.crypto.generators.*;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.jce.spec.GOST3410ParameterSpec;
+import org.bouncycastle.jce.spec.GOST3410PublicKeyParameterSetSpec;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            BouncyCastleProvider
+
+public abstract class JDKAlgorithmParameterGenerator extends AlgorithmParameterGeneratorSpi
+{
+    public static class RC2 extends JDKAlgorithmParameterGenerator
+    {
+
+        protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(genParamSpec instanceof RC2ParameterSpec)
+            {
+                spec = (RC2ParameterSpec)genParamSpec;
+                return;
+            } else
+            {
+                throw new InvalidAlgorithmParameterException("No supported AlgorithmParameterSpec for RC2 parameter generation.");
+            }
+        }
+
+        protected AlgorithmParameters engineGenerateParameters()
+        {
+            AlgorithmParameters params;
+            if(spec == null)
+            {
+                byte iv[] = new byte[8];
+                if(random == null)
+                    random = new SecureRandom();
+                random.nextBytes(iv);
+                try
+                {
+                    params = AlgorithmParameters.getInstance("RC2", BouncyCastleProvider.PROVIDER_NAME);
+                    params.init(new IvParameterSpec(iv));
+                }
+                catch(Exception e)
+                {
+                    throw new RuntimeException(e.getMessage());
+                }
+            } else
+            {
+                try
+                {
+                    params = AlgorithmParameters.getInstance("RC2", BouncyCastleProvider.PROVIDER_NAME);
+                    params.init(spec);
+                }
+                catch(Exception e)
+                {
+                    throw new RuntimeException(e.getMessage());
+                }
+            }
+            return params;
+        }
+
+        RC2ParameterSpec spec;
+
+        public RC2()
+        {
+            spec = null;
+        }
+    }
+
+    public static class DES extends JDKAlgorithmParameterGenerator
+    {
+
+        protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            throw new InvalidAlgorithmParameterException("No supported AlgorithmParameterSpec for DES parameter generation.");
+        }
+
+        protected AlgorithmParameters engineGenerateParameters()
+        {
+            byte iv[] = new byte[8];
+            if(random == null)
+                random = new SecureRandom();
+            random.nextBytes(iv);
+            AlgorithmParameters params;
+            try
+            {
+                params = AlgorithmParameters.getInstance("DES", BouncyCastleProvider.PROVIDER_NAME);
+                params.init(new IvParameterSpec(iv));
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e.getMessage());
+            }
+            return params;
+        }
+
+        public DES()
+        {
+        }
+    }
+
+    public static class ElGamal extends JDKAlgorithmParameterGenerator
+    {
+
+        protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(genParamSpec instanceof DHGenParameterSpec))
+            {
+                throw new InvalidAlgorithmParameterException("DH parameter generator requires a DHGenParameterSpec for initialisation");
+            } else
+            {
+                DHGenParameterSpec spec = (DHGenParameterSpec)genParamSpec;
+                strength = spec.getPrimeSize();
+                l = spec.getExponentSize();
+                this.random = random;
+                return;
+            }
+        }
+
+        protected AlgorithmParameters engineGenerateParameters()
+        {
+            ElGamalParametersGenerator pGen = new ElGamalParametersGenerator();
+            if(random != null)
+                pGen.init(strength, 20, random);
+            else
+                pGen.init(strength, 20, new SecureRandom());
+            ElGamalParameters p = pGen.generateParameters();
+            AlgorithmParameters params;
+            try
+            {
+                params = AlgorithmParameters.getInstance("ElGamal", BouncyCastleProvider.PROVIDER_NAME);
+                params.init(new DHParameterSpec(p.getP(), p.getG(), l));
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e.getMessage());
+            }
+            return params;
+        }
+
+        private int l;
+
+        public ElGamal()
+        {
+            l = 0;
+        }
+    }
+
+    public static class GOST3410 extends JDKAlgorithmParameterGenerator
+    {
+
+        protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            throw new InvalidAlgorithmParameterException("No supported AlgorithmParameterSpec for GOST3410 parameter generation.");
+        }
+
+        protected AlgorithmParameters engineGenerateParameters()
+        {
+            GOST3410ParametersGenerator pGen = new GOST3410ParametersGenerator();
+            if(random != null)
+                pGen.init(strength, 2, random);
+            else
+                pGen.init(strength, 2, new SecureRandom());
+            GOST3410Parameters p = pGen.generateParameters();
+            AlgorithmParameters params;
+            try
+            {
+                params = AlgorithmParameters.getInstance("GOST3410", BouncyCastleProvider.PROVIDER_NAME);
+                params.init(new GOST3410ParameterSpec(new GOST3410PublicKeyParameterSetSpec(p.getP(), p.getQ(), p.getA())));
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e.getMessage());
+            }
+            return params;
+        }
+
+        public GOST3410()
+        {
+        }
+    }
+
+    public static class DSA extends JDKAlgorithmParameterGenerator
+    {
+
+        protected void engineInit(int strength, SecureRandom random)
+        {
+            if(strength < 512 || strength > 1024 || strength % 64 != 0)
+            {
+                throw new InvalidParameterException("strength must be from 512 - 1024 and a multiple of 64");
+            } else
+            {
+                this.strength = strength;
+                this.random = random;
+                return;
+            }
+        }
+
+        protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            throw new InvalidAlgorithmParameterException("No supported AlgorithmParameterSpec for DSA parameter generation.");
+        }
+
+        protected AlgorithmParameters engineGenerateParameters()
+        {
+            DSAParametersGenerator pGen = new DSAParametersGenerator();
+            if(random != null)
+                pGen.init(strength, 20, random);
+            else
+                pGen.init(strength, 20, new SecureRandom());
+            DSAParameters p = pGen.generateParameters();
+            AlgorithmParameters params;
+            try
+            {
+                params = AlgorithmParameters.getInstance("DSA", BouncyCastleProvider.PROVIDER_NAME);
+                params.init(new DSAParameterSpec(p.getP(), p.getQ(), p.getG()));
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e.getMessage());
+            }
+            return params;
+        }
+
+        public DSA()
+        {
+        }
+    }
+
+    public static class DH extends JDKAlgorithmParameterGenerator
+    {
+
+        protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(genParamSpec instanceof DHGenParameterSpec))
+            {
+                throw new InvalidAlgorithmParameterException("DH parameter generator requires a DHGenParameterSpec for initialisation");
+            } else
+            {
+                DHGenParameterSpec spec = (DHGenParameterSpec)genParamSpec;
+                strength = spec.getPrimeSize();
+                l = spec.getExponentSize();
+                this.random = random;
+                return;
+            }
+        }
+
+        protected AlgorithmParameters engineGenerateParameters()
+        {
+            DHParametersGenerator pGen = new DHParametersGenerator();
+            if(random != null)
+                pGen.init(strength, 20, random);
+            else
+                pGen.init(strength, 20, new SecureRandom());
+            DHParameters p = pGen.generateParameters();
+            AlgorithmParameters params;
+            try
+            {
+                params = AlgorithmParameters.getInstance("DH", BouncyCastleProvider.PROVIDER_NAME);
+                params.init(new DHParameterSpec(p.getP(), p.getG(), l));
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e.getMessage());
+            }
+            return params;
+        }
+
+        private int l;
+
+        public DH()
+        {
+            l = 0;
+        }
+    }
+
+
+    public JDKAlgorithmParameterGenerator()
+    {
+        strength = 1024;
+    }
+
+    protected void engineInit(int strength, SecureRandom random)
+    {
+        this.strength = strength;
+        this.random = random;
+    }
+
+    protected SecureRandom random;
+    protected int strength;
+}

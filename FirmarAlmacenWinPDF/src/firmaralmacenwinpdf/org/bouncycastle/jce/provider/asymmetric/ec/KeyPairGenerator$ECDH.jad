@@ -1,0 +1,19 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KeyPairGenerator.java
+
+package org.bouncycastle.jce.provider.asymmetric.ec;
+
+
+// Referenced classes of package org.bouncycastle.jce.provider.asymmetric.ec:
+//            KeyPairGenerator
+
+public static class KeyPairGenerator$ECDH extends KeyPairGenerator.EC
+{
+
+    public KeyPairGenerator$ECDH()
+    {
+        super("ECDH");
+    }
+}

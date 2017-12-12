@@ -1,0 +1,47 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertBag.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import org.bouncycastle.asn1.*;
+
+public class CertBag extends ASN1Encodable
+{
+
+    public CertBag(ASN1Sequence seq)
+    {
+        this.seq = seq;
+        certId = (DERObjectIdentifier)seq.getObjectAt(0);
+        certValue = ((DERTaggedObject)seq.getObjectAt(1)).getObject();
+    }
+
+    public CertBag(DERObjectIdentifier certId, DERObject certValue)
+    {
+        this.certId = certId;
+        this.certValue = certValue;
+    }
+
+    public DERObjectIdentifier getCertId()
+    {
+        return certId;
+    }
+
+    public DERObject getCertValue()
+    {
+        return certValue;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(certId);
+        v.add(new DERTaggedObject(0, certValue));
+        return new DERSequence(v);
+    }
+
+    ASN1Sequence seq;
+    DERObjectIdentifier certId;
+    DERObject certValue;
+}

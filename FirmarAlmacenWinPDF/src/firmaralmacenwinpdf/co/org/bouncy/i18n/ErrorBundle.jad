@@ -1,0 +1,68 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ErrorBundle.java
+
+package co.org.bouncy.i18n;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Locale;
+import java.util.TimeZone;
+
+// Referenced classes of package co.org.bouncy.i18n:
+//            MessageBundle, MissingEntryException
+
+public class ErrorBundle extends MessageBundle
+{
+
+    public ErrorBundle(String resource, String id)
+        throws NullPointerException
+    {
+        super(resource, id);
+    }
+
+    public ErrorBundle(String resource, String id, String encoding)
+        throws NullPointerException, UnsupportedEncodingException
+    {
+        super(resource, id, encoding);
+    }
+
+    public ErrorBundle(String resource, String id, Object arguments[])
+        throws NullPointerException
+    {
+        super(resource, id, arguments);
+    }
+
+    public ErrorBundle(String resource, String id, String encoding, Object arguments[])
+        throws NullPointerException, UnsupportedEncodingException
+    {
+        super(resource, id, encoding, arguments);
+    }
+
+    public String getSummary(Locale loc, TimeZone timezone)
+        throws MissingEntryException
+    {
+        return getEntry("summary", loc, timezone);
+    }
+
+    public String getSummary(Locale loc)
+        throws MissingEntryException
+    {
+        return getEntry("summary", loc, TimeZone.getDefault());
+    }
+
+    public String getDetail(Locale loc, TimeZone timezone)
+        throws MissingEntryException
+    {
+        return getEntry("details", loc, timezone);
+    }
+
+    public String getDetail(Locale loc)
+        throws MissingEntryException
+    {
+        return getEntry("details", loc, TimeZone.getDefault());
+    }
+
+    public static final String SUMMARY_ENTRY = "summary";
+    public static final String DETAIL_ENTRY = "details";
+}

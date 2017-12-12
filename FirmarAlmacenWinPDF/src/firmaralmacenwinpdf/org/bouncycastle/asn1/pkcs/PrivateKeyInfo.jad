@@ -1,0 +1,93 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PrivateKeyInfo.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import java.io.IOException;
+import java.math.BigInteger;
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+public class PrivateKeyInfo extends ASN1Encodable
+{
+
+    public static PrivateKeyInfo getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static PrivateKeyInfo getInstance(Object obj)
+    {
+        if(obj instanceof PrivateKeyInfo)
+            return (PrivateKeyInfo)obj;
+        if(obj != null)
+            return new PrivateKeyInfo(ASN1Sequence.getInstance(obj));
+        else
+            return null;
+    }
+
+    public PrivateKeyInfo(AlgorithmIdentifier algId, DERObject privateKey)
+    {
+        this(algId, privateKey, null);
+    }
+
+    public PrivateKeyInfo(AlgorithmIdentifier algId, DERObject privateKey, ASN1Set attributes)
+    {
+        privKey = privateKey;
+        this.algId = algId;
+        this.attributes = attributes;
+    }
+
+    public PrivateKeyInfo(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        BigInteger version = ((DERInteger)e.nextElement()).getValue();
+        if(version.intValue() != 0)
+            throw new IllegalArgumentException("wrong version for private key info");
+        algId = new AlgorithmIdentifier((ASN1Sequence)e.nextElement());
+        try
+        {
+            ASN1InputStream aIn = new ASN1InputStream(((ASN1OctetString)e.nextElement()).getOctets());
+            privKey = aIn.readObject();
+        }
+        catch(IOException ex)
+        {
+            throw new IllegalArgumentException("Error recoverying private key from sequence");
+        }
+        if(e.hasMoreElements())
+            attributes = ASN1Set.getInstance((ASN1TaggedObject)e.nextElement(), false);
+    }
+
+    public AlgorithmIdentifier getAlgorithmId()
+    {
+        return algId;
+    }
+
+    public DERObject getPrivateKey()
+    {
+        return privKey;
+    }
+
+    public ASN1Set getAttributes()
+    {
+        return attributes;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(new DERInteger(0));
+        v.add(algId);
+        v.add(new DEROctetString(privKey));
+        if(attributes != null)
+            v.add(new DERTaggedObject(false, 0, attributes));
+        return new DERSequence(v);
+    }
+
+    private DERObject privKey;
+    private AlgorithmIdentifier algId;
+    private ASN1Set attributes;
+}

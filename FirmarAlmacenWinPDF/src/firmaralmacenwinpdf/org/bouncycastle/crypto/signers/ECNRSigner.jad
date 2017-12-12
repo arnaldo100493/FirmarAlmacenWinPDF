@@ -1,0 +1,106 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECNRSigner.java
+
+package org.bouncycastle.crypto.signers;
+
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.math.ec.*;
+
+public class ECNRSigner
+    implements DSA
+{
+
+    public ECNRSigner()
+    {
+    }
+
+    public void init(boolean forSigning, CipherParameters param)
+    {
+        this.forSigning = forSigning;
+        if(forSigning)
+        {
+            if(param instanceof ParametersWithRandom)
+            {
+                ParametersWithRandom rParam = (ParametersWithRandom)param;
+                random = rParam.getRandom();
+                key = (ECPrivateKeyParameters)rParam.getParameters();
+            } else
+            {
+                random = new SecureRandom();
+                key = (ECPrivateKeyParameters)param;
+            }
+        } else
+        {
+            key = (ECPublicKeyParameters)param;
+        }
+    }
+
+    public BigInteger[] generateSignature(byte digest[])
+    {
+        if(!forSigning)
+            throw new IllegalStateException("not initialised for signing");
+        BigInteger n = ((ECPrivateKeyParameters)key).getParameters().getN();
+        int nBitLength = n.bitLength();
+        BigInteger e = new BigInteger(1, digest);
+        int eBitLength = e.bitLength();
+        ECPrivateKeyParameters privKey = (ECPrivateKeyParameters)key;
+        if(eBitLength > nBitLength)
+            throw new DataLengthException("input too large for ECNR key.");
+        BigInteger r = null;
+        BigInteger s = null;
+        AsymmetricCipherKeyPair tempPair;
+        do
+        {
+            ECKeyPairGenerator keyGen = new ECKeyPairGenerator();
+            keyGen.init(new ECKeyGenerationParameters(privKey.getParameters(), random));
+            tempPair = keyGen.generateKeyPair();
+            ECPublicKeyParameters V = (ECPublicKeyParameters)tempPair.getPublic();
+            BigInteger Vx = V.getQ().getX().toBigInteger();
+            r = Vx.add(e).mod(n);
+        } while(r.equals(ECConstants.ZERO));
+        BigInteger x = privKey.getD();
+        BigInteger u = ((ECPrivateKeyParameters)tempPair.getPrivate()).getD();
+        s = u.subtract(r.multiply(x)).mod(n);
+        BigInteger res[] = new BigInteger[2];
+        res[0] = r;
+        res[1] = s;
+        return res;
+    }
+
+    public boolean verifySignature(byte digest[], BigInteger r, BigInteger s)
+    {
+        if(forSigning)
+            throw new IllegalStateException("not initialised for verifying");
+        ECPublicKeyParameters pubKey = (ECPublicKeyParameters)key;
+        BigInteger n = pubKey.getParameters().getN();
+        int nBitLength = n.bitLength();
+        BigInteger e = new BigInteger(1, digest);
+        int eBitLength = e.bitLength();
+        if(eBitLength > nBitLength)
+            throw new DataLengthException("input too large for ECNR key.");
+        if(r.compareTo(ECConstants.ONE) < 0 || r.compareTo(n) >= 0)
+            return false;
+        if(s.compareTo(ECConstants.ZERO) < 0 || s.compareTo(n) >= 0)
+        {
+            return false;
+        } else
+        {
+            ECPoint G = pubKey.getParameters().getG();
+            ECPoint W = pubKey.getQ();
+            ECPoint P = ECAlgorithms.sumOfTwoMultiplies(G, s, W, r);
+            BigInteger x = P.getX().toBigInteger();
+            BigInteger t = r.subtract(x).mod(n);
+            return t.equals(e);
+        }
+    }
+
+    private boolean forSigning;
+    private ECKeyParameters key;
+    private SecureRandom random;
+}

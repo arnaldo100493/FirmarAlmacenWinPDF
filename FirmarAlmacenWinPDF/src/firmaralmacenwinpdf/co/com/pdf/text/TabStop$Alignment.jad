@@ -1,0 +1,46 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TabStop.java
+
+package co.com.pdf.text;
+
+
+// Referenced classes of package co.com.pdf.text:
+//            TabStop
+
+public static final class TabStop$Alignment extends Enum
+{
+
+    public static TabStop$Alignment[] values()
+    {
+        return (TabStop$Alignment[])$VALUES.clone();
+    }
+
+    public static TabStop$Alignment valueOf(String name)
+    {
+        return (TabStop$Alignment)Enum.valueOf(co/com/pdf/text/TabStop$Alignment, name);
+    }
+
+    public static final TabStop$Alignment LEFT;
+    public static final TabStop$Alignment RIGHT;
+    public static final TabStop$Alignment CENTER;
+    public static final TabStop$Alignment ANCHOR;
+    private static final TabStop$Alignment $VALUES[];
+
+    static 
+    {
+        LEFT = new TabStop$Alignment("LEFT", 0);
+        RIGHT = new TabStop$Alignment("RIGHT", 1);
+        CENTER = new TabStop$Alignment("CENTER", 2);
+        ANCHOR = new TabStop$Alignment("ANCHOR", 3);
+        $VALUES = (new TabStop$Alignment[] {
+            LEFT, RIGHT, CENTER, ANCHOR
+        });
+    }
+
+    private TabStop$Alignment(String s, int i)
+    {
+        super(s, i);
+    }
+}

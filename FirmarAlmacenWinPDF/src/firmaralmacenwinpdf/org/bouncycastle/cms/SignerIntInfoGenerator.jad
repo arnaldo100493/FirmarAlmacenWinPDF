@@ -1,0 +1,20 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SignerIntInfoGenerator.java
+
+package org.bouncycastle.cms;
+
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.cms.SignerInfo;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSStreamException
+
+interface SignerIntInfoGenerator
+{
+
+    public abstract SignerInfo generate(DERObjectIdentifier derobjectidentifier, AlgorithmIdentifier algorithmidentifier, byte abyte0[])
+        throws CMSStreamException;
+}

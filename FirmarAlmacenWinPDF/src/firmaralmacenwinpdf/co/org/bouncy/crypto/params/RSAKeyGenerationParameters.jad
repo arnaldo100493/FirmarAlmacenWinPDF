@@ -1,0 +1,43 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RSAKeyGenerationParameters.java
+
+package co.org.bouncy.crypto.params;
+
+import co.org.bouncy.crypto.KeyGenerationParameters;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class RSAKeyGenerationParameters extends KeyGenerationParameters
+{
+
+    public RSAKeyGenerationParameters(BigInteger publicExponent, SecureRandom random, int strength, int certainty)
+    {
+        super(random, strength);
+        if(strength < 12)
+            throw new IllegalArgumentException("key strength too small");
+        if(!publicExponent.testBit(0))
+        {
+            throw new IllegalArgumentException("public exponent cannot be even");
+        } else
+        {
+            this.publicExponent = publicExponent;
+            this.certainty = certainty;
+            return;
+        }
+    }
+
+    public BigInteger getPublicExponent()
+    {
+        return publicExponent;
+    }
+
+    public int getCertainty()
+    {
+        return certainty;
+    }
+
+    private BigInteger publicExponent;
+    private int certainty;
+}

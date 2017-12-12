@@ -1,0 +1,21 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JCERSACipher.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.crypto.encodings.PKCS1Encoding;
+import org.bouncycastle.crypto.engines.RSABlindedEngine;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JCERSACipher
+
+public static class JCERSACipher$PKCS1v1_5Padding extends JCERSACipher
+{
+
+    public JCERSACipher$PKCS1v1_5Padding()
+    {
+        super(new PKCS1Encoding(new RSABlindedEngine()));
+    }
+}

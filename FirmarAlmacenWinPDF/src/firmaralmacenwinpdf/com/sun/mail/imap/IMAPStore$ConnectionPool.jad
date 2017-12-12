@@ -1,0 +1,106 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPStore.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.imap.protocol.IMAPProtocol;
+import com.sun.mail.util.MailLogger;
+import com.sun.mail.util.PropUtil;
+import java.util.Vector;
+import java.util.logging.Level;
+import javax.mail.Session;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPStore
+
+static class IMAPStore$ConnectionPool
+{
+
+    private Vector authenticatedConnections;
+    private Vector folders;
+    private boolean storeConnectionInUse;
+    private long lastTimePruned;
+    private final boolean separateStoreConnection;
+    private final long clientTimeoutInterval;
+    private final long serverTimeoutInterval;
+    private final int poolSize;
+    private final long pruningInterval;
+    private final MailLogger logger;
+    private static final int RUNNING = 0;
+    private static final int IDLE = 1;
+    private static final int ABORTING = 2;
+    private int idleState;
+    private IMAPProtocol idleProtocol;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    IMAPStore$ConnectionPool(String name, MailLogger plogger, Session session)
+    {
+        authenticatedConnections = new Vector();
+        storeConnectionInUse = false;
+        idleState = 0;
+        lastTimePruned = System.currentTimeMillis();
+        boolean debug = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".connectionpool.debug").toString(), false);
+        logger = plogger.getSubLogger("connectionpool", "DEBUG IMAP CP", debug);
+        int size = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".connectionpoolsize").toString(), -1);
+        if(size > 0)
+        {
+            poolSize = size;
+            if(logger.isLoggable(Level.CONFIG))
+                logger.config((new StringBuilder()).append("mail.imap.connectionpoolsize: ").append(poolSize).toString());
+        } else
+        {
+            poolSize = 1;
+        }
+        int connectionPoolTimeout = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".connectionpooltimeout").toString(), -1);
+        if(connectionPoolTimeout > 0)
+        {
+            clientTimeoutInterval = connectionPoolTimeout;
+            if(logger.isLoggable(Level.CONFIG))
+                logger.config((new StringBuilder()).append("mail.imap.connectionpooltimeout: ").append(clientTimeoutInterval).toString());
+        } else
+        {
+            clientTimeoutInterval = 45000L;
+        }
+        int serverTimeout = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".servertimeout").toString(), -1);
+        if(serverTimeout > 0)
+        {
+            serverTimeoutInterval = serverTimeout;
+            if(logger.isLoggable(Level.CONFIG))
+                logger.config((new StringBuilder()).append("mail.imap.servertimeout: ").append(serverTimeoutInterval).toString());
+        } else
+        {
+            serverTimeoutInterval = 0x1b7740L;
+        }
+        int pruning = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".pruninginterval").toString(), -1);
+        if(pruning > 0)
+        {
+            pruningInterval = pruning;
+            if(logger.isLoggable(Level.CONFIG))
+                logger.config((new StringBuilder()).append("mail.imap.pruninginterval: ").append(pruningInterval).toString());
+        } else
+        {
+            pruningInterval = 60000L;
+        }
+        separateStoreConnection = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".separatestoreconnection").toString(), false);
+        if(separateStoreConnection)
+            logger.config("dedicate a store connection");
+    }
+}

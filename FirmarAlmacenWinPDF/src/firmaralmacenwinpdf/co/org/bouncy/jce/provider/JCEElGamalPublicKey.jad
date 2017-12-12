@@ -1,0 +1,130 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JCEElGamalPublicKey.java
+
+package co.org.bouncy.jce.provider;
+
+import co.org.bouncy.asn1.ASN1Sequence;
+import co.org.bouncy.asn1.DERInteger;
+import co.org.bouncy.asn1.oiw.ElGamalParameter;
+import co.org.bouncy.asn1.oiw.OIWObjectIdentifiers;
+import co.org.bouncy.asn1.x509.AlgorithmIdentifier;
+import co.org.bouncy.asn1.x509.SubjectPublicKeyInfo;
+import co.org.bouncy.crypto.params.ElGamalParameters;
+import co.org.bouncy.crypto.params.ElGamalPublicKeyParameters;
+import co.org.bouncy.jcajce.provider.asymmetric.util.KeyUtil;
+import co.org.bouncy.jce.interfaces.ElGamalPublicKey;
+import co.org.bouncy.jce.spec.ElGamalParameterSpec;
+import co.org.bouncy.jce.spec.ElGamalPublicKeySpec;
+import java.io.*;
+import java.math.BigInteger;
+import javax.crypto.interfaces.DHPublicKey;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.DHPublicKeySpec;
+
+public class JCEElGamalPublicKey
+    implements ElGamalPublicKey, DHPublicKey
+{
+
+    JCEElGamalPublicKey(ElGamalPublicKeySpec spec)
+    {
+        y = spec.getY();
+        elSpec = new ElGamalParameterSpec(spec.getParams().getP(), spec.getParams().getG());
+    }
+
+    JCEElGamalPublicKey(DHPublicKeySpec spec)
+    {
+        y = spec.getY();
+        elSpec = new ElGamalParameterSpec(spec.getP(), spec.getG());
+    }
+
+    JCEElGamalPublicKey(ElGamalPublicKey key)
+    {
+        y = key.getY();
+        elSpec = key.getParameters();
+    }
+
+    JCEElGamalPublicKey(DHPublicKey key)
+    {
+        y = key.getY();
+        elSpec = new ElGamalParameterSpec(key.getParams().getP(), key.getParams().getG());
+    }
+
+    JCEElGamalPublicKey(ElGamalPublicKeyParameters params)
+    {
+        y = params.getY();
+        elSpec = new ElGamalParameterSpec(params.getParameters().getP(), params.getParameters().getG());
+    }
+
+    JCEElGamalPublicKey(BigInteger y, ElGamalParameterSpec elSpec)
+    {
+        this.y = y;
+        this.elSpec = elSpec;
+    }
+
+    JCEElGamalPublicKey(SubjectPublicKeyInfo info)
+    {
+        ElGamalParameter params = new ElGamalParameter((ASN1Sequence)info.getAlgorithmId().getParameters());
+        DERInteger derY = null;
+        try
+        {
+            derY = (DERInteger)info.parsePublicKey();
+        }
+        catch(IOException e)
+        {
+            throw new IllegalArgumentException("invalid info structure in DSA public key");
+        }
+        y = derY.getValue();
+        elSpec = new ElGamalParameterSpec(params.getP(), params.getG());
+    }
+
+    public String getAlgorithm()
+    {
+        return "ElGamal";
+    }
+
+    public String getFormat()
+    {
+        return "X.509";
+    }
+
+    public byte[] getEncoded()
+    {
+        return KeyUtil.getEncodedSubjectPublicKeyInfo(new AlgorithmIdentifier(OIWObjectIdentifiers.elGamalAlgorithm, new ElGamalParameter(elSpec.getP(), elSpec.getG())), new DERInteger(y));
+    }
+
+    public ElGamalParameterSpec getParameters()
+    {
+        return elSpec;
+    }
+
+    public DHParameterSpec getParams()
+    {
+        return new DHParameterSpec(elSpec.getP(), elSpec.getG());
+    }
+
+    public BigInteger getY()
+    {
+        return y;
+    }
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+        y = (BigInteger)in.readObject();
+        elSpec = new ElGamalParameterSpec((BigInteger)in.readObject(), (BigInteger)in.readObject());
+    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+        out.writeObject(getY());
+        out.writeObject(elSpec.getP());
+        out.writeObject(elSpec.getG());
+    }
+
+    static final long serialVersionUID = 0x78e9d455552c6634L;
+    private BigInteger y;
+    private ElGamalParameterSpec elSpec;
+}

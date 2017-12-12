@@ -1,0 +1,65 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSAuthenticatedDataStreamGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import javax.crypto.Mac;
+import org.bouncycastle.asn1.BERSequenceGenerator;
+import org.bouncycastle.asn1.DEROctetString;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSAuthenticatedDataStreamGenerator
+
+private class CMSAuthenticatedDataStreamGenerator$OldCmsAuthenticatedDataOutputStream extends OutputStream
+{
+
+    public void write(int b)
+        throws IOException
+    {
+        dataStream.write(b);
+    }
+
+    public void write(byte bytes[], int off, int len)
+        throws IOException
+    {
+        dataStream.write(bytes, off, len);
+    }
+
+    public void write(byte bytes[])
+        throws IOException
+    {
+        dataStream.write(bytes);
+    }
+
+    public void close()
+        throws IOException
+    {
+        dataStream.close();
+        eiGen.close();
+        envGen.addObject(new DEROctetString(mac.doFinal()));
+        envGen.close();
+        cGen.close();
+    }
+
+    private OutputStream dataStream;
+    private Mac mac;
+    private BERSequenceGenerator cGen;
+    private BERSequenceGenerator envGen;
+    private BERSequenceGenerator eiGen;
+    final CMSAuthenticatedDataStreamGenerator this$0;
+
+    public CMSAuthenticatedDataStreamGenerator$OldCmsAuthenticatedDataOutputStream(OutputStream dataStream, Mac mac, BERSequenceGenerator cGen, BERSequenceGenerator envGen, BERSequenceGenerator eiGen)
+    {
+        this$0 = CMSAuthenticatedDataStreamGenerator.this;
+        super();
+        this.dataStream = dataStream;
+        this.mac = mac;
+        this.cGen = cGen;
+        this.envGen = envGen;
+        this.eiGen = eiGen;
+    }
+}

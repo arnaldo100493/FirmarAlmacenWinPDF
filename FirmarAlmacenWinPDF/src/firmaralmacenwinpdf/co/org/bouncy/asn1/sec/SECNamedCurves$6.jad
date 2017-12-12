@@ -1,0 +1,36 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SECNamedCurves.java
+
+package co.org.bouncy.asn1.sec;
+
+import co.org.bouncy.asn1.x9.X9ECParameters;
+import co.org.bouncy.asn1.x9.X9ECParametersHolder;
+import co.org.bouncy.math.ec.ECCurve;
+import co.org.bouncy.util.encoders.Hex;
+import java.math.BigInteger;
+
+// Referenced classes of package co.org.bouncy.asn1.sec:
+//            SECNamedCurves
+
+static class SECNamedCurves$6 extends X9ECParametersHolder
+{
+
+    protected X9ECParameters createParameters()
+    {
+        BigInteger p = SECNamedCurves.access$000("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFF");
+        BigInteger a = SECNamedCurves.access$000("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFC");
+        BigInteger b = SECNamedCurves.access$000("1C97BEFC54BD7A8B65ACF89F81D4D4ADC565FA45");
+        byte S[] = Hex.decode("1053CDE42C14D696E67687561517533BF3F83345");
+        BigInteger n = SECNamedCurves.access$000("0100000000000000000001F4C8F927AED3CA752257");
+        BigInteger h = BigInteger.valueOf(1L);
+        ECCurve curve = new co.org.bouncy.math.ec.ECCurve.Fp(p, a, b);
+        co.org.bouncy.math.ec.ECPoint G = curve.decodePoint(Hex.decode("044A96B5688EF573284664698968C38BB913CBFC8223A628553168947D59DCC912042351377AC5FB32"));
+        return new X9ECParameters(curve, G, n, h, S);
+    }
+
+    SECNamedCurves$6()
+    {
+    }
+}

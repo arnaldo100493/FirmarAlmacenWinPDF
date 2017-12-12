@@ -1,0 +1,111 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSEnvelopedDataParser.java
+
+package org.bouncycastle.cms;
+
+import java.io.*;
+import java.security.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSContentInfoParser, CMSProcessableInputStream, CMSException, CMSEnvelopedHelper, 
+//            CMSUtils, RecipientInformationStore
+
+public class CMSEnvelopedDataParser extends CMSContentInfoParser
+{
+
+    public CMSEnvelopedDataParser(byte envelopedData[])
+        throws CMSException, IOException
+    {
+        this(((InputStream) (new ByteArrayInputStream(envelopedData))));
+    }
+
+    public CMSEnvelopedDataParser(InputStream envelopedData)
+        throws CMSException, IOException
+    {
+        super(envelopedData);
+        _attrNotRead = true;
+        _envelopedData = new EnvelopedDataParser((ASN1SequenceParser)_contentInfo.getContent(16));
+        ASN1Set recipientInfos = ASN1Set.getInstance(_envelopedData.getRecipientInfos().getDERObject());
+        EncryptedContentInfoParser encInfo = _envelopedData.getEncryptedContentInfo();
+        _encAlg = encInfo.getContentEncryptionAlgorithm();
+        CMSReadable readable = new CMSProcessableInputStream(((ASN1OctetStringParser)encInfo.getEncryptedContent(4)).getOctetStream());
+        CMSSecureReadable secureReadable = new CMSEnvelopedHelper.CMSEnvelopedSecureReadable(_encAlg, readable);
+        _recipientInfoStore = CMSEnvelopedHelper.buildRecipientInformationStore(recipientInfos, _encAlg, secureReadable);
+    }
+
+    public String getEncryptionAlgOID()
+    {
+        return _encAlg.getObjectId().toString();
+    }
+
+    public byte[] getEncryptionAlgParams()
+    {
+        try
+        {
+            return encodeObj(_encAlg.getParameters());
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException((new StringBuilder()).append("exception getting encryption parameters ").append(e).toString());
+        }
+    }
+
+    public AlgorithmParameters getEncryptionAlgorithmParameters(String provider)
+        throws CMSException, NoSuchProviderException
+    {
+        return getEncryptionAlgorithmParameters(CMSUtils.getProvider(provider));
+    }
+
+    public AlgorithmParameters getEncryptionAlgorithmParameters(Provider provider)
+        throws CMSException
+    {
+        return CMSEnvelopedHelper.INSTANCE.getEncryptionAlgorithmParameters(getEncryptionAlgOID(), getEncryptionAlgParams(), provider);
+    }
+
+    public RecipientInformationStore getRecipientInfos()
+    {
+        return _recipientInfoStore;
+    }
+
+    public AttributeTable getUnprotectedAttributes()
+        throws IOException
+    {
+        if(_unprotectedAttributes == null && _attrNotRead)
+        {
+            ASN1SetParser set = _envelopedData.getUnprotectedAttrs();
+            _attrNotRead = false;
+            if(set != null)
+            {
+                ASN1EncodableVector v = new ASN1EncodableVector();
+                DEREncodable o;
+                while((o = set.readObject()) != null) 
+                {
+                    ASN1SequenceParser seq = (ASN1SequenceParser)o;
+                    v.add(seq.getDERObject());
+                }
+                _unprotectedAttributes = new AttributeTable(new DERSet(v));
+            }
+        }
+        return _unprotectedAttributes;
+    }
+
+    private byte[] encodeObj(DEREncodable obj)
+        throws IOException
+    {
+        if(obj != null)
+            return obj.getDERObject().getEncoded();
+        else
+            return null;
+    }
+
+    RecipientInformationStore _recipientInfoStore;
+    EnvelopedDataParser _envelopedData;
+    private AlgorithmIdentifier _encAlg;
+    private AttributeTable _unprotectedAttributes;
+    private boolean _attrNotRead;
+}

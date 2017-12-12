@@ -1,0 +1,118 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DHDomainParameters.java
+
+package org.bouncycastle.asn1.x9;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x9:
+//            DHValidationParms
+
+public class DHDomainParameters extends ASN1Encodable
+{
+
+    public static DHDomainParameters getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static DHDomainParameters getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof DHDomainParameters))
+            return (DHDomainParameters)obj;
+        if(obj instanceof ASN1Sequence)
+            return new DHDomainParameters((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid DHDomainParameters: ").append(obj.getClass().getName()).toString());
+    }
+
+    public DHDomainParameters(DERInteger p, DERInteger g, DERInteger q, DERInteger j, DHValidationParms validationParms)
+    {
+        if(p == null)
+            throw new IllegalArgumentException("'p' cannot be null");
+        if(g == null)
+            throw new IllegalArgumentException("'g' cannot be null");
+        if(q == null)
+        {
+            throw new IllegalArgumentException("'q' cannot be null");
+        } else
+        {
+            this.p = p;
+            this.g = g;
+            this.q = q;
+            this.j = j;
+            this.validationParms = validationParms;
+            return;
+        }
+    }
+
+    private DHDomainParameters(ASN1Sequence seq)
+    {
+        if(seq.size() < 3 || seq.size() > 5)
+            throw new IllegalArgumentException((new StringBuilder()).append("Bad sequence size: ").append(seq.size()).toString());
+        Enumeration e = seq.getObjects();
+        p = DERInteger.getInstance(e.nextElement());
+        g = DERInteger.getInstance(e.nextElement());
+        q = DERInteger.getInstance(e.nextElement());
+        DEREncodable next = getNext(e);
+        if(next != null && (next instanceof DERInteger))
+        {
+            j = DERInteger.getInstance(next);
+            next = getNext(e);
+        }
+        if(next != null)
+            validationParms = DHValidationParms.getInstance(next.getDERObject());
+    }
+
+    private static DEREncodable getNext(Enumeration e)
+    {
+        return e.hasMoreElements() ? (DEREncodable)e.nextElement() : null;
+    }
+
+    public DERInteger getP()
+    {
+        return p;
+    }
+
+    public DERInteger getG()
+    {
+        return g;
+    }
+
+    public DERInteger getQ()
+    {
+        return q;
+    }
+
+    public DERInteger getJ()
+    {
+        return j;
+    }
+
+    public DHValidationParms getValidationParms()
+    {
+        return validationParms;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(p);
+        v.add(g);
+        v.add(q);
+        if(j != null)
+            v.add(j);
+        if(validationParms != null)
+            v.add(validationParms);
+        return new DERSequence(v);
+    }
+
+    private DERInteger p;
+    private DERInteger g;
+    private DERInteger q;
+    private DERInteger j;
+    private DHValidationParms validationParms;
+}

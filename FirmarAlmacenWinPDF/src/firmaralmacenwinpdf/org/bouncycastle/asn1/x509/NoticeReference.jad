@@ -1,0 +1,91 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   NoticeReference.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+import java.util.Vector;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            DisplayText
+
+public class NoticeReference extends ASN1Encodable
+{
+
+    public NoticeReference(String orgName, Vector numbers)
+    {
+        organization = new DisplayText(orgName);
+        Object o = numbers.elementAt(0);
+        ASN1EncodableVector av = new ASN1EncodableVector();
+        if(o instanceof Integer)
+        {
+            DERInteger di;
+            for(Enumeration it = numbers.elements(); it.hasMoreElements(); av.add(di))
+            {
+                Integer nm = (Integer)it.nextElement();
+                di = new DERInteger(nm.intValue());
+            }
+
+        }
+        noticeNumbers = new DERSequence(av);
+    }
+
+    public NoticeReference(String orgName, ASN1Sequence numbers)
+    {
+        organization = new DisplayText(orgName);
+        noticeNumbers = numbers;
+    }
+
+    public NoticeReference(int displayTextType, String orgName, ASN1Sequence numbers)
+    {
+        organization = new DisplayText(displayTextType, orgName);
+        noticeNumbers = numbers;
+    }
+
+    public NoticeReference(ASN1Sequence as)
+    {
+        if(as.size() != 2)
+        {
+            throw new IllegalArgumentException((new StringBuilder()).append("Bad sequence size: ").append(as.size()).toString());
+        } else
+        {
+            organization = DisplayText.getInstance(as.getObjectAt(0));
+            noticeNumbers = ASN1Sequence.getInstance(as.getObjectAt(1));
+            return;
+        }
+    }
+
+    public static NoticeReference getInstance(Object as)
+    {
+        if(as instanceof NoticeReference)
+            return (NoticeReference)as;
+        if(as instanceof ASN1Sequence)
+            return new NoticeReference((ASN1Sequence)as);
+        else
+            throw new IllegalArgumentException("unknown object in getInstance.");
+    }
+
+    public DisplayText getOrganization()
+    {
+        return organization;
+    }
+
+    public ASN1Sequence getNoticeNumbers()
+    {
+        return noticeNumbers;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector av = new ASN1EncodableVector();
+        av.add(organization);
+        av.add(noticeNumbers);
+        return new DERSequence(av);
+    }
+
+    private DisplayText organization;
+    private ASN1Sequence noticeNumbers;
+}

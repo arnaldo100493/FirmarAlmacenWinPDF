@@ -1,0 +1,87 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509CertPairStoreSelector.java
+
+package co.org.bouncy.x509_;
+
+import co.org.bouncy.util.Selector;
+
+// Referenced classes of package co.org.bouncy.x509_:
+//            X509CertStoreSelector, X509CertificatePair
+
+public class X509CertPairStoreSelector
+    implements Selector
+{
+
+    public X509CertPairStoreSelector()
+    {
+    }
+
+    public X509CertificatePair getCertPair()
+    {
+        return certPair;
+    }
+
+    public void setCertPair(X509CertificatePair certPair)
+    {
+        this.certPair = certPair;
+    }
+
+    public void setForwardSelector(X509CertStoreSelector forwardSelector)
+    {
+        this.forwardSelector = forwardSelector;
+    }
+
+    public void setReverseSelector(X509CertStoreSelector reverseSelector)
+    {
+        this.reverseSelector = reverseSelector;
+    }
+
+    public Object clone()
+    {
+        X509CertPairStoreSelector cln = new X509CertPairStoreSelector();
+        cln.certPair = certPair;
+        if(forwardSelector != null)
+            cln.setForwardSelector((X509CertStoreSelector)forwardSelector.clone());
+        if(reverseSelector != null)
+            cln.setReverseSelector((X509CertStoreSelector)reverseSelector.clone());
+        return cln;
+    }
+
+    public boolean match(Object obj)
+    {
+        X509CertificatePair pair;
+        try
+        {
+            if(!(obj instanceof X509CertificatePair))
+                return false;
+        }
+        catch(Exception e)
+        {
+            return false;
+        }
+        pair = (X509CertificatePair)obj;
+        if(forwardSelector != null && !forwardSelector.match(pair.getForward()))
+            return false;
+        if(reverseSelector != null && !reverseSelector.match(pair.getReverse()))
+            return false;
+        if(certPair != null)
+            return certPair.equals(obj);
+        return true;
+    }
+
+    public X509CertStoreSelector getForwardSelector()
+    {
+        return forwardSelector;
+    }
+
+    public X509CertStoreSelector getReverseSelector()
+    {
+        return reverseSelector;
+    }
+
+    private X509CertStoreSelector forwardSelector;
+    private X509CertStoreSelector reverseSelector;
+    private X509CertificatePair certPair;
+}

@@ -1,0 +1,228 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PSSSigner.java
+
+package org.bouncycastle.crypto.signers;
+
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.params.*;
+
+public class PSSSigner
+    implements Signer
+{
+
+    public PSSSigner(AsymmetricBlockCipher cipher, Digest digest, int sLen)
+    {
+        this(cipher, digest, sLen, (byte)-68);
+    }
+
+    public PSSSigner(AsymmetricBlockCipher cipher, Digest contentDigest, Digest mgfDigest, int sLen)
+    {
+        this(cipher, contentDigest, mgfDigest, sLen, (byte)-68);
+    }
+
+    public PSSSigner(AsymmetricBlockCipher cipher, Digest digest, int sLen, byte trailer)
+    {
+        this(cipher, digest, digest, sLen, trailer);
+    }
+
+    public PSSSigner(AsymmetricBlockCipher cipher, Digest contentDigest, Digest mgfDigest, int sLen, byte trailer)
+    {
+        this.cipher = cipher;
+        this.contentDigest = contentDigest;
+        this.mgfDigest = mgfDigest;
+        hLen = contentDigest.getDigestSize();
+        mgfhLen = mgfDigest.getDigestSize();
+        this.sLen = sLen;
+        salt = new byte[sLen];
+        mDash = new byte[8 + sLen + hLen];
+        this.trailer = trailer;
+    }
+
+    public void init(boolean forSigning, CipherParameters param)
+    {
+        CipherParameters params;
+        if(param instanceof ParametersWithRandom)
+        {
+            ParametersWithRandom p = (ParametersWithRandom)param;
+            params = p.getParameters();
+            random = p.getRandom();
+        } else
+        {
+            params = param;
+            if(forSigning)
+                random = new SecureRandom();
+        }
+        cipher.init(forSigning, params);
+        RSAKeyParameters kParam;
+        if(params instanceof RSABlindingParameters)
+            kParam = ((RSABlindingParameters)params).getPublicKey();
+        else
+            kParam = (RSAKeyParameters)params;
+        emBits = kParam.getModulus().bitLength() - 1;
+        if(emBits < 8 * hLen + 8 * sLen + 9)
+        {
+            throw new IllegalArgumentException("key too small for specified hash and salt lengths");
+        } else
+        {
+            block = new byte[(emBits + 7) / 8];
+            reset();
+            return;
+        }
+    }
+
+    private void clearBlock(byte block[])
+    {
+        for(int i = 0; i != block.length; i++)
+            block[i] = 0;
+
+    }
+
+    public void update(byte b)
+    {
+        contentDigest.update(b);
+    }
+
+    public void update(byte in[], int off, int len)
+    {
+        contentDigest.update(in, off, len);
+    }
+
+    public void reset()
+    {
+        contentDigest.reset();
+    }
+
+    public byte[] generateSignature()
+        throws CryptoException, DataLengthException
+    {
+        contentDigest.doFinal(mDash, mDash.length - hLen - sLen);
+        if(sLen != 0)
+        {
+            random.nextBytes(salt);
+            System.arraycopy(salt, 0, mDash, mDash.length - sLen, sLen);
+        }
+        byte h[] = new byte[hLen];
+        contentDigest.update(mDash, 0, mDash.length);
+        contentDigest.doFinal(h, 0);
+        block[block.length - sLen - 1 - hLen - 1] = 1;
+        System.arraycopy(salt, 0, block, block.length - sLen - hLen - 1, sLen);
+        byte dbMask[] = maskGeneratorFunction1(h, 0, h.length, block.length - hLen - 1);
+        for(int i = 0; i != dbMask.length; i++)
+            block[i] ^= dbMask[i];
+
+        block[0] &= 255 >> block.length * 8 - emBits;
+        System.arraycopy(h, 0, block, block.length - hLen - 1, hLen);
+        block[block.length - 1] = trailer;
+        byte b[] = cipher.processBlock(block, 0, block.length);
+        clearBlock(block);
+        return b;
+    }
+
+    public boolean verifySignature(byte signature[])
+    {
+        contentDigest.doFinal(mDash, mDash.length - hLen - sLen);
+        try
+        {
+            byte b[] = cipher.processBlock(signature, 0, signature.length);
+            System.arraycopy(b, 0, block, block.length - b.length, b.length);
+        }
+        catch(Exception e)
+        {
+            return false;
+        }
+        if(block[block.length - 1] != trailer)
+        {
+            clearBlock(block);
+            return false;
+        }
+        byte dbMask[] = maskGeneratorFunction1(block, block.length - hLen - 1, hLen, block.length - hLen - 1);
+        int i;
+        for(i = 0; i != dbMask.length; i++)
+            block[i] ^= dbMask[i];
+
+        block[0] &= 255 >> block.length * 8 - emBits;
+        for(i = 0; i != block.length - hLen - sLen - 2; i++)
+            if(block[i] != 0)
+            {
+                clearBlock(block);
+                return false;
+            }
+
+        if(block[block.length - hLen - sLen - 2] != 1)
+        {
+            clearBlock(block);
+            return false;
+        }
+        System.arraycopy(block, block.length - sLen - hLen - 1, mDash, mDash.length - sLen, sLen);
+        contentDigest.update(mDash, 0, mDash.length);
+        contentDigest.doFinal(mDash, mDash.length - hLen);
+        i = block.length - hLen - 1;
+        for(int j = mDash.length - hLen; j != mDash.length; j++)
+        {
+            if((block[i] ^ mDash[j]) != 0)
+            {
+                clearBlock(mDash);
+                clearBlock(block);
+                return false;
+            }
+            i++;
+        }
+
+        clearBlock(mDash);
+        clearBlock(block);
+        return true;
+    }
+
+    private void ItoOSP(int i, byte sp[])
+    {
+        sp[0] = (byte)(i >>> 24);
+        sp[1] = (byte)(i >>> 16);
+        sp[2] = (byte)(i >>> 8);
+        sp[3] = (byte)(i >>> 0);
+    }
+
+    private byte[] maskGeneratorFunction1(byte Z[], int zOff, int zLen, int length)
+    {
+        byte mask[] = new byte[length];
+        byte hashBuf[] = new byte[mgfhLen];
+        byte C[] = new byte[4];
+        int counter = 0;
+        mgfDigest.reset();
+        for(; counter < length / mgfhLen; counter++)
+        {
+            ItoOSP(counter, C);
+            mgfDigest.update(Z, zOff, zLen);
+            mgfDigest.update(C, 0, C.length);
+            mgfDigest.doFinal(hashBuf, 0);
+            System.arraycopy(hashBuf, 0, mask, counter * mgfhLen, mgfhLen);
+        }
+
+        if(counter * mgfhLen < length)
+        {
+            ItoOSP(counter, C);
+            mgfDigest.update(Z, zOff, zLen);
+            mgfDigest.update(C, 0, C.length);
+            mgfDigest.doFinal(hashBuf, 0);
+            System.arraycopy(hashBuf, 0, mask, counter * mgfhLen, mask.length - counter * mgfhLen);
+        }
+        return mask;
+    }
+
+    public static final byte TRAILER_IMPLICIT = -68;
+    private Digest contentDigest;
+    private Digest mgfDigest;
+    private AsymmetricBlockCipher cipher;
+    private SecureRandom random;
+    private int hLen;
+    private int mgfhLen;
+    private int sLen;
+    private int emBits;
+    private byte salt[];
+    private byte mDash[];
+    private byte block[];
+    private byte trailer;
+}

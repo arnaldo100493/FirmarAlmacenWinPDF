@@ -1,0 +1,59 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailHandler.java
+
+package com.sun.mail.util.logging;
+
+import java.util.logging.*;
+
+// Referenced classes of package com.sun.mail.util.logging:
+//            MailHandler
+
+private static final class MailHandler$TailNameFormatter extends Formatter
+{
+
+    public final String format(LogRecord record)
+    {
+        return "";
+    }
+
+    public final String getTail(Handler h)
+    {
+        return name;
+    }
+
+    public final boolean equals(Object o)
+    {
+        if(o instanceof MailHandler$TailNameFormatter)
+            return name.equals(((MailHandler$TailNameFormatter)o).name);
+        else
+            return false;
+    }
+
+    public final int hashCode()
+    {
+        return getClass().hashCode() + name.hashCode();
+    }
+
+    public final String toString()
+    {
+        return name;
+    }
+
+    private final String name;
+    static final boolean $assertionsDisabled = !com/sun/mail/util/logging/MailHandler.desiredAssertionStatus();
+
+
+    MailHandler$TailNameFormatter(String name)
+    {
+        if(!$assertionsDisabled && name == null)
+        {
+            throw new AssertionError();
+        } else
+        {
+            this.name = name;
+            return;
+        }
+    }
+}

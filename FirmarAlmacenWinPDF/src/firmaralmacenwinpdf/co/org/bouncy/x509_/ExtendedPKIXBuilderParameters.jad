@@ -1,0 +1,107 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ExtendedPKIXBuilderParameters.java
+
+package co.org.bouncy.x509_;
+
+import co.org.bouncy.util.Selector;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidParameterException;
+import java.security.cert.*;
+import java.util.*;
+
+// Referenced classes of package co.org.bouncy.x509_:
+//            ExtendedPKIXParameters, X509CertStoreSelector
+
+public class ExtendedPKIXBuilderParameters extends ExtendedPKIXParameters
+{
+
+    public Set getExcludedCerts()
+    {
+        return Collections.unmodifiableSet(excludedCerts);
+    }
+
+    public void setExcludedCerts(Set excludedCerts)
+    {
+        if(excludedCerts == null)
+            excludedCerts = Collections.EMPTY_SET;
+        else
+            this.excludedCerts = new HashSet(excludedCerts);
+    }
+
+    public ExtendedPKIXBuilderParameters(Set trustAnchors, Selector targetConstraints)
+        throws InvalidAlgorithmParameterException
+    {
+        super(trustAnchors);
+        maxPathLength = 5;
+        excludedCerts = Collections.EMPTY_SET;
+        setTargetConstraints(targetConstraints);
+    }
+
+    public void setMaxPathLength(int maxPathLength)
+    {
+        if(maxPathLength < -1)
+        {
+            throw new InvalidParameterException("The maximum path length parameter can not be less than -1.");
+        } else
+        {
+            this.maxPathLength = maxPathLength;
+            return;
+        }
+    }
+
+    public int getMaxPathLength()
+    {
+        return maxPathLength;
+    }
+
+    protected void setParams(PKIXParameters params)
+    {
+        super.setParams(params);
+        if(params instanceof ExtendedPKIXBuilderParameters)
+        {
+            ExtendedPKIXBuilderParameters _params = (ExtendedPKIXBuilderParameters)params;
+            maxPathLength = _params.maxPathLength;
+            excludedCerts = new HashSet(_params.excludedCerts);
+        }
+        if(params instanceof PKIXBuilderParameters)
+        {
+            PKIXBuilderParameters _params = (PKIXBuilderParameters)params;
+            maxPathLength = _params.getMaxPathLength();
+        }
+    }
+
+    public Object clone()
+    {
+        ExtendedPKIXBuilderParameters params = null;
+        try
+        {
+            params = new ExtendedPKIXBuilderParameters(getTrustAnchors(), getTargetConstraints());
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e.getMessage());
+        }
+        params.setParams(this);
+        return params;
+    }
+
+    public static ExtendedPKIXParameters getInstance(PKIXParameters pkixParams)
+    {
+        ExtendedPKIXBuilderParameters params;
+        try
+        {
+            params = new ExtendedPKIXBuilderParameters(pkixParams.getTrustAnchors(), X509CertStoreSelector.getInstance((X509CertSelector)pkixParams.getTargetCertConstraints()));
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e.getMessage());
+        }
+        params.setParams(pkixParams);
+        return params;
+    }
+
+    private int maxPathLength;
+    private Set excludedCerts;
+}

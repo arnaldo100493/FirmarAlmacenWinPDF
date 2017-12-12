@@ -1,0 +1,18 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PemObjectParser.java
+
+package co.org.bouncy.util.io.pem;
+
+import java.io.IOException;
+
+// Referenced classes of package co.org.bouncy.util.io.pem:
+//            PemObject
+
+public interface PemObjectParser
+{
+
+    public abstract Object parseObject(PemObject pemobject)
+        throws IOException;
+}

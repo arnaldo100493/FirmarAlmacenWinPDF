@@ -1,0 +1,57 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ListLabel.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.pdf.PdfName;
+
+// Referenced classes of package co.com.pdf.text:
+//            ListBody, ListItem
+
+public class ListLabel extends ListBody
+{
+
+    protected ListLabel(ListItem parentItem)
+    {
+        super(parentItem);
+        role = PdfName.LBL;
+        indentation = 0.0F;
+        tagLabelContent = true;
+    }
+
+    public PdfName getRole()
+    {
+        return role;
+    }
+
+    public void setRole(PdfName role)
+    {
+        this.role = role;
+    }
+
+    public float getIndentation()
+    {
+        return indentation;
+    }
+
+    public void setIndentation(float indentation)
+    {
+        this.indentation = indentation;
+    }
+
+    public boolean getTagLabelContent()
+    {
+        return tagLabelContent;
+    }
+
+    public void setTagLabelContent(boolean tagLabelContent)
+    {
+        this.tagLabelContent = tagLabelContent;
+    }
+
+    protected PdfName role;
+    protected float indentation;
+    protected boolean tagLabelContent;
+}

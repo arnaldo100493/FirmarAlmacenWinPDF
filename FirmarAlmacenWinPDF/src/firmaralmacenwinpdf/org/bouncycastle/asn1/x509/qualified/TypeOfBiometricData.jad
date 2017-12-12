@@ -1,0 +1,71 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TypeOfBiometricData.java
+
+package org.bouncycastle.asn1.x509.qualified;
+
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+
+public class TypeOfBiometricData extends ASN1Encodable
+    implements ASN1Choice
+{
+
+    public static TypeOfBiometricData getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof TypeOfBiometricData))
+            return (TypeOfBiometricData)obj;
+        if(obj instanceof DERInteger)
+        {
+            DERInteger predefinedBiometricTypeObj = DERInteger.getInstance(obj);
+            int predefinedBiometricType = predefinedBiometricTypeObj.getValue().intValue();
+            return new TypeOfBiometricData(predefinedBiometricType);
+        }
+        if(obj instanceof DERObjectIdentifier)
+        {
+            DERObjectIdentifier BiometricDataID = DERObjectIdentifier.getInstance(obj);
+            return new TypeOfBiometricData(BiometricDataID);
+        } else
+        {
+            throw new IllegalArgumentException("unknown object in getInstance");
+        }
+    }
+
+    public TypeOfBiometricData(int predefinedBiometricType)
+    {
+        if(predefinedBiometricType == 0 || predefinedBiometricType == 1)
+            obj = new DERInteger(predefinedBiometricType);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknow PredefinedBiometricType : ").append(predefinedBiometricType).toString());
+    }
+
+    public TypeOfBiometricData(DERObjectIdentifier BiometricDataID)
+    {
+        obj = BiometricDataID;
+    }
+
+    public boolean isPredefined()
+    {
+        return obj instanceof DERInteger;
+    }
+
+    public int getPredefinedBiometricType()
+    {
+        return ((DERInteger)obj).getValue().intValue();
+    }
+
+    public DERObjectIdentifier getBiometricDataOid()
+    {
+        return (DERObjectIdentifier)obj;
+    }
+
+    public DERObject toASN1Object()
+    {
+        return obj.getDERObject();
+    }
+
+    public static final int PICTURE = 0;
+    public static final int HANDWRITTEN_SIGNATURE = 1;
+    DEREncodable obj;
+}

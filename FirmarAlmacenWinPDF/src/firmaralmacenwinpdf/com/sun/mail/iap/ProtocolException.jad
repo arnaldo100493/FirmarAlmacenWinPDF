@@ -1,0 +1,46 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ProtocolException.java
+
+package com.sun.mail.iap;
+
+
+// Referenced classes of package com.sun.mail.iap:
+//            Response
+
+public class ProtocolException extends Exception
+{
+
+    public ProtocolException()
+    {
+        response = null;
+    }
+
+    public ProtocolException(String message)
+    {
+        super(message);
+        response = null;
+    }
+
+    public ProtocolException(String message, Throwable cause)
+    {
+        super(message, cause);
+        response = null;
+    }
+
+    public ProtocolException(Response r)
+    {
+        super(r.toString());
+        response = null;
+        response = r;
+    }
+
+    public Response getResponse()
+    {
+        return response;
+    }
+
+    protected transient Response response;
+    private static final long serialVersionUID = 0xc37c639e3a098641L;
+}

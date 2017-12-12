@@ -1,0 +1,27 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Header.java
+
+package co.com.pdf.text;
+
+
+// Referenced classes of package co.com.pdf.text:
+//            Meta
+
+public class Header extends Meta
+{
+
+    public Header(String name, String content)
+    {
+        super(0, content);
+        this.name = new StringBuffer(name);
+    }
+
+    public String getName()
+    {
+        return name.toString();
+    }
+
+    private StringBuffer name;
+}

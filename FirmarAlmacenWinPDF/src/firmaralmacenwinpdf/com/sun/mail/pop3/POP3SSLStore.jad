@@ -1,0 +1,21 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   POP3SSLStore.java
+
+package com.sun.mail.pop3;
+
+import javax.mail.Session;
+import javax.mail.URLName;
+
+// Referenced classes of package com.sun.mail.pop3:
+//            POP3Store
+
+public class POP3SSLStore extends POP3Store
+{
+
+    public POP3SSLStore(Session session, URLName url)
+    {
+        super(session, url, "pop3s", true);
+    }
+}

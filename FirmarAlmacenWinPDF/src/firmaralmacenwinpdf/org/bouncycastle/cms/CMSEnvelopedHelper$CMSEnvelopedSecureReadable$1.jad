@@ -1,0 +1,70 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSEnvelopedHelper.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.security.*;
+import java.security.spec.InvalidParameterSpecException;
+import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSException, CMSEnvelopedHelper, CMSEnvelopedDataGenerator
+
+class CMSEnvelopedHelper$CMSEnvelopedSecureReadable$1
+    implements CMSEnvelopedHelper.JCECallback
+{
+
+    public Object doInJCE()
+        throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException
+    {
+        Cipher cipher = CMSEnvelopedHelper.INSTANCE.createSymmetricCipher(val$encAlg, val$provider);
+        if(val$sParams != null && !(val$sParams instanceof ASN1Null))
+            try
+            {
+                AlgorithmParameters params = CMSEnvelopedHelper.INSTANCE.createAlgorithmParameters(val$encAlg, cipher.getProvider());
+                try
+                {
+                    params.init(val$sParams.getEncoded(), "ASN.1");
+                }
+                catch(IOException e)
+                {
+                    throw new CMSException("error decoding algorithm parameters.", e);
+                }
+                cipher.init(2, val$sKey, params);
+            }
+            catch(NoSuchAlgorithmException e)
+            {
+                if(val$encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || val$encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || val$encAlg.equals(CMSEnvelopedDataGenerator.AES128_CBC) || val$encAlg.equals(CMSEnvelopedDataGenerator.AES192_CBC) || val$encAlg.equals(CMSEnvelopedDataGenerator.AES256_CBC))
+                    cipher.init(2, val$sKey, new IvParameterSpec(ASN1OctetString.getInstance(val$sParams).getOctets()));
+                else
+                    throw e;
+            }
+        else
+        if(val$encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || val$encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || val$encAlg.equals("1.2.840.113533.7.66.10"))
+            cipher.init(2, val$sKey, new IvParameterSpec(new byte[8]));
+        else
+            cipher.init(2, val$sKey);
+        return cipher;
+    }
+
+    final String val$encAlg;
+    final Provider val$provider;
+    final ASN1Object val$sParams;
+    final SecretKey val$sKey;
+    final CMSEnvelopedHelper.CMSEnvelopedSecureReadable this$0;
+
+    CMSEnvelopedHelper$CMSEnvelopedSecureReadable$1()
+    {
+        this$0 = final_cmsenvelopedsecurereadable;
+        val$encAlg = s;
+        val$provider = provider1;
+        val$sParams = asn1object;
+        val$sKey = SecretKey.this;
+        super();
+    }
+}

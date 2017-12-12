@@ -1,0 +1,118 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JceCMSContentEncryptorBuilder.java
+
+package org.bouncycastle.cms.jcajce;
+
+import java.io.OutputStream;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.cms.CMSException;
+import org.bouncycastle.jcajce.*;
+import org.bouncycastle.operator.GenericKey;
+import org.bouncycastle.operator.OutputEncryptor;
+
+// Referenced classes of package org.bouncycastle.cms.jcajce:
+//            EnvelopedDataHelper
+
+public class JceCMSContentEncryptorBuilder
+{
+    private class CMSOutputEncryptor
+        implements OutputEncryptor
+    {
+
+        public AlgorithmIdentifier getAlgorithmIdentifier()
+        {
+            return algorithmIdentifier;
+        }
+
+        public OutputStream getOutputStream(OutputStream dOut)
+        {
+            return new CipherOutputStream(dOut, cipher);
+        }
+
+        public GenericKey getKey()
+        {
+            return new GenericKey(encKey);
+        }
+
+        private SecretKey encKey;
+        private AlgorithmIdentifier algorithmIdentifier;
+        private Cipher cipher;
+        final JceCMSContentEncryptorBuilder this$0;
+
+        CMSOutputEncryptor(ASN1ObjectIdentifier encryptionOID, int keySize, SecureRandom random)
+            throws CMSException
+        {
+            this$0 = JceCMSContentEncryptorBuilder.this;
+            super();
+            KeyGenerator keyGen = helper.createKeyGenerator(encryptionOID);
+            if(random == null)
+                random = new SecureRandom();
+            if(keySize < 0)
+                keyGen.init(random);
+            else
+                keyGen.init(keySize, random);
+            cipher = helper.createCipher(encryptionOID);
+            encKey = keyGen.generateKey();
+            AlgorithmParameters params = helper.generateParameters(encryptionOID, encKey, random);
+            try
+            {
+                cipher.init(1, encKey, params, random);
+            }
+            catch(GeneralSecurityException e)
+            {
+                throw new CMSException((new StringBuilder()).append("unable to initialize cipher: ").append(e.getMessage()).toString(), e);
+            }
+            if(params == null)
+                params = cipher.getParameters();
+            algorithmIdentifier = helper.getAlgorithmIdentifier(encryptionOID, params);
+        }
+    }
+
+
+    public JceCMSContentEncryptorBuilder(ASN1ObjectIdentifier encryptionOID)
+    {
+        this(encryptionOID, -1);
+    }
+
+    public JceCMSContentEncryptorBuilder(ASN1ObjectIdentifier encryptionOID, int keySize)
+    {
+        helper = new EnvelopedDataHelper(new DefaultJcaJceHelper());
+        this.encryptionOID = encryptionOID;
+        this.keySize = keySize;
+    }
+
+    public JceCMSContentEncryptorBuilder setProvider(Provider provider)
+    {
+        helper = new EnvelopedDataHelper(new ProviderJcaJceHelper(provider));
+        return this;
+    }
+
+    public JceCMSContentEncryptorBuilder setProvider(String providerName)
+    {
+        helper = new EnvelopedDataHelper(new NamedJcaJceHelper(providerName));
+        return this;
+    }
+
+    public JceCMSContentEncryptorBuilder setSecureRandom(SecureRandom random)
+    {
+        this.random = random;
+        return this;
+    }
+
+    public OutputEncryptor build()
+        throws CMSException
+    {
+        return new CMSOutputEncryptor(encryptionOID, keySize, random);
+    }
+
+    private final ASN1ObjectIdentifier encryptionOID;
+    private final int keySize;
+    private EnvelopedDataHelper helper;
+    private SecureRandom random;
+
+}

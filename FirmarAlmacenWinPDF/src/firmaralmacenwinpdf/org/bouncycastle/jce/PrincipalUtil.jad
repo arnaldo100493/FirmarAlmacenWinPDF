@@ -1,0 +1,65 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PrincipalUtil.java
+
+package org.bouncycastle.jce;
+
+import java.io.IOException;
+import java.security.cert.*;
+import org.bouncycastle.asn1.ASN1Object;
+import org.bouncycastle.asn1.x509.TBSCertList;
+import org.bouncycastle.asn1.x509.TBSCertificateStructure;
+
+// Referenced classes of package org.bouncycastle.jce:
+//            X509Principal
+
+public class PrincipalUtil
+{
+
+    public PrincipalUtil()
+    {
+    }
+
+    public static X509Principal getIssuerX509Principal(X509Certificate cert)
+        throws CertificateEncodingException
+    {
+        try
+        {
+            TBSCertificateStructure tbsCert = TBSCertificateStructure.getInstance(ASN1Object.fromByteArray(cert.getTBSCertificate()));
+            return new X509Principal(tbsCert.getIssuer());
+        }
+        catch(IOException e)
+        {
+            throw new CertificateEncodingException(e.toString());
+        }
+    }
+
+    public static X509Principal getSubjectX509Principal(X509Certificate cert)
+        throws CertificateEncodingException
+    {
+        try
+        {
+            TBSCertificateStructure tbsCert = TBSCertificateStructure.getInstance(ASN1Object.fromByteArray(cert.getTBSCertificate()));
+            return new X509Principal(tbsCert.getSubject());
+        }
+        catch(IOException e)
+        {
+            throw new CertificateEncodingException(e.toString());
+        }
+    }
+
+    public static X509Principal getIssuerX509Principal(X509CRL crl)
+        throws CRLException
+    {
+        try
+        {
+            TBSCertList tbsCertList = TBSCertList.getInstance(ASN1Object.fromByteArray(crl.getTBSCertList()));
+            return new X509Principal(tbsCertList.getIssuer());
+        }
+        catch(IOException e)
+        {
+            throw new CRLException(e.toString());
+        }
+    }
+}

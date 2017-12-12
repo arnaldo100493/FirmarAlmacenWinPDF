@@ -1,0 +1,135 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JCERSAPrivateKey.java
+
+package org.bouncycastle.jce.provider;
+
+import java.io.*;
+import java.math.BigInteger;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.spec.RSAPrivateKeySpec;
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.pkcs.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.jce.interfaces.PKCS12BagAttributeCarrier;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            PKCS12BagAttributeCarrierImpl
+
+public class JCERSAPrivateKey
+    implements RSAPrivateKey, PKCS12BagAttributeCarrier
+{
+
+    protected JCERSAPrivateKey()
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+    }
+
+    JCERSAPrivateKey(RSAKeyParameters key)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        modulus = key.getModulus();
+        privateExponent = key.getExponent();
+    }
+
+    JCERSAPrivateKey(RSAPrivateKeySpec spec)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        modulus = spec.getModulus();
+        privateExponent = spec.getPrivateExponent();
+    }
+
+    JCERSAPrivateKey(RSAPrivateKey key)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        modulus = key.getModulus();
+        privateExponent = key.getPrivateExponent();
+    }
+
+    public BigInteger getModulus()
+    {
+        return modulus;
+    }
+
+    public BigInteger getPrivateExponent()
+    {
+        return privateExponent;
+    }
+
+    public String getAlgorithm()
+    {
+        return "RSA";
+    }
+
+    public String getFormat()
+    {
+        return "PKCS#8";
+    }
+
+    public byte[] getEncoded()
+    {
+        PrivateKeyInfo info = new PrivateKeyInfo(new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, new DERNull()), (new RSAPrivateKeyStructure(getModulus(), ZERO, getPrivateExponent(), ZERO, ZERO, ZERO, ZERO, ZERO)).getDERObject());
+        return info.getDEREncoded();
+    }
+
+    public boolean equals(Object o)
+    {
+        if(!(o instanceof RSAPrivateKey))
+            return false;
+        if(o == this)
+        {
+            return true;
+        } else
+        {
+            RSAPrivateKey key = (RSAPrivateKey)o;
+            return getModulus().equals(key.getModulus()) && getPrivateExponent().equals(key.getPrivateExponent());
+        }
+    }
+
+    public int hashCode()
+    {
+        return getModulus().hashCode() ^ getPrivateExponent().hashCode();
+    }
+
+    public void setBagAttribute(DERObjectIdentifier oid, DEREncodable attribute)
+    {
+        attrCarrier.setBagAttribute(oid, attribute);
+    }
+
+    public DEREncodable getBagAttribute(DERObjectIdentifier oid)
+    {
+        return attrCarrier.getBagAttribute(oid);
+    }
+
+    public Enumeration getBagAttributeKeys()
+    {
+        return attrCarrier.getBagAttributeKeys();
+    }
+
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException
+    {
+        modulus = (BigInteger)in.readObject();
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        attrCarrier.readObject(in);
+        privateExponent = (BigInteger)in.readObject();
+    }
+
+    private void writeObject(ObjectOutputStream out)
+        throws IOException
+    {
+        out.writeObject(modulus);
+        attrCarrier.writeObject(out);
+        out.writeObject(privateExponent);
+    }
+
+    static final long serialVersionUID = 0x46eb09c007cf411cL;
+    private static BigInteger ZERO = BigInteger.valueOf(0L);
+    protected BigInteger modulus;
+    protected BigInteger privateExponent;
+    private PKCS12BagAttributeCarrierImpl attrCarrier;
+
+}

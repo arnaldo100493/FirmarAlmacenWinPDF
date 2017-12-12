@@ -1,0 +1,105 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPTransport.java
+
+package com.sun.mail.smtp;
+
+import com.sun.mail.util.MailLogger;
+import java.io.IOException;
+import java.util.Locale;
+import java.util.logging.Level;
+import javax.mail.AuthenticationFailedException;
+import javax.mail.MessagingException;
+
+// Referenced classes of package com.sun.mail.smtp:
+//            SMTPTransport
+
+private abstract class SMTPTransport$Authenticator
+{
+
+    String getMechanism()
+    {
+        return mech;
+    }
+
+    boolean authenticate(String host, String authzid, String user, String passwd)
+        throws MessagingException
+    {
+        String ir = getInitialResponse(host, authzid, user, passwd);
+        if(SMTPTransport.access$000(SMTPTransport.this) && SMTPTransport.access$100(SMTPTransport.this))
+        {
+            SMTPTransport.access$200(SMTPTransport.this).fine((new StringBuilder()).append("AUTH ").append(mech).append(" command trace suppressed").toString());
+            SMTPTransport.access$300(SMTPTransport.this);
+        }
+        if(ir != null)
+            resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(ir.length() != 0 ? ir : "=").toString());
+        else
+            resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).toString());
+        if(resp == 530)
+        {
+            startTLS();
+            if(ir != null)
+                resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(ir).toString());
+            else
+                resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).toString());
+        }
+        if(resp == 334)
+            doAuth(host, authzid, user, passwd);
+        if(SMTPTransport.access$000(SMTPTransport.this) && SMTPTransport.access$100(SMTPTransport.this))
+            SMTPTransport.access$200(SMTPTransport.this).fine((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(resp != 235 ? "failed" : "succeeded").toString());
+        SMTPTransport.access$400(SMTPTransport.this);
+        if(resp != 235)
+        {
+            SMTPTransport.access$500(SMTPTransport.this);
+            throw new AuthenticationFailedException(getLastServerResponse());
+        }
+        break MISSING_BLOCK_LABEL_689;
+        IOException ex;
+        ex;
+        SMTPTransport.access$200(SMTPTransport.this).log(Level.FINE, (new StringBuilder()).append("AUTH ").append(mech).append(" failed").toString(), ex);
+        if(SMTPTransport.access$000(SMTPTransport.this) && SMTPTransport.access$100(SMTPTransport.this))
+            SMTPTransport.access$200(SMTPTransport.this).fine((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(resp != 235 ? "failed" : "succeeded").toString());
+        SMTPTransport.access$400(SMTPTransport.this);
+        if(resp != 235)
+        {
+            SMTPTransport.access$500(SMTPTransport.this);
+            throw new AuthenticationFailedException(getLastServerResponse());
+        }
+        break MISSING_BLOCK_LABEL_689;
+        Exception exception;
+        exception;
+        if(SMTPTransport.access$000(SMTPTransport.this) && SMTPTransport.access$100(SMTPTransport.this))
+            SMTPTransport.access$200(SMTPTransport.this).fine((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(resp != 235 ? "failed" : "succeeded").toString());
+        SMTPTransport.access$400(SMTPTransport.this);
+        if(resp != 235)
+        {
+            SMTPTransport.access$500(SMTPTransport.this);
+            throw new AuthenticationFailedException(getLastServerResponse());
+        } else
+        {
+            throw exception;
+        }
+        return true;
+    }
+
+    String getInitialResponse(String host, String authzid, String user, String s)
+        throws MessagingException, IOException
+    {
+        return null;
+    }
+
+    abstract void doAuth(String s, String s1, String s2, String s3)
+        throws MessagingException, IOException;
+
+    protected int resp;
+    private String mech;
+    final SMTPTransport this$0;
+
+    SMTPTransport$Authenticator(String mech)
+    {
+        this$0 = SMTPTransport.this;
+        super();
+        this.mech = mech.toUpperCase(Locale.ENGLISH);
+    }
+}

@@ -1,0 +1,60 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TempFile.java
+
+package com.sun.mail.pop3;
+
+import java.io.*;
+
+// Referenced classes of package com.sun.mail.pop3:
+//            WritableSharedFile
+
+class AppendStream extends OutputStream
+{
+
+    public AppendStream(WritableSharedFile tf)
+        throws IOException
+    {
+        this.tf = tf;
+        raf = tf.getWritableFile();
+        start = raf.length();
+        raf.seek(start);
+    }
+
+    public void write(int b)
+        throws IOException
+    {
+        raf.write(b);
+    }
+
+    public void write(byte b[])
+        throws IOException
+    {
+        raf.write(b);
+    }
+
+    public void write(byte b[], int off, int len)
+        throws IOException
+    {
+        raf.write(b, off, len);
+    }
+
+    public synchronized void close()
+        throws IOException
+    {
+        end = tf.updateLength();
+        raf = null;
+    }
+
+    public synchronized InputStream getInputStream()
+        throws IOException
+    {
+        return tf.newStream(start, end);
+    }
+
+    private final WritableSharedFile tf;
+    private RandomAccessFile raf;
+    private final long start;
+    private long end;
+}

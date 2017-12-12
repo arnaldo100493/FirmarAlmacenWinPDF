@@ -1,0 +1,122 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509AttrCertParser.java
+
+package org.bouncycastle.jce.provider;
+
+import java.io.*;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.SignedData;
+import org.bouncycastle.x509.*;
+import org.bouncycastle.x509.util.StreamParsingException;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            PEMUtil, ProviderUtil
+
+public class X509AttrCertParser extends X509StreamParserSpi
+{
+
+    public X509AttrCertParser()
+    {
+        sData = null;
+        sDataObjectCount = 0;
+        currentStream = null;
+    }
+
+    private X509AttributeCertificate readDERCertificate(InputStream in)
+        throws IOException
+    {
+        ASN1InputStream dIn = new ASN1InputStream(in, ProviderUtil.getReadLimit(in));
+        ASN1Sequence seq = (ASN1Sequence)dIn.readObject();
+        if(seq.size() > 1 && (seq.getObjectAt(0) instanceof DERObjectIdentifier) && seq.getObjectAt(0).equals(PKCSObjectIdentifiers.signedData))
+        {
+            sData = (new SignedData(ASN1Sequence.getInstance((ASN1TaggedObject)seq.getObjectAt(1), true))).getCertificates();
+            return getCertificate();
+        } else
+        {
+            return new X509V2AttributeCertificate(seq.getEncoded());
+        }
+    }
+
+    private X509AttributeCertificate getCertificate()
+        throws IOException
+    {
+        if(sData != null)
+            while(sDataObjectCount < sData.size()) 
+            {
+                Object obj = sData.getObjectAt(sDataObjectCount++);
+                if((obj instanceof ASN1TaggedObject) && ((ASN1TaggedObject)obj).getTagNo() == 2)
+                    return new X509V2AttributeCertificate(ASN1Sequence.getInstance((ASN1TaggedObject)obj, false).getEncoded());
+            }
+        return null;
+    }
+
+    private X509AttributeCertificate readPEMCertificate(InputStream in)
+        throws IOException
+    {
+        ASN1Sequence seq = PEM_PARSER.readPEMObject(in);
+        if(seq != null)
+            return new X509V2AttributeCertificate(seq.getEncoded());
+        else
+            return null;
+    }
+
+    public void engineInit(InputStream in)
+    {
+        currentStream = in;
+        sData = null;
+        sDataObjectCount = 0;
+        if(!currentStream.markSupported())
+            currentStream = new BufferedInputStream(currentStream);
+    }
+
+    public Object engineRead()
+        throws StreamParsingException
+    {
+        if(sData == null)
+            break MISSING_BLOCK_LABEL_38;
+        if(sDataObjectCount != sData.size())
+            return getCertificate();
+        int tag;
+        try
+        {
+            sData = null;
+            sDataObjectCount = 0;
+            return null;
+        }
+        catch(Exception e)
+        {
+            throw new StreamParsingException(e.toString(), e);
+        }
+        currentStream.mark(10);
+        tag = currentStream.read();
+        if(tag == -1)
+            return null;
+        if(tag != 48)
+        {
+            currentStream.reset();
+            return readPEMCertificate(currentStream);
+        }
+        currentStream.reset();
+        return readDERCertificate(currentStream);
+    }
+
+    public Collection engineReadAll()
+        throws StreamParsingException
+    {
+        List certs = new ArrayList();
+        X509AttributeCertificate cert;
+        while((cert = (X509AttributeCertificate)engineRead()) != null) 
+            certs.add(cert);
+        return certs;
+    }
+
+    private static final PEMUtil PEM_PARSER = new PEMUtil("ATTRIBUTE CERTIFICATE");
+    private ASN1Set sData;
+    private int sDataObjectCount;
+    private InputStream currentStream;
+
+}

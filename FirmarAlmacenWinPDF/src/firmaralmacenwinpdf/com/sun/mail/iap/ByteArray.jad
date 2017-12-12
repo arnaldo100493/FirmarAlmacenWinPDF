@@ -1,0 +1,67 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ByteArray.java
+
+package com.sun.mail.iap;
+
+import java.io.ByteArrayInputStream;
+
+public class ByteArray
+{
+
+    public ByteArray(byte b[], int start, int count)
+    {
+        bytes = b;
+        this.start = start;
+        this.count = count;
+    }
+
+    public ByteArray(int size)
+    {
+        this(new byte[size], 0, size);
+    }
+
+    public byte[] getBytes()
+    {
+        return bytes;
+    }
+
+    public byte[] getNewBytes()
+    {
+        byte b[] = new byte[count];
+        System.arraycopy(bytes, start, b, 0, count);
+        return b;
+    }
+
+    public int getStart()
+    {
+        return start;
+    }
+
+    public int getCount()
+    {
+        return count;
+    }
+
+    public void setCount(int count)
+    {
+        this.count = count;
+    }
+
+    public ByteArrayInputStream toByteArrayInputStream()
+    {
+        return new ByteArrayInputStream(bytes, start, count);
+    }
+
+    public void grow(int incr)
+    {
+        byte nbuf[] = new byte[bytes.length + incr];
+        System.arraycopy(bytes, 0, nbuf, 0, bytes.length);
+        bytes = nbuf;
+    }
+
+    private byte bytes[];
+    private int start;
+    private int count;
+}

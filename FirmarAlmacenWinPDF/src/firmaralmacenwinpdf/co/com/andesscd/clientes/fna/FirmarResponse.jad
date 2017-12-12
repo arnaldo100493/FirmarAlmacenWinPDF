@@ -1,0 +1,38 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:44 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   FirmarResponse.java
+
+package co.com.andesscd.clientes.fna;
+
+
+public class FirmarResponse
+{
+
+    public FirmarResponse()
+    {
+    }
+
+    public int getEstado()
+    {
+        return estado;
+    }
+
+    public void setEstado(int value)
+    {
+        estado = value;
+    }
+
+    public String getMensaje()
+    {
+        return mensaje;
+    }
+
+    public void setMensaje(String value)
+    {
+        mensaje = value;
+    }
+
+    protected int estado;
+    protected String mensaje;
+}

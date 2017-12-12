@@ -1,0 +1,84 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RSABlindingEngine.java
+
+package org.bouncycastle.crypto.engines;
+
+import java.math.BigInteger;
+import org.bouncycastle.crypto.AsymmetricBlockCipher;
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.params.*;
+
+// Referenced classes of package org.bouncycastle.crypto.engines:
+//            RSACoreEngine
+
+public class RSABlindingEngine
+    implements AsymmetricBlockCipher
+{
+
+    public RSABlindingEngine()
+    {
+        core = new RSACoreEngine();
+    }
+
+    public void init(boolean forEncryption, CipherParameters param)
+    {
+        RSABlindingParameters p;
+        if(param instanceof ParametersWithRandom)
+        {
+            ParametersWithRandom rParam = (ParametersWithRandom)param;
+            p = (RSABlindingParameters)rParam.getParameters();
+        } else
+        {
+            p = (RSABlindingParameters)param;
+        }
+        core.init(forEncryption, p.getPublicKey());
+        this.forEncryption = forEncryption;
+        key = p.getPublicKey();
+        blindingFactor = p.getBlindingFactor();
+    }
+
+    public int getInputBlockSize()
+    {
+        return core.getInputBlockSize();
+    }
+
+    public int getOutputBlockSize()
+    {
+        return core.getOutputBlockSize();
+    }
+
+    public byte[] processBlock(byte in[], int inOff, int inLen)
+    {
+        BigInteger msg = core.convertInput(in, inOff, inLen);
+        if(forEncryption)
+            msg = blindMessage(msg);
+        else
+            msg = unblindMessage(msg);
+        return core.convertOutput(msg);
+    }
+
+    private BigInteger blindMessage(BigInteger msg)
+    {
+        BigInteger blindMsg = blindingFactor;
+        blindMsg = msg.multiply(blindMsg.modPow(key.getExponent(), key.getModulus()));
+        blindMsg = blindMsg.mod(key.getModulus());
+        return blindMsg;
+    }
+
+    private BigInteger unblindMessage(BigInteger blindedMsg)
+    {
+        BigInteger m = key.getModulus();
+        BigInteger msg = blindedMsg;
+        BigInteger blindFactorInverse = blindingFactor.modInverse(m);
+        msg = msg.multiply(blindFactorInverse);
+        msg = msg.mod(m);
+        return msg;
+    }
+
+    private RSACoreEngine core;
+    private RSAKeyParameters key;
+    private BigInteger blindingFactor;
+    private boolean forEncryption;
+}

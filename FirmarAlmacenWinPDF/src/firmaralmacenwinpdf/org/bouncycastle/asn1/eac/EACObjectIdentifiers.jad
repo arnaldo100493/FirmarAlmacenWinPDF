@@ -1,0 +1,36 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EACObjectIdentifiers.java
+
+package org.bouncycastle.asn1.eac;
+
+import org.bouncycastle.asn1.DERObjectIdentifier;
+
+public interface EACObjectIdentifiers
+{
+
+    public static final DERObjectIdentifier bsi_de = new DERObjectIdentifier("0.4.0.127.0.7");
+    public static final DERObjectIdentifier id_PK = new DERObjectIdentifier((new StringBuilder()).append(bsi_de).append(".2.2.1").toString());
+    public static final DERObjectIdentifier id_PK_DH = new DERObjectIdentifier((new StringBuilder()).append(id_PK).append(".1").toString());
+    public static final DERObjectIdentifier id_PK_ECDH = new DERObjectIdentifier((new StringBuilder()).append(id_PK).append(".2").toString());
+    public static final DERObjectIdentifier id_CA = new DERObjectIdentifier((new StringBuilder()).append(bsi_de).append(".2.2.3").toString());
+    public static final DERObjectIdentifier id_CA_DH = new DERObjectIdentifier((new StringBuilder()).append(id_CA).append(".1").toString());
+    public static final DERObjectIdentifier id_CA_DH_3DES_CBC_CBC = new DERObjectIdentifier((new StringBuilder()).append(id_CA_DH).append(".1").toString());
+    public static final DERObjectIdentifier id_CA_ECDH = new DERObjectIdentifier((new StringBuilder()).append(id_CA).append(".2").toString());
+    public static final DERObjectIdentifier id_CA_ECDH_3DES_CBC_CBC = new DERObjectIdentifier((new StringBuilder()).append(id_CA_ECDH).append(".1").toString());
+    public static final DERObjectIdentifier id_TA = new DERObjectIdentifier((new StringBuilder()).append(bsi_de).append(".2.2.2").toString());
+    public static final DERObjectIdentifier id_TA_RSA = new DERObjectIdentifier((new StringBuilder()).append(id_TA).append(".1").toString());
+    public static final DERObjectIdentifier id_TA_RSA_v1_5_SHA_1 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_RSA).append(".1").toString());
+    public static final DERObjectIdentifier id_TA_RSA_v1_5_SHA_256 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_RSA).append(".2").toString());
+    public static final DERObjectIdentifier id_TA_RSA_PSS_SHA_1 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_RSA).append(".3").toString());
+    public static final DERObjectIdentifier id_TA_RSA_PSS_SHA_256 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_RSA).append(".4").toString());
+    public static final DERObjectIdentifier id_TA_ECDSA = new DERObjectIdentifier((new StringBuilder()).append(id_TA).append(".2").toString());
+    public static final DERObjectIdentifier id_TA_ECDSA_SHA_1 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_ECDSA).append(".1").toString());
+    public static final DERObjectIdentifier id_TA_ECDSA_SHA_224 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_ECDSA).append(".2").toString());
+    public static final DERObjectIdentifier id_TA_ECDSA_SHA_256 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_ECDSA).append(".3").toString());
+    public static final DERObjectIdentifier id_TA_ECDSA_SHA_384 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_ECDSA).append(".4").toString());
+    public static final DERObjectIdentifier id_TA_ECDSA_SHA_512 = new DERObjectIdentifier((new StringBuilder()).append(id_TA_ECDSA).append(".5").toString());
+    public static final DERObjectIdentifier id_EAC_ePassport = new DERObjectIdentifier((new StringBuilder()).append(bsi_de).append(".3.1.2.1").toString());
+
+}

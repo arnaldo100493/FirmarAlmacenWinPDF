@@ -1,0 +1,62 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MQVPrivateKeySpec.java
+
+package co.org.bouncy.jce.spec;
+
+import co.org.bouncy.jce.interfaces.MQVPrivateKey;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.KeySpec;
+
+public class MQVPrivateKeySpec
+    implements KeySpec, MQVPrivateKey
+{
+
+    public MQVPrivateKeySpec(PrivateKey staticPrivateKey, PrivateKey ephemeralPrivateKey)
+    {
+        this(staticPrivateKey, ephemeralPrivateKey, null);
+    }
+
+    public MQVPrivateKeySpec(PrivateKey staticPrivateKey, PrivateKey ephemeralPrivateKey, PublicKey ephemeralPublicKey)
+    {
+        this.staticPrivateKey = staticPrivateKey;
+        this.ephemeralPrivateKey = ephemeralPrivateKey;
+        this.ephemeralPublicKey = ephemeralPublicKey;
+    }
+
+    public PrivateKey getStaticPrivateKey()
+    {
+        return staticPrivateKey;
+    }
+
+    public PrivateKey getEphemeralPrivateKey()
+    {
+        return ephemeralPrivateKey;
+    }
+
+    public PublicKey getEphemeralPublicKey()
+    {
+        return ephemeralPublicKey;
+    }
+
+    public String getAlgorithm()
+    {
+        return "ECMQV";
+    }
+
+    public String getFormat()
+    {
+        return null;
+    }
+
+    public byte[] getEncoded()
+    {
+        return null;
+    }
+
+    private PrivateKey staticPrivateKey;
+    private PrivateKey ephemeralPrivateKey;
+    private PublicKey ephemeralPublicKey;
+}

@@ -1,0 +1,117 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSEnvelopedHelper.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.*;
+import java.security.spec.InvalidParameterSpecException;
+import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSProcessableInputStream, CMSException, CMSSecureReadable, CMSReadable, 
+//            CMSEnvelopedHelper, CMSEnvelopedDataGenerator
+
+static class CMSEnvelopedHelper$CMSEnvelopedSecureReadable
+    implements CMSSecureReadable
+{
+
+    public AlgorithmIdentifier getAlgorithm()
+    {
+        return algorithm;
+    }
+
+    public InputStream getInputStream()
+        throws IOException, CMSException
+    {
+        return readable.getInputStream();
+    }
+
+    public Object getCryptoObject()
+    {
+        return cipher;
+    }
+
+    public CMSReadable getReadable(final SecretKey sKey, final Provider provider)
+        throws CMSException
+    {
+        final String encAlg = algorithm.getObjectId().getId();
+        final ASN1Object sParams = (ASN1Object)algorithm.getParameters();
+        cipher = (Cipher)CMSEnvelopedHelper.execute(new CMSEnvelopedHelper.JCECallback() {
+
+            public Object doInJCE()
+                throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException
+            {
+                Cipher cipher = CMSEnvelopedHelper.INSTANCE.createSymmetricCipher(encAlg, provider);
+                if(sParams != null && !(sParams instanceof ASN1Null))
+                    try
+                    {
+                        AlgorithmParameters params = CMSEnvelopedHelper.INSTANCE.createAlgorithmParameters(encAlg, cipher.getProvider());
+                        try
+                        {
+                            params.init(sParams.getEncoded(), "ASN.1");
+                        }
+                        catch(IOException e)
+                        {
+                            throw new CMSException("error decoding algorithm parameters.", e);
+                        }
+                        cipher.init(2, sKey, params);
+                    }
+                    catch(NoSuchAlgorithmException e)
+                    {
+                        if(encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || encAlg.equals(CMSEnvelopedDataGenerator.AES128_CBC) || encAlg.equals(CMSEnvelopedDataGenerator.AES192_CBC) || encAlg.equals(CMSEnvelopedDataGenerator.AES256_CBC))
+                            cipher.init(2, sKey, new IvParameterSpec(ASN1OctetString.getInstance(sParams).getOctets()));
+                        else
+                            throw e;
+                    }
+                else
+                if(encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || encAlg.equals("1.2.840.113533.7.66.10"))
+                    cipher.init(2, sKey, new IvParameterSpec(new byte[8]));
+                else
+                    cipher.init(2, sKey);
+                return cipher;
+            }
+
+            final String val$encAlg;
+            final Provider val$provider;
+            final ASN1Object val$sParams;
+            final SecretKey val$sKey;
+            final CMSEnvelopedHelper.CMSEnvelopedSecureReadable this$0;
+
+            
+            {
+                this$0 = CMSEnvelopedHelper.CMSEnvelopedSecureReadable.this;
+                encAlg = s;
+                provider = provider1;
+                sParams = asn1object;
+                sKey = secretkey;
+                super();
+            }
+        }
+);
+        try
+        {
+            return new CMSProcessableInputStream(new CipherInputStream(readable.getInputStream(), cipher));
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("error reading content.", e);
+        }
+    }
+
+    private AlgorithmIdentifier algorithm;
+    private Cipher cipher;
+    private CMSReadable readable;
+
+    CMSEnvelopedHelper$CMSEnvelopedSecureReadable(AlgorithmIdentifier algorithm, CMSReadable readable)
+    {
+        this.algorithm = algorithm;
+        this.readable = readable;
+    }
+}

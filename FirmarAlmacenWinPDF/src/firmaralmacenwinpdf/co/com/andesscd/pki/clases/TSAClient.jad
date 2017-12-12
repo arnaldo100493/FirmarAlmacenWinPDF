@@ -1,0 +1,106 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   TSAClient.java
+
+package co.com.andesscd.pki.clases;
+
+import co.com.andesscd.Auxiliar;
+import co.com.andesscd.Base64Coder;
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+import co.org.bouncy.asn1.cmp.PKIFailureInfo;
+import co.org.bouncy.asn1.x509.X509ObjectIdentifiers;
+import co.org.bouncy.tsp.*;
+import java.io.*;
+import java.math.BigInteger;
+import java.net.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Calendar;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CMS
+
+public class TSAClient
+{
+
+    public TSAClient()
+    {
+    }
+
+    private static byte[] GetTSAResponse(String urlTSA, String usuario, String contraseF1a, byte requestBytes[])
+        throws MalformedURLException, IOException, TSPException, Exception
+    {
+        URL url = new URL(urlTSA);
+        HttpURLConnection conexionTSA;
+        if(CMS.getProxy() != null)
+            conexionTSA = (HttpURLConnection)url.openConnection(CMS.getProxy());
+        else
+            conexionTSA = (HttpURLConnection)url.openConnection();
+        conexionTSA.setDoOutput(true);
+        conexionTSA.setDoInput(true);
+        conexionTSA.setRequestMethod("POST");
+        conexionTSA.setRequestProperty("Content-type", "application/timestamp-query");
+        conexionTSA.setRequestProperty("Content-length", String.valueOf(requestBytes.length));
+        if(usuario != null && !usuario.isEmpty())
+        {
+            String userpassword = (new StringBuilder()).append(usuario).append(":").append(contraseF1a).toString();
+            String encodedAuthorization = new String(Base64Coder.encode(userpassword.getBytes()));
+            conexionTSA.setRequestProperty("Authorization", (new StringBuilder()).append("Basic ").append(encodedAuthorization).toString());
+        }
+        OutputStream outputStream = conexionTSA.getOutputStream();
+        outputStream.write(requestBytes);
+        outputStream.flush();
+        if(conexionTSA.getResponseCode() != 200)
+            throw new IOException((new StringBuilder()).append("Received HTTP error: ").append(conexionTSA.getResponseCode()).append(" - ").append(conexionTSA.getResponseMessage()).toString());
+        else
+            return Auxiliar.inputStream2ByteArray(conexionTSA.getInputStream());
+    }
+
+    public static byte[] getTimestampToken(byte hash[], String tsaURL, String tsaUserName, String tsaPassword)
+        throws IOException, TSPException, Exception
+    {
+        TimeStampRequestGenerator generadorDePeticion = new TimeStampRequestGenerator();
+        generadorDePeticion.setCertReq(true);
+        generadorDePeticion.setReqPolicy(new ASN1ObjectIdentifier("1.3.6.1.4.1.601.10.3.1"));
+        BigInteger nonce = BigInteger.valueOf(Calendar.getInstance().getTimeInMillis());
+        TimeStampRequest peticionTsa = generadorDePeticion.generate(new ASN1ObjectIdentifier(X509ObjectIdentifiers.id_SHA1.getId()), hash, nonce);
+        byte bytesPeticion[] = peticionTsa.getEncoded();
+        byte bytesRespuesta[] = GetTSAResponse(tsaURL, tsaUserName, tsaPassword, bytesPeticion);
+        TimeStampResponse respuestaTsa = new TimeStampResponse(bytesRespuesta);
+        respuestaTsa.validate(peticionTsa);
+        PKIFailureInfo fallaTsa = respuestaTsa.getFailInfo();
+        if(fallaTsa != null)
+            throw new Exception("No se puede conectar a la URL");
+        TimeStampToken tokenTsa = respuestaTsa.getTimeStampToken();
+        if(tokenTsa == null)
+            throw new Exception("No se obtuvo respuesta esperada");
+        else
+            return tokenTsa.getEncoded();
+    }
+
+    public static void getTimestampToken(InputStream streamEntrada, String url, String usuario, String contraseF1a, OutputStream streamSalida)
+        throws IOException, NoSuchAlgorithmException, TSPException, Exception
+    {
+        byte buffer[] = new byte[0x100000];
+        MessageDigest sha1 = MessageDigest.getInstance("SHA");
+        int leidos;
+        do
+        {
+            leidos = streamEntrada.read(buffer);
+            if(leidos > 0)
+                sha1.update(buffer, 0, leidos);
+        } while(leidos > 0);
+        byte hash[] = sha1.digest();
+        byte tokenBytes[] = getTimestampToken(hash, url, usuario, contraseF1a);
+        streamSalida.write(tokenBytes, 0, tokenBytes.length);
+        if(streamSalida != null)
+            streamSalida.close();
+        break MISSING_BLOCK_LABEL_97;
+        Exception exception;
+        exception;
+        if(streamSalida != null)
+            streamSalida.close();
+        throw exception;
+    }
+}

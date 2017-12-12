@@ -1,0 +1,71 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RC2CBCParameter.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+
+public class RC2CBCParameter extends ASN1Encodable
+{
+
+    public static RC2CBCParameter getInstance(Object o)
+    {
+        if(o instanceof ASN1Sequence)
+            return new RC2CBCParameter((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException("unknown object in RC2CBCParameter factory");
+    }
+
+    public RC2CBCParameter(byte iv[])
+    {
+        version = null;
+        this.iv = new DEROctetString(iv);
+    }
+
+    public RC2CBCParameter(int parameterVersion, byte iv[])
+    {
+        version = new DERInteger(parameterVersion);
+        this.iv = new DEROctetString(iv);
+    }
+
+    public RC2CBCParameter(ASN1Sequence seq)
+    {
+        if(seq.size() == 1)
+        {
+            version = null;
+            iv = (ASN1OctetString)seq.getObjectAt(0);
+        } else
+        {
+            version = (DERInteger)seq.getObjectAt(0);
+            iv = (ASN1OctetString)seq.getObjectAt(1);
+        }
+    }
+
+    public BigInteger getRC2ParameterVersion()
+    {
+        if(version == null)
+            return null;
+        else
+            return version.getValue();
+    }
+
+    public byte[] getIV()
+    {
+        return iv.getOctets();
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(version != null)
+            v.add(version);
+        v.add(iv);
+        return new DERSequence(v);
+    }
+
+    DERInteger version;
+    ASN1OctetString iv;
+}

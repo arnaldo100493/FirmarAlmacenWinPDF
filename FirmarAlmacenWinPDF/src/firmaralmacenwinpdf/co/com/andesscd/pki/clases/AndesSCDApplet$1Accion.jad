@@ -1,0 +1,64 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   AndesSCDApplet.java
+
+package co.com.andesscd.pki.clases;
+
+import java.io.PrintStream;
+import java.security.PrivilegedAction;
+import javax.swing.JOptionPane;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            AndesSCDApplet, CMS
+
+class AndesSCDApplet$1Accion
+    implements PrivilegedAction
+{
+
+    public Object run()
+    {
+        do
+            try
+            {
+                intentos--;
+                firma = CMS.firmar(datos, alias, password);
+                return firma;
+            }
+            catch(Exception e)
+            {
+                String error = e.getMessage();
+                System.out.println(e.getMessage());
+                System.out.println("Intentando firmar nuevamente");
+                if(intentos <= 0)
+                {
+                    JOptionPane.showMessageDialog(null, error, "Error", 0);
+                    return null;
+                }
+            }
+        while(true);
+    }
+
+    String datos;
+    String alias;
+    String password;
+    String tsaUrl;
+    String tsaUser;
+    String tsaPassword;
+    String firma;
+    int intentos;
+    final AndesSCDApplet this$0;
+
+    public AndesSCDApplet$1Accion(String datos, String alias, String password, int intentos)
+    {
+        this$0 = AndesSCDApplet.this;
+        super();
+        this.datos = datos;
+        this.alias = alias;
+        this.password = password;
+        tsaUrl = tsaUrl;
+        tsaUser = tsaUser;
+        tsaPassword = tsaPassword;
+        this.intentos = intentos;
+    }
+}

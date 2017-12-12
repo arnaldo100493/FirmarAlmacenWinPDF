@@ -1,0 +1,2550 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPFolder.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.*;
+import com.sun.mail.imap.protocol.FetchItem;
+import com.sun.mail.imap.protocol.FetchResponse;
+import com.sun.mail.imap.protocol.IMAPProtocol;
+import com.sun.mail.imap.protocol.IMAPResponse;
+import com.sun.mail.imap.protocol.Item;
+import com.sun.mail.imap.protocol.ListInfo;
+import com.sun.mail.imap.protocol.MailboxInfo;
+import com.sun.mail.imap.protocol.Status;
+import com.sun.mail.imap.protocol.UID;
+import com.sun.mail.util.MailLogger;
+import java.io.IOException;
+import java.util.*;
+import java.util.logging.Level;
+import javax.mail.*;
+import javax.mail.event.MessageCountListener;
+import javax.mail.internet.MimeMessage;
+import javax.mail.search.*;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPStore, DefaultFolder, MessageCache, IMAPMessage, 
+//            MessageLiteral, AppendUID, Rights, Utility, 
+//            SortTerm, ACL
+
+public class IMAPFolder extends Folder
+    implements UIDFolder, ResponseHandler
+{
+    public static interface ProtocolCommand
+    {
+
+        public abstract Object doCommand(IMAPProtocol imapprotocol)
+            throws ProtocolException;
+    }
+
+    public static class FetchProfileItem extends javax.mail.FetchProfile.Item
+    {
+
+        public static final FetchProfileItem HEADERS = new FetchProfileItem("HEADERS");
+        /**
+         * @deprecated Field SIZE is deprecated
+         */
+        public static final FetchProfileItem SIZE = new FetchProfileItem("SIZE");
+
+
+        protected FetchProfileItem(String name)
+        {
+            super(name);
+        }
+    }
+
+
+    protected IMAPFolder(String fullName, char separator, IMAPStore store, Boolean isNamespace)
+    {
+        super(store);
+        this.isNamespace = false;
+        messageCacheLock = new Object();
+        opened = false;
+        reallyClosed = true;
+        idleState = 0;
+        total = -1;
+        recent = -1;
+        realTotal = -1;
+        uidvalidity = -1L;
+        uidnext = -1L;
+        doExpungeNotification = true;
+        cachedStatus = null;
+        cachedStatusTime = 0L;
+        hasMessageCountListener = false;
+        if(fullName == null)
+            throw new NullPointerException("Folder name is null");
+        this.fullName = fullName;
+        this.separator = separator;
+        logger = new MailLogger(getClass(), "DEBUG IMAP", store.getSession());
+        connectionPoolLogger = store.getConnectionPoolLogger();
+        this.isNamespace = false;
+        if(separator != '\uFFFF' && separator != 0)
+        {
+            int i = this.fullName.indexOf(separator);
+            if(i > 0 && i == this.fullName.length() - 1)
+            {
+                this.fullName = this.fullName.substring(0, i);
+                this.isNamespace = true;
+            }
+        }
+        if(isNamespace != null)
+            this.isNamespace = isNamespace.booleanValue();
+    }
+
+    protected IMAPFolder(ListInfo li, IMAPStore store)
+    {
+        this(li.name, li.separator, store, null);
+        if(li.hasInferiors)
+            type |= 2;
+        if(li.canOpen)
+            type |= 1;
+        exists = true;
+        attributes = li.attrs;
+    }
+
+    protected void checkExists()
+        throws MessagingException
+    {
+        if(!exists && !exists())
+            throw new FolderNotFoundException(this, (new StringBuilder()).append(fullName).append(" not found").toString());
+        else
+            return;
+    }
+
+    protected void checkClosed()
+    {
+        if(opened)
+            throw new IllegalStateException("This operation is not allowed on an open folder");
+        else
+            return;
+    }
+
+    protected void checkOpened()
+        throws FolderClosedException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(!opened)
+        {
+            if(reallyClosed)
+                throw new IllegalStateException("This operation is not allowed on a closed folder");
+            else
+                throw new FolderClosedException(this, "Lost folder connection to server");
+        } else
+        {
+            return;
+        }
+    }
+
+    protected void checkRange(int msgno)
+        throws MessagingException
+    {
+        if(msgno < 1)
+            throw new IndexOutOfBoundsException("message number < 1");
+        if(msgno <= total)
+            return;
+        synchronized(messageCacheLock)
+        {
+            try
+            {
+                keepConnectionAlive(false);
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(this, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        if(msgno > total)
+            throw new IndexOutOfBoundsException((new StringBuilder()).append(msgno).append(" > ").append(total).toString());
+        else
+            return;
+    }
+
+    private void checkFlags(Flags flags)
+        throws MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(mode != 2)
+            throw new IllegalStateException((new StringBuilder()).append("Cannot change flags on READ_ONLY folder: ").append(fullName).toString());
+        else
+            return;
+    }
+
+    public synchronized String getName()
+    {
+        if(name == null)
+            try
+            {
+                name = fullName.substring(fullName.lastIndexOf(getSeparator()) + 1);
+            }
+            catch(MessagingException mex) { }
+        return name;
+    }
+
+    public synchronized String getFullName()
+    {
+        return fullName;
+    }
+
+    public synchronized Folder getParent()
+        throws MessagingException
+    {
+        char c = getSeparator();
+        int index;
+        if((index = fullName.lastIndexOf(c)) != -1)
+            return ((IMAPStore)store).newIMAPFolder(fullName.substring(0, index), c);
+        else
+            return new DefaultFolder((IMAPStore)store);
+    }
+
+    public synchronized boolean exists()
+        throws MessagingException
+    {
+        ListInfo li[] = null;
+        final String lname;
+        if(isNamespace && separator != 0)
+            lname = (new StringBuilder()).append(fullName).append(separator).toString();
+        else
+            lname = fullName;
+        li = (ListInfo[])(ListInfo[])doCommand(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                return p.list("", lname);
+            }
+
+            final String val$lname;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                lname = s;
+                super();
+            }
+        }
+);
+        if(li != null)
+        {
+            int i = findName(li, lname);
+            fullName = li[i].name;
+            separator = li[i].separator;
+            int len = fullName.length();
+            if(separator != 0 && len > 0 && fullName.charAt(len - 1) == separator)
+                fullName = fullName.substring(0, len - 1);
+            type = 0;
+            if(li[i].hasInferiors)
+                type |= 2;
+            if(li[i].canOpen)
+                type |= 1;
+            exists = true;
+            attributes = li[i].attrs;
+        } else
+        {
+            exists = opened;
+            attributes = null;
+        }
+        return exists;
+    }
+
+    private int findName(ListInfo li[], String lname)
+    {
+        int i;
+        for(i = 0; i < li.length && !li[i].name.equals(lname); i++);
+        if(i >= li.length)
+            i = 0;
+        return i;
+    }
+
+    public Folder[] list(String pattern)
+        throws MessagingException
+    {
+        return doList(pattern, false);
+    }
+
+    public Folder[] listSubscribed(String pattern)
+        throws MessagingException
+    {
+        return doList(pattern, true);
+    }
+
+    private synchronized Folder[] doList(final String pattern, final boolean subscribed)
+        throws MessagingException
+    {
+        checkExists();
+        if(attributes != null && !isDirectory())
+            return new Folder[0];
+        final char c = getSeparator();
+        ListInfo li[] = (ListInfo[])(ListInfo[])doCommandIgnoreFailure(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                if(subscribed)
+                    return p.lsub("", (new StringBuilder()).append(fullName).append(c).append(pattern).toString());
+                else
+                    return p.list("", (new StringBuilder()).append(fullName).append(c).append(pattern).toString());
+            }
+
+            final boolean val$subscribed;
+            final char val$c;
+            final String val$pattern;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                subscribed = flag;
+                c = c1;
+                pattern = s;
+                super();
+            }
+        }
+);
+        if(li == null)
+            return new Folder[0];
+        int start = 0;
+        if(li.length > 0 && li[0].name.equals((new StringBuilder()).append(fullName).append(c).toString()))
+            start = 1;
+        IMAPFolder folders[] = new IMAPFolder[li.length - start];
+        IMAPStore st = (IMAPStore)store;
+        for(int i = start; i < li.length; i++)
+            folders[i - start] = st.newIMAPFolder(li[i]);
+
+        return folders;
+    }
+
+    public synchronized char getSeparator()
+        throws MessagingException
+    {
+        if(separator == '\uFFFF')
+        {
+            ListInfo li[] = null;
+            li = (ListInfo[])(ListInfo[])doCommand(new ProtocolCommand() {
+
+                public Object doCommand(IMAPProtocol p)
+                    throws ProtocolException
+                {
+                    if(p.isREV1())
+                        return p.list(fullName, "");
+                    else
+                        return p.list("", fullName);
+                }
+
+                final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                super();
+            }
+            }
+);
+            if(li != null)
+                separator = li[0].separator;
+            else
+                separator = '/';
+        }
+        return separator;
+    }
+
+    public synchronized int getType()
+        throws MessagingException
+    {
+        if(opened)
+        {
+            if(attributes == null)
+                exists();
+        } else
+        {
+            checkExists();
+        }
+        return type;
+    }
+
+    public synchronized boolean isSubscribed()
+    {
+        ListInfo li[] = null;
+        final String lname;
+        if(isNamespace && separator != 0)
+            lname = (new StringBuilder()).append(fullName).append(separator).toString();
+        else
+            lname = fullName;
+        try
+        {
+            li = (ListInfo[])(ListInfo[])doProtocolCommand(new ProtocolCommand() {
+
+                public Object doCommand(IMAPProtocol p)
+                    throws ProtocolException
+                {
+                    return p.lsub("", lname);
+                }
+
+                final String val$lname;
+                final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                lname = s;
+                super();
+            }
+            }
+);
+        }
+        catch(ProtocolException pex) { }
+        if(li != null)
+        {
+            int i = findName(li, lname);
+            return li[i].canOpen;
+        } else
+        {
+            return false;
+        }
+    }
+
+    public synchronized void setSubscribed(final boolean subscribe)
+        throws MessagingException
+    {
+        doCommandIgnoreFailure(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                if(subscribe)
+                    p.subscribe(fullName);
+                else
+                    p.unsubscribe(fullName);
+                return null;
+            }
+
+            final boolean val$subscribe;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                subscribe = flag;
+                super();
+            }
+        }
+);
+    }
+
+    public synchronized boolean create(final int type)
+        throws MessagingException
+    {
+        char c = '\0';
+        if((type & 1) == 0)
+            c = getSeparator();
+        final char sep = c;
+        Object ret = doCommandIgnoreFailure(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                if((type & 1) == 0)
+                {
+                    p.create((new StringBuilder()).append(fullName).append(sep).toString());
+                } else
+                {
+                    p.create(fullName);
+                    if((type & 2) != 0)
+                    {
+                        ListInfo li[] = p.list("", fullName);
+                        if(li != null && !li[0].hasInferiors)
+                        {
+                            p.delete(fullName);
+                            throw new ProtocolException("Unsupported type");
+                        }
+                    }
+                }
+                return Boolean.TRUE;
+            }
+
+            final int val$type;
+            final char val$sep;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                type = i;
+                sep = c;
+                super();
+            }
+        }
+);
+        if(ret == null)
+            return false;
+        boolean retb = exists();
+        if(retb)
+            notifyFolderListeners(1);
+        return retb;
+    }
+
+    public synchronized boolean hasNewMessages()
+        throws MessagingException
+    {
+        if(!opened)
+            break MISSING_BLOCK_LABEL_70;
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        try
+        {
+            keepConnectionAlive(true);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return recent > 0;
+        Exception exception;
+        exception;
+        throw exception;
+        ListInfo li[] = null;
+        final String lname;
+        if(isNamespace && separator != 0)
+            lname = (new StringBuilder()).append(fullName).append(separator).toString();
+        else
+            lname = fullName;
+        li = (ListInfo[])(ListInfo[])doCommandIgnoreFailure(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                return p.list("", lname);
+            }
+
+            final String val$lname;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                lname = s;
+                super();
+            }
+        }
+);
+        if(li == null)
+            throw new FolderNotFoundException(this, (new StringBuilder()).append(fullName).append(" not found").toString());
+        int i = findName(li, lname);
+        if(li[i].changeState == 1)
+            return true;
+        if(li[i].changeState == 2)
+            return false;
+        try
+        {
+            Status status = getStatus();
+            if(status.recent > 0)
+                return true;
+        }
+        catch(BadCommandException bex)
+        {
+            return false;
+        }
+        catch(ConnectionException cex)
+        {
+            throw new StoreClosedException(store, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return false;
+    }
+
+    public synchronized Folder getFolder(String name)
+        throws MessagingException
+    {
+        if(attributes != null && !isDirectory())
+        {
+            throw new MessagingException("Cannot contain subfolders");
+        } else
+        {
+            char c = getSeparator();
+            return ((IMAPStore)store).newIMAPFolder((new StringBuilder()).append(fullName).append(c).append(name).toString(), c);
+        }
+    }
+
+    public synchronized boolean delete(boolean recurse)
+        throws MessagingException
+    {
+        checkClosed();
+        if(recurse)
+        {
+            Folder f[] = list();
+            for(int i = 0; i < f.length; i++)
+                f[i].delete(recurse);
+
+        }
+        Object ret = doCommandIgnoreFailure(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                p.delete(fullName);
+                return Boolean.TRUE;
+            }
+
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                super();
+            }
+        }
+);
+        if(ret == null)
+        {
+            return false;
+        } else
+        {
+            exists = false;
+            attributes = null;
+            notifyFolderListeners(2);
+            return true;
+        }
+    }
+
+    public synchronized boolean renameTo(final Folder f)
+        throws MessagingException
+    {
+        checkClosed();
+        checkExists();
+        if(f.getStore() != store)
+            throw new MessagingException("Can't rename across Stores");
+        Object ret = doCommandIgnoreFailure(new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                p.rename(fullName, f.getFullName());
+                return Boolean.TRUE;
+            }
+
+            final Folder val$f;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                f = folder;
+                super();
+            }
+        }
+);
+        if(ret == null)
+        {
+            return false;
+        } else
+        {
+            exists = false;
+            attributes = null;
+            notifyFolderRenamedListeners(f);
+            return true;
+        }
+    }
+
+    public synchronized void open(int mode)
+        throws MessagingException
+    {
+        MailboxInfo mi;
+        checkClosed();
+        mi = null;
+        protocol = ((IMAPStore)store).getProtocol(this);
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        protocol.addResponseHandler(this);
+        if(mode == 1)
+            mi = protocol.examine(fullName);
+        else
+            mi = protocol.select(fullName);
+        break MISSING_BLOCK_LABEL_209;
+        CommandFailedException cex;
+        cex;
+        checkExists();
+        if((type & 1) == 0)
+            throw new MessagingException("folder cannot contain messages");
+        else
+            throw new MessagingException(cex.getMessage(), cex);
+        ProtocolException pex;
+        pex;
+        try
+        {
+            protocol.logout();
+        }
+        catch(ProtocolException pex2)
+        {
+            releaseProtocol(false);
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseProtocol(false);
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception;
+        exception;
+        releaseProtocol(false);
+        throw new MessagingException(pex.getMessage(), pex);
+        if(mi.mode == mode || mode == 2 && mi.mode == 1 && ((IMAPStore)store).allowReadOnlySelect())
+            break MISSING_BLOCK_LABEL_330;
+        protocol.close();
+        releaseProtocol(true);
+        throw new ReadOnlyFolderException(this, "Cannot open in desired mode");
+        pex;
+        try
+        {
+            protocol.logout();
+        }
+        catch(ProtocolException pex2)
+        {
+            releaseProtocol(false);
+            break MISSING_BLOCK_LABEL_306;
+        }
+        releaseProtocol(false);
+        break MISSING_BLOCK_LABEL_306;
+        Exception exception1;
+        exception1;
+        releaseProtocol(false);
+        throw exception1;
+        throw new ReadOnlyFolderException(this, "Cannot open in desired mode");
+        Exception exception2;
+        exception2;
+        throw new ReadOnlyFolderException(this, "Cannot open in desired mode");
+        opened = true;
+        reallyClosed = false;
+        this.mode = mi.mode;
+        availableFlags = mi.availableFlags;
+        permanentFlags = mi.permanentFlags;
+        total = realTotal = mi.total;
+        recent = mi.recent;
+        uidvalidity = mi.uidvalidity;
+        uidnext = mi.uidnext;
+        messageCache = new MessageCache(this, (IMAPStore)store, total);
+        break MISSING_BLOCK_LABEL_436;
+        Exception exception3;
+        exception3;
+        throw exception3;
+        exists = true;
+        attributes = null;
+        type = 1;
+        notifyConnectionListeners(1);
+        return;
+    }
+
+    public synchronized void fetch(Message msgs[], FetchProfile fp)
+        throws MessagingException
+    {
+        StringBuffer command;
+        boolean allHeaders;
+        String hdrs[];
+        com.sun.mail.imap.protocol.MessageSet msgsets[];
+label0:
+        {
+            checkOpened();
+            command = new StringBuffer();
+            boolean first = true;
+            allHeaders = false;
+            if(fp.contains(javax.mail.FetchProfile.Item.ENVELOPE))
+            {
+                command.append(getEnvelopeCommand());
+                first = false;
+            }
+            if(fp.contains(javax.mail.FetchProfile.Item.FLAGS))
+            {
+                command.append(first ? "FLAGS" : " FLAGS");
+                first = false;
+            }
+            if(fp.contains(javax.mail.FetchProfile.Item.CONTENT_INFO))
+            {
+                command.append(first ? "BODYSTRUCTURE" : " BODYSTRUCTURE");
+                first = false;
+            }
+            if(fp.contains(javax.mail.UIDFolder.FetchProfileItem.UID))
+            {
+                command.append(first ? "UID" : " UID");
+                first = false;
+            }
+            if(fp.contains(FetchProfileItem.HEADERS))
+            {
+                allHeaders = true;
+                if(protocol.isREV1())
+                    command.append(first ? "BODY.PEEK[HEADER]" : " BODY.PEEK[HEADER]");
+                else
+                    command.append(first ? "RFC822.HEADER" : " RFC822.HEADER");
+                first = false;
+            }
+            if(fp.contains(javax.mail.FetchProfile.Item.SIZE) || fp.contains(FetchProfileItem.SIZE))
+            {
+                command.append(first ? "RFC822.SIZE" : " RFC822.SIZE");
+                first = false;
+            }
+            hdrs = null;
+            if(!allHeaders)
+            {
+                hdrs = fp.getHeaderNames();
+                if(hdrs.length > 0)
+                {
+                    if(!first)
+                        command.append(" ");
+                    command.append(createHeaderCommand(hdrs));
+                }
+            }
+            FetchItem fitems[] = protocol.getFetchItems();
+            for(int i = 0; i < fitems.length; i++)
+            {
+                if(!fp.contains(fitems[i].getFetchProfileItem()))
+                    continue;
+                if(command.length() != 0)
+                    command.append(" ");
+                command.append(fitems[i].getName());
+            }
+
+            Utility.Condition condition = new IMAPMessage.FetchProfileCondition(fp, fitems);
+            synchronized(messageCacheLock)
+            {
+                msgsets = Utility.toMessageSet(msgs, condition);
+                if(msgsets != null)
+                    break label0;
+            }
+            return;
+        }
+        Response r[];
+        Vector v;
+        r = null;
+        v = new Vector();
+        try
+        {
+            r = getProtocol().fetch(msgsets, command.toString());
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(CommandFailedException cfx) { }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        if(r != null)
+            break MISSING_BLOCK_LABEL_458;
+        obj;
+        JVM INSTR monitorexit ;
+        return;
+        for(int i = 0; i < r.length; i++)
+        {
+            if(r[i] == null)
+                continue;
+            if(!(r[i] instanceof FetchResponse))
+            {
+                v.addElement(r[i]);
+                continue;
+            }
+            FetchResponse f = (FetchResponse)r[i];
+            IMAPMessage msg = getMessageBySeqNumber(f.getNumber());
+            int count = f.getItemCount();
+            boolean unsolicitedFlags = false;
+            for(int j = 0; j < count; j++)
+            {
+                Item item = f.getItem(j);
+                if((item instanceof Flags) && (!fp.contains(javax.mail.FetchProfile.Item.FLAGS) || msg == null))
+                {
+                    unsolicitedFlags = true;
+                    continue;
+                }
+                if(msg != null)
+                    msg.handleFetchItem(item, hdrs, allHeaders);
+            }
+
+            if(msg != null)
+                msg.handleExtensionFetchItems(f.getExtensionItems());
+            if(unsolicitedFlags)
+                v.addElement(f);
+        }
+
+        int size = v.size();
+        if(size != 0)
+        {
+            Response responses[] = new Response[size];
+            v.copyInto(responses);
+            handleResponses(responses);
+        }
+        obj;
+        JVM INSTR monitorexit ;
+          goto _L1
+        exception;
+        throw exception;
+_L1:
+    }
+
+    protected String getEnvelopeCommand()
+    {
+        return "ENVELOPE INTERNALDATE RFC822.SIZE";
+    }
+
+    protected IMAPMessage newIMAPMessage(int msgnum)
+    {
+        return new IMAPMessage(this, msgnum);
+    }
+
+    private String createHeaderCommand(String hdrs[])
+    {
+        StringBuffer sb;
+        if(protocol.isREV1())
+            sb = new StringBuffer("BODY.PEEK[HEADER.FIELDS (");
+        else
+            sb = new StringBuffer("RFC822.HEADER.LINES (");
+        for(int i = 0; i < hdrs.length; i++)
+        {
+            if(i > 0)
+                sb.append(" ");
+            sb.append(hdrs[i]);
+        }
+
+        if(protocol.isREV1())
+            sb.append(")]");
+        else
+            sb.append(")");
+        return sb.toString();
+    }
+
+    public synchronized void setFlags(Message msgs[], Flags flag, boolean value)
+        throws MessagingException
+    {
+        checkOpened();
+        checkFlags(flag);
+        if(msgs.length == 0)
+            return;
+        synchronized(messageCacheLock)
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                com.sun.mail.imap.protocol.MessageSet ms[] = Utility.toMessageSet(msgs, null);
+                if(ms == null)
+                    throw new MessageRemovedException("Messages have been removed");
+                p.storeFlags(ms, flag, value);
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(this, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+    }
+
+    public synchronized void setFlags(int start, int end, Flags flag, boolean value)
+        throws MessagingException
+    {
+        checkOpened();
+        Message msgs[] = new Message[(end - start) + 1];
+        int i = 0;
+        for(int n = start; n <= end; n++)
+            msgs[i++] = getMessage(n);
+
+        setFlags(msgs, flag, value);
+    }
+
+    public synchronized void setFlags(int msgnums[], Flags flag, boolean value)
+        throws MessagingException
+    {
+        checkOpened();
+        Message msgs[] = new Message[msgnums.length];
+        for(int i = 0; i < msgnums.length; i++)
+            msgs[i] = getMessage(msgnums[i]);
+
+        setFlags(msgs, flag, value);
+    }
+
+    public synchronized void close(boolean expunge)
+        throws MessagingException
+    {
+        close(expunge, false);
+    }
+
+    public synchronized void forceClose()
+        throws MessagingException
+    {
+        close(false, true);
+    }
+
+    private void close(boolean expunge, boolean force)
+        throws MessagingException
+    {
+label0:
+        {
+            if(!$assertionsDisabled && !Thread.holdsLock(this))
+                throw new AssertionError();
+            synchronized(messageCacheLock)
+            {
+                if(!opened && reallyClosed)
+                    throw new IllegalStateException("This operation is not allowed on a closed folder");
+                reallyClosed = true;
+                if(opened)
+                    break label0;
+            }
+            return;
+        }
+        try
+        {
+            waitIfIdle();
+            if(force)
+            {
+                logger.log(Level.FINE, "forcing folder {0} to close", fullName);
+                if(protocol != null)
+                    protocol.disconnect();
+            } else
+            if(((IMAPStore)store).isConnectionPoolFull())
+            {
+                logger.fine("pool is full, not adding an Authenticated connection");
+                if(expunge && protocol != null)
+                    protocol.close();
+                if(protocol != null)
+                    protocol.logout();
+            } else
+            if(!expunge && mode == 2)
+                try
+                {
+                    if(protocol != null && protocol.hasCapability("UNSELECT"))
+                        protocol.unselect();
+                    else
+                    if(protocol != null)
+                    {
+                        MailboxInfo mi = protocol.examine(fullName);
+                        if(protocol != null)
+                            protocol.close();
+                    }
+                }
+                catch(ProtocolException pex2)
+                {
+                    if(protocol != null)
+                        protocol.disconnect();
+                }
+            else
+            if(protocol != null)
+                protocol.close();
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        if(opened)
+            cleanup(true);
+        break MISSING_BLOCK_LABEL_325;
+        Exception exception;
+        exception;
+        if(opened)
+            cleanup(true);
+        throw exception;
+        obj;
+        JVM INSTR monitorexit ;
+          goto _L1
+        exception1;
+        throw exception1;
+_L1:
+    }
+
+    private void cleanup(boolean returnToPool)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(messageCacheLock))
+        {
+            throw new AssertionError();
+        } else
+        {
+            releaseProtocol(returnToPool);
+            messageCache = null;
+            uidTable = null;
+            exists = false;
+            attributes = null;
+            opened = false;
+            idleState = 0;
+            notifyConnectionListeners(3);
+            return;
+        }
+    }
+
+    public synchronized boolean isOpen()
+    {
+        synchronized(messageCacheLock)
+        {
+            if(opened)
+                try
+                {
+                    keepConnectionAlive(false);
+                }
+                catch(ProtocolException pex) { }
+        }
+        return opened;
+    }
+
+    public synchronized Flags getPermanentFlags()
+    {
+        if(permanentFlags == null)
+            return null;
+        else
+            return (Flags)(Flags)permanentFlags.clone();
+    }
+
+    public synchronized int getMessageCount()
+        throws MessagingException
+    {
+        if(opened)
+            break MISSING_BLOCK_LABEL_111;
+        checkExists();
+        IMAPProtocol p;
+        MailboxInfo minfo;
+        ProtocolException pex;
+        int i;
+        Exception exception;
+        try
+        {
+            Status status = getStatus();
+            return status.total;
+        }
+        catch(BadCommandException bex)
+        {
+            p = null;
+        }
+        catch(ConnectionException cex)
+        {
+            throw new StoreClosedException(store, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        try
+        {
+            p = getStoreProtocol();
+            minfo = p.examine(fullName);
+            p.close();
+            i = minfo.total;
+        }
+        // Misplaced declaration of an exception variable
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(p);
+        return i;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        keepConnectionAlive(true);
+        return total;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception1;
+        exception1;
+        throw exception1;
+    }
+
+    public synchronized int getNewMessageCount()
+        throws MessagingException
+    {
+        if(opened)
+            break MISSING_BLOCK_LABEL_111;
+        checkExists();
+        IMAPProtocol p;
+        MailboxInfo minfo;
+        ProtocolException pex;
+        int i;
+        Exception exception;
+        try
+        {
+            Status status = getStatus();
+            return status.recent;
+        }
+        catch(BadCommandException bex)
+        {
+            p = null;
+        }
+        catch(ConnectionException cex)
+        {
+            throw new StoreClosedException(store, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        try
+        {
+            p = getStoreProtocol();
+            minfo = p.examine(fullName);
+            p.close();
+            i = minfo.recent;
+        }
+        // Misplaced declaration of an exception variable
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(p);
+        return i;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        keepConnectionAlive(true);
+        return recent;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception1;
+        exception1;
+        throw exception1;
+    }
+
+    public synchronized int getUnreadMessageCount()
+        throws MessagingException
+    {
+        Flags f;
+        if(!opened)
+        {
+            checkExists();
+            try
+            {
+                Status status = getStatus();
+                return status.unseen;
+            }
+            catch(BadCommandException bex)
+            {
+                return -1;
+            }
+            catch(ConnectionException cex)
+            {
+                throw new StoreClosedException(store, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        f = new Flags();
+        f.add(javax.mail.Flags.Flag.SEEN);
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        int matches[] = getProtocol().search(new FlagTerm(f, false));
+        return matches.length;
+        Exception exception;
+        exception;
+        throw exception;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+    }
+
+    public synchronized int getDeletedMessageCount()
+        throws MessagingException
+    {
+        Flags f;
+        if(!opened)
+        {
+            checkExists();
+            return -1;
+        }
+        f = new Flags();
+        f.add(javax.mail.Flags.Flag.DELETED);
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        int matches[] = getProtocol().search(new FlagTerm(f, true));
+        return matches.length;
+        Exception exception;
+        exception;
+        throw exception;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+    }
+
+    private Status getStatus()
+        throws ProtocolException
+    {
+        int statusCacheTimeout;
+        IMAPProtocol p;
+        statusCacheTimeout = ((IMAPStore)store).getStatusCacheTimeout();
+        if(statusCacheTimeout > 0 && cachedStatus != null && System.currentTimeMillis() - cachedStatusTime < (long)statusCacheTimeout)
+            return cachedStatus;
+        p = null;
+        Status status;
+        p = getStoreProtocol();
+        Status s = p.status(fullName, null);
+        if(statusCacheTimeout > 0)
+        {
+            cachedStatus = s;
+            cachedStatusTime = System.currentTimeMillis();
+        }
+        status = s;
+        releaseStoreProtocol(p);
+        return status;
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+    }
+
+    public synchronized Message getMessage(int msgnum)
+        throws MessagingException
+    {
+        checkOpened();
+        checkRange(msgnum);
+        return messageCache.getMessage(msgnum);
+    }
+
+    public synchronized void appendMessages(Message msgs[])
+        throws MessagingException
+    {
+        checkExists();
+        int maxsize = ((IMAPStore)store).getAppendBufferSize();
+        for(int i = 0; i < msgs.length; i++)
+        {
+            Message m = msgs[i];
+            Date d = m.getReceivedDate();
+            if(d == null)
+                d = m.getSentDate();
+            final Date dd = d;
+            final Flags f = m.getFlags();
+            final MessageLiteral mos;
+            try
+            {
+                mos = new MessageLiteral(m, m.getSize() <= maxsize ? maxsize : 0);
+            }
+            catch(IOException ex)
+            {
+                throw new MessagingException("IOException while appending messages", ex);
+            }
+            catch(MessageRemovedException mrex)
+            {
+                continue;
+            }
+            doCommand(new ProtocolCommand() {
+
+                public Object doCommand(IMAPProtocol p)
+                    throws ProtocolException
+                {
+                    p.append(fullName, f, dd, mos);
+                    return null;
+                }
+
+                final Flags val$f;
+                final Date val$dd;
+                final MessageLiteral val$mos;
+                final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                f = flags;
+                dd = date;
+                mos = messageliteral;
+                super();
+            }
+            }
+);
+        }
+
+    }
+
+    public synchronized AppendUID[] appendUIDMessages(Message msgs[])
+        throws MessagingException
+    {
+        checkExists();
+        int maxsize = ((IMAPStore)store).getAppendBufferSize();
+        AppendUID uids[] = new AppendUID[msgs.length];
+        for(int i = 0; i < msgs.length; i++)
+        {
+            Message m = msgs[i];
+            final MessageLiteral mos;
+            try
+            {
+                mos = new MessageLiteral(m, m.getSize() <= maxsize ? maxsize : 0);
+            }
+            catch(IOException ex)
+            {
+                throw new MessagingException("IOException while appending messages", ex);
+            }
+            catch(MessageRemovedException mrex)
+            {
+                continue;
+            }
+            Date d = m.getReceivedDate();
+            if(d == null)
+                d = m.getSentDate();
+            final Date dd = d;
+            final Flags f = m.getFlags();
+            AppendUID auid = (AppendUID)doCommand(new ProtocolCommand() {
+
+                public Object doCommand(IMAPProtocol p)
+                    throws ProtocolException
+                {
+                    return p.appenduid(fullName, f, dd, mos);
+                }
+
+                final Flags val$f;
+                final Date val$dd;
+                final MessageLiteral val$mos;
+                final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                f = flags;
+                dd = date;
+                mos = messageliteral;
+                super();
+            }
+            }
+);
+            uids[i] = auid;
+        }
+
+        return uids;
+    }
+
+    public synchronized Message[] addMessages(Message msgs[])
+        throws MessagingException
+    {
+        checkOpened();
+        Message rmsgs[] = new MimeMessage[msgs.length];
+        AppendUID uids[] = appendUIDMessages(msgs);
+        for(int i = 0; i < uids.length; i++)
+        {
+            AppendUID auid = uids[i];
+            if(auid == null || auid.uidvalidity != uidvalidity)
+                continue;
+            try
+            {
+                rmsgs[i] = getMessageByUID(auid.uid);
+            }
+            catch(MessagingException mex) { }
+        }
+
+        return rmsgs;
+    }
+
+    public synchronized void copyMessages(Message msgs[], Folder folder)
+        throws MessagingException
+    {
+        checkOpened();
+        if(msgs.length == 0)
+            return;
+        if(folder.getStore() == store)
+            synchronized(messageCacheLock)
+            {
+                try
+                {
+                    IMAPProtocol p = getProtocol();
+                    com.sun.mail.imap.protocol.MessageSet ms[] = Utility.toMessageSet(msgs, null);
+                    if(ms == null)
+                        throw new MessageRemovedException("Messages have been removed");
+                    p.copy(ms, folder.getFullName());
+                }
+                catch(CommandFailedException cfx)
+                {
+                    if(cfx.getMessage().indexOf("TRYCREATE") != -1)
+                        throw new FolderNotFoundException(folder, (new StringBuilder()).append(folder.getFullName()).append(" does not exist").toString());
+                    else
+                        throw new MessagingException(cfx.getMessage(), cfx);
+                }
+                catch(ConnectionException cex)
+                {
+                    throw new FolderClosedException(this, cex.getMessage());
+                }
+                catch(ProtocolException pex)
+                {
+                    throw new MessagingException(pex.getMessage(), pex);
+                }
+            }
+        else
+            super.copyMessages(msgs, folder);
+    }
+
+    public synchronized Message[] expunge()
+        throws MessagingException
+    {
+        return expunge(null);
+    }
+
+    public synchronized Message[] expunge(Message msgs[])
+        throws MessagingException
+    {
+        checkOpened();
+        if(msgs != null)
+        {
+            FetchProfile fp = new FetchProfile();
+            fp.add(javax.mail.UIDFolder.FetchProfileItem.UID);
+            fetch(msgs, fp);
+        }
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        doExpungeNotification = false;
+        try
+        {
+            IMAPProtocol p = getProtocol();
+            if(msgs != null)
+                p.uidexpunge(Utility.toUIDSet(msgs));
+            else
+                p.expunge();
+        }
+        catch(CommandFailedException cfx)
+        {
+            if(mode != 2)
+                throw new IllegalStateException((new StringBuilder()).append("Cannot expunge READ_ONLY folder: ").append(fullName).toString());
+            else
+                throw new MessagingException(cfx.getMessage(), cfx);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        doExpungeNotification = true;
+        break MISSING_BLOCK_LABEL_175;
+        Exception exception;
+        exception;
+        doExpungeNotification = true;
+        throw exception;
+        IMAPMessage rmsgs[];
+        if(msgs != null)
+            rmsgs = messageCache.removeExpungedMessages(msgs);
+        else
+            rmsgs = messageCache.removeExpungedMessages();
+        if(uidTable != null)
+        {
+            for(int i = 0; i < rmsgs.length; i++)
+            {
+                IMAPMessage m = rmsgs[i];
+                long uid = m.getUID();
+                if(uid != -1L)
+                    uidTable.remove(new Long(uid));
+            }
+
+        }
+        total = messageCache.size();
+        break MISSING_BLOCK_LABEL_284;
+        Exception exception1;
+        exception1;
+        throw exception1;
+        if(rmsgs.length > 0)
+            notifyMessageRemovedListeners(true, rmsgs);
+        return rmsgs;
+    }
+
+    public synchronized Message[] search(SearchTerm term)
+        throws MessagingException
+    {
+        checkOpened();
+        try
+        {
+            Message matchMsgs[] = null;
+            synchronized(messageCacheLock)
+            {
+                int matches[] = getProtocol().search(term);
+                if(matches != null)
+                {
+                    matchMsgs = new IMAPMessage[matches.length];
+                    for(int i = 0; i < matches.length; i++)
+                        matchMsgs[i] = getMessageBySeqNumber(matches[i]);
+
+                }
+            }
+            return matchMsgs;
+        }
+        catch(CommandFailedException cfx)
+        {
+            return super.search(term);
+        }
+        catch(SearchException sex)
+        {
+            return super.search(term);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+    }
+
+    public synchronized Message[] search(SearchTerm term, Message msgs[])
+        throws MessagingException
+    {
+        checkOpened();
+        if(msgs.length == 0)
+            return msgs;
+        try
+        {
+            Message matchMsgs[] = null;
+            synchronized(messageCacheLock)
+            {
+                IMAPProtocol p = getProtocol();
+                com.sun.mail.imap.protocol.MessageSet ms[] = Utility.toMessageSet(msgs, null);
+                if(ms == null)
+                    throw new MessageRemovedException("Messages have been removed");
+                int matches[] = p.search(ms, term);
+                if(matches != null)
+                {
+                    matchMsgs = new IMAPMessage[matches.length];
+                    for(int i = 0; i < matches.length; i++)
+                        matchMsgs[i] = getMessageBySeqNumber(matches[i]);
+
+                }
+            }
+            return matchMsgs;
+        }
+        catch(CommandFailedException cfx)
+        {
+            return super.search(term, msgs);
+        }
+        catch(SearchException sex)
+        {
+            return super.search(term, msgs);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+    }
+
+    public synchronized Message[] getSortedMessages(SortTerm term[])
+        throws MessagingException
+    {
+        return getSortedMessages(term, null);
+    }
+
+    public synchronized Message[] getSortedMessages(SortTerm term[], SearchTerm sterm)
+        throws MessagingException
+    {
+        checkOpened();
+        try
+        {
+            Message matchMsgs[] = null;
+            synchronized(messageCacheLock)
+            {
+                int matches[] = getProtocol().sort(term, sterm);
+                if(matches != null)
+                {
+                    matchMsgs = new IMAPMessage[matches.length];
+                    for(int i = 0; i < matches.length; i++)
+                        matchMsgs[i] = getMessageBySeqNumber(matches[i]);
+
+                }
+            }
+            return matchMsgs;
+        }
+        catch(CommandFailedException cfx)
+        {
+            throw new MessagingException(cfx.getMessage(), cfx);
+        }
+        catch(SearchException sex)
+        {
+            throw new MessagingException(sex.getMessage(), sex);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+    }
+
+    public synchronized void addMessageCountListener(MessageCountListener l)
+    {
+        super.addMessageCountListener(l);
+        hasMessageCountListener = true;
+    }
+
+    public synchronized long getUIDValidity()
+        throws MessagingException
+    {
+        IMAPProtocol p;
+        Status status;
+        if(opened)
+            return uidvalidity;
+        p = null;
+        status = null;
+        p = getStoreProtocol();
+        String item[] = {
+            "UIDVALIDITY"
+        };
+        status = p.status(fullName, item);
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_101;
+        BadCommandException bex;
+        bex;
+        throw new MessagingException("Cannot obtain UIDValidity", bex);
+        ConnectionException cex;
+        cex;
+        throwClosedException(cex);
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_101;
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        return status.uidvalidity;
+    }
+
+    public synchronized long getUIDNext()
+        throws MessagingException
+    {
+        IMAPProtocol p;
+        Status status;
+        if(opened)
+            return uidnext;
+        p = null;
+        status = null;
+        p = getStoreProtocol();
+        String item[] = {
+            "UIDNEXT"
+        };
+        status = p.status(fullName, item);
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_101;
+        BadCommandException bex;
+        bex;
+        throw new MessagingException("Cannot obtain UIDNext", bex);
+        ConnectionException cex;
+        cex;
+        throwClosedException(cex);
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_101;
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        return status.uidnext;
+    }
+
+    public synchronized Message getMessageByUID(long uid)
+        throws MessagingException
+    {
+        checkOpened();
+        IMAPMessage m = null;
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        Long l;
+        l = new Long(uid);
+        if(uidTable != null)
+        {
+            m = (IMAPMessage)uidTable.get(l);
+            if(m != null)
+                return m;
+            break MISSING_BLOCK_LABEL_64;
+        }
+        uidTable = new Hashtable();
+        UID u = getProtocol().fetchSequenceNumber(uid);
+        if(u != null && u.seqnum <= total)
+        {
+            m = getMessageBySeqNumber(u.seqnum);
+            m.setUID(u.uid);
+            uidTable.put(l, m);
+        }
+        obj;
+        JVM INSTR monitorexit ;
+          goto _L1
+        Exception exception;
+        exception;
+        throw exception;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+_L1:
+        return m;
+    }
+
+    public synchronized Message[] getMessagesByUID(long start, long end)
+        throws MessagingException
+    {
+        checkOpened();
+        Message msgs[];
+        try
+        {
+            synchronized(messageCacheLock)
+            {
+                if(uidTable == null)
+                    uidTable = new Hashtable();
+                UID ua[] = getProtocol().fetchSequenceNumbers(start, end);
+                msgs = new Message[ua.length];
+                for(int i = 0; i < ua.length; i++)
+                {
+                    IMAPMessage m = getMessageBySeqNumber(ua[i].seqnum);
+                    m.setUID(ua[i].uid);
+                    msgs[i] = m;
+                    uidTable.put(new Long(ua[i].uid), m);
+                }
+
+            }
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return msgs;
+    }
+
+    public synchronized Message[] getMessagesByUID(long uids[])
+        throws MessagingException
+    {
+        checkOpened();
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        long unavailUids[] = uids;
+        if(uidTable != null)
+        {
+            Vector v = new Vector();
+            for(int i = 0; i < uids.length; i++)
+            {
+                Long l;
+                if(!uidTable.containsKey(l = new Long(uids[i])))
+                    v.addElement(l);
+            }
+
+            int vsize = v.size();
+            unavailUids = new long[vsize];
+            for(int i = 0; i < vsize; i++)
+                unavailUids[i] = ((Long)v.elementAt(i)).longValue();
+
+        } else
+        {
+            uidTable = new Hashtable();
+        }
+        if(unavailUids.length > 0)
+        {
+            UID ua[] = getProtocol().fetchSequenceNumbers(unavailUids);
+            for(int i = 0; i < ua.length; i++)
+            {
+                IMAPMessage m = getMessageBySeqNumber(ua[i].seqnum);
+                m.setUID(ua[i].uid);
+                uidTable.put(new Long(ua[i].uid), m);
+            }
+
+        }
+        Message msgs[] = new Message[uids.length];
+        for(int i = 0; i < uids.length; i++)
+            msgs[i] = (Message)uidTable.get(new Long(uids[i]));
+
+        return msgs;
+        Exception exception;
+        exception;
+        throw exception;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+    }
+
+    public synchronized long getUID(Message message)
+        throws MessagingException
+    {
+        if(message.getFolder() != this)
+            throw new NoSuchElementException("Message does not belong to this folder");
+        checkOpened();
+        IMAPMessage m = (IMAPMessage)message;
+        long uid;
+        if((uid = m.getUID()) != -1L)
+            return uid;
+        synchronized(messageCacheLock)
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                m.checkExpunged();
+                UID u = p.fetchUID(m.getSequenceNumber());
+                if(u != null)
+                {
+                    uid = u.uid;
+                    m.setUID(uid);
+                    if(uidTable == null)
+                        uidTable = new Hashtable();
+                    uidTable.put(new Long(uid), m);
+                }
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(this, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        return uid;
+    }
+
+    public Quota[] getQuota()
+        throws MessagingException
+    {
+        return (Quota[])(Quota[])doOptionalCommand("QUOTA not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                return p.getQuotaRoot(fullName);
+            }
+
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                super();
+            }
+        }
+);
+    }
+
+    public void setQuota(final Quota quota)
+        throws MessagingException
+    {
+        doOptionalCommand("QUOTA not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                p.setQuota(quota);
+                return null;
+            }
+
+            final Quota val$quota;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                quota = quota1;
+                super();
+            }
+        }
+);
+    }
+
+    public ACL[] getACL()
+        throws MessagingException
+    {
+        return (ACL[])(ACL[])doOptionalCommand("ACL not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                return p.getACL(fullName);
+            }
+
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                super();
+            }
+        }
+);
+    }
+
+    public void addACL(ACL acl)
+        throws MessagingException
+    {
+        setACL(acl, '\0');
+    }
+
+    public void removeACL(final String name)
+        throws MessagingException
+    {
+        doOptionalCommand("ACL not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                p.deleteACL(fullName, name);
+                return null;
+            }
+
+            final String val$name;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                name = s;
+                super();
+            }
+        }
+);
+    }
+
+    public void addRights(ACL acl)
+        throws MessagingException
+    {
+        setACL(acl, '+');
+    }
+
+    public void removeRights(ACL acl)
+        throws MessagingException
+    {
+        setACL(acl, '-');
+    }
+
+    public Rights[] listRights(final String name)
+        throws MessagingException
+    {
+        return (Rights[])(Rights[])doOptionalCommand("ACL not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                return p.listRights(fullName, name);
+            }
+
+            final String val$name;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                name = s;
+                super();
+            }
+        }
+);
+    }
+
+    public Rights myRights()
+        throws MessagingException
+    {
+        return (Rights)doOptionalCommand("ACL not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                return p.myRights(fullName);
+            }
+
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                super();
+            }
+        }
+);
+    }
+
+    private void setACL(final ACL acl, final char mod)
+        throws MessagingException
+    {
+        doOptionalCommand("ACL not supported", new ProtocolCommand() {
+
+            public Object doCommand(IMAPProtocol p)
+                throws ProtocolException
+            {
+                p.setACL(fullName, mod, acl);
+                return null;
+            }
+
+            final char val$mod;
+            final ACL val$acl;
+            final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                mod = c;
+                acl = acl1;
+                super();
+            }
+        }
+);
+    }
+
+    public synchronized String[] getAttributes()
+        throws MessagingException
+    {
+        checkExists();
+        if(attributes == null)
+            exists();
+        return attributes != null ? (String[])(String[])attributes.clone() : new String[0];
+    }
+
+    public void idle()
+        throws MessagingException
+    {
+        idle(false);
+    }
+
+    public void idle(boolean once)
+        throws MessagingException
+    {
+label0:
+        {
+            if(!$assertionsDisabled && Thread.holdsLock(this))
+                throw new AssertionError();
+            synchronized(this)
+            {
+                checkOpened();
+                Boolean started = (Boolean)doOptionalCommand("IDLE not supported", new ProtocolCommand() {
+
+                    public Object doCommand(IMAPProtocol p)
+                        throws ProtocolException
+                    {
+                        if(idleState == 0)
+                        {
+                            p.idleStart();
+                            idleState = 1;
+                            return Boolean.TRUE;
+                        }
+                        try
+                        {
+                            messageCacheLock.wait();
+                        }
+                        catch(InterruptedException ex) { }
+                        return Boolean.FALSE;
+                    }
+
+                    final IMAPFolder this$0;
+
+            
+            {
+                this$0 = IMAPFolder.this;
+                super();
+            }
+                }
+);
+                if(started.booleanValue())
+                    break label0;
+            }
+            return;
+        }
+        imapfolder;
+        JVM INSTR monitorexit ;
+        break MISSING_BLOCK_LABEL_70;
+        exception;
+        throw exception;
+_L2:
+        Response r = protocol.readIdleResponse();
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        try
+        {
+            if(r == null || protocol == null || !protocol.processIdleResponse(r))
+            {
+                idleState = 0;
+                messageCacheLock.notifyAll();
+                break MISSING_BLOCK_LABEL_209;
+            }
+        }
+        catch(ProtocolException pex)
+        {
+            idleState = 0;
+            messageCacheLock.notifyAll();
+            throw pex;
+        }
+        if(once && idleState == 1)
+        {
+            protocol.idleAbort();
+            idleState = 2;
+        }
+        obj;
+        JVM INSTR monitorexit ;
+        continue; /* Loop/switch isn't completed */
+        Exception exception1;
+        exception1;
+        throw exception1;
+        ConnectionException cex;
+        cex;
+        throwClosedException(cex);
+        continue; /* Loop/switch isn't completed */
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        int minidle = ((IMAPStore)store).getMinIdleTime();
+        if(minidle > 0)
+            try
+            {
+                Thread.sleep(minidle);
+            }
+            catch(InterruptedException ex) { }
+        return;
+        if(true) goto _L2; else goto _L1
+_L1:
+    }
+
+    void waitIfIdle()
+        throws ProtocolException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(messageCacheLock))
+            throw new AssertionError();
+        while(idleState != 0) 
+        {
+            if(idleState == 1)
+            {
+                protocol.idleAbort();
+                idleState = 2;
+            }
+            try
+            {
+                messageCacheLock.wait();
+            }
+            catch(InterruptedException ex) { }
+        }
+    }
+
+    public void handleResponse(Response r)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(messageCacheLock))
+            throw new AssertionError();
+        if(r.isOK() || r.isNO() || r.isBAD() || r.isBYE())
+            ((IMAPStore)store).handleResponseCode(r);
+        if(r.isBYE())
+        {
+            if(opened)
+                cleanup(false);
+            return;
+        }
+        if(r.isOK())
+            return;
+        if(!r.isUnTagged())
+            return;
+        if(!(r instanceof IMAPResponse))
+        {
+            logger.fine((new StringBuilder()).append("UNEXPECTED RESPONSE : ").append(r.toString()).toString());
+            return;
+        }
+        IMAPResponse ir = (IMAPResponse)r;
+        if(ir.keyEquals("EXISTS"))
+        {
+            int exists = ir.getNumber();
+            if(exists <= realTotal)
+                return;
+            int count = exists - realTotal;
+            Message msgs[] = new Message[count];
+            messageCache.addMessages(count, realTotal + 1);
+            int oldtotal = total;
+            realTotal += count;
+            total += count;
+            if(hasMessageCountListener)
+            {
+                for(int i = 0; i < count; i++)
+                    msgs[i] = messageCache.getMessage(++oldtotal);
+
+                notifyMessageAddedListeners(msgs);
+            }
+        } else
+        if(ir.keyEquals("EXPUNGE"))
+        {
+            int seqnum = ir.getNumber();
+            Message msgs[] = null;
+            if(doExpungeNotification && hasMessageCountListener)
+                msgs = (new Message[] {
+                    getMessageBySeqNumber(seqnum)
+                });
+            messageCache.expungeMessage(seqnum);
+            realTotal--;
+            if(msgs != null)
+                notifyMessageRemovedListeners(false, msgs);
+        } else
+        if(ir.keyEquals("FETCH"))
+        {
+            if(!$assertionsDisabled && !(ir instanceof FetchResponse))
+                throw new AssertionError("!ir instanceof FetchResponse");
+            FetchResponse f = (FetchResponse)ir;
+            Flags flags = (Flags)f.getItem(javax/mail/Flags);
+            if(flags != null)
+            {
+                IMAPMessage msg = getMessageBySeqNumber(f.getNumber());
+                if(msg != null)
+                {
+                    msg._setFlags(flags);
+                    notifyMessageChangedListeners(1, msg);
+                }
+            }
+        } else
+        if(ir.keyEquals("RECENT"))
+            recent = ir.getNumber();
+    }
+
+    void handleResponses(Response r[])
+    {
+        for(int i = 0; i < r.length; i++)
+            if(r[i] != null)
+                handleResponse(r[i]);
+
+    }
+
+    protected synchronized IMAPProtocol getStoreProtocol()
+        throws ProtocolException
+    {
+        connectionPoolLogger.fine("getStoreProtocol() borrowing a connection");
+        return ((IMAPStore)store).getFolderStoreProtocol();
+    }
+
+    protected synchronized void throwClosedException(ConnectionException cex)
+        throws FolderClosedException, StoreClosedException
+    {
+        if(protocol != null && cex.getProtocol() == protocol || protocol == null && !reallyClosed)
+            throw new FolderClosedException(this, cex.getMessage());
+        else
+            throw new StoreClosedException(store, cex.getMessage());
+    }
+
+    protected IMAPProtocol getProtocol()
+        throws ProtocolException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(messageCacheLock))
+        {
+            throw new AssertionError();
+        } else
+        {
+            waitIfIdle();
+            return protocol;
+        }
+    }
+
+    public Object doCommand(ProtocolCommand cmd)
+        throws MessagingException
+    {
+        try
+        {
+            return doProtocolCommand(cmd);
+        }
+        catch(ConnectionException cex)
+        {
+            throwClosedException(cex);
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return null;
+    }
+
+    public Object doOptionalCommand(String err, ProtocolCommand cmd)
+        throws MessagingException
+    {
+        try
+        {
+            return doProtocolCommand(cmd);
+        }
+        catch(BadCommandException bex)
+        {
+            throw new MessagingException(err, bex);
+        }
+        catch(ConnectionException cex)
+        {
+            throwClosedException(cex);
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return null;
+    }
+
+    public Object doCommandIgnoreFailure(ProtocolCommand cmd)
+        throws MessagingException
+    {
+        try
+        {
+            return doProtocolCommand(cmd);
+        }
+        catch(CommandFailedException cfx)
+        {
+            return null;
+        }
+        catch(ConnectionException cex)
+        {
+            throwClosedException(cex);
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return null;
+    }
+
+    protected Object doProtocolCommand(ProtocolCommand cmd)
+        throws ProtocolException
+    {
+        IMAPProtocol p = this;
+        JVM INSTR monitorenter ;
+        if(protocol == null)
+            break MISSING_BLOCK_LABEL_40;
+        Object obj = messageCacheLock;
+        JVM INSTR monitorenter ;
+        return cmd.doCommand(getProtocol());
+        Exception exception;
+        exception;
+        obj;
+        JVM INSTR monitorexit ;
+        throw exception;
+        p;
+        JVM INSTR monitorexit ;
+          goto _L1
+        Exception exception1;
+        exception1;
+        throw exception1;
+_L1:
+        p = null;
+        p = getStoreProtocol();
+        obj = cmd.doCommand(p);
+        releaseStoreProtocol(p);
+        return obj;
+        Exception exception2;
+        exception2;
+        releaseStoreProtocol(p);
+        throw exception2;
+    }
+
+    protected synchronized void releaseStoreProtocol(IMAPProtocol p)
+    {
+        if(p != protocol)
+            ((IMAPStore)store).releaseFolderStoreProtocol(p);
+        else
+            logger.fine("releasing our protocol as store protocol?");
+    }
+
+    protected void releaseProtocol(boolean returnToPool)
+    {
+        if(protocol != null)
+        {
+            protocol.removeResponseHandler(this);
+            if(returnToPool)
+            {
+                ((IMAPStore)store).releaseProtocol(this, protocol);
+            } else
+            {
+                protocol.disconnect();
+                ((IMAPStore)store).releaseProtocol(this, null);
+            }
+            protocol = null;
+        }
+    }
+
+    protected void keepConnectionAlive(boolean keepStoreAlive)
+        throws ProtocolException
+    {
+        IMAPProtocol p;
+        if(System.currentTimeMillis() - protocol.getTimestamp() > 1000L)
+        {
+            waitIfIdle();
+            if(protocol != null)
+                protocol.noop();
+        }
+        if(!keepStoreAlive || !((IMAPStore)store).hasSeparateStoreConnection())
+            break MISSING_BLOCK_LABEL_113;
+        p = null;
+        p = ((IMAPStore)store).getFolderStoreProtocol();
+        if(System.currentTimeMillis() - p.getTimestamp() > 1000L)
+            p.noop();
+        ((IMAPStore)store).releaseFolderStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_113;
+        Exception exception;
+        exception;
+        ((IMAPStore)store).releaseFolderStoreProtocol(p);
+        throw exception;
+    }
+
+    protected IMAPMessage getMessageBySeqNumber(int seqnum)
+    {
+        return messageCache.getMessageBySeqnum(seqnum);
+    }
+
+    private boolean isDirectory()
+    {
+        return (type & 2) != 0;
+    }
+
+    protected String fullName;
+    protected String name;
+    protected int type;
+    protected char separator;
+    protected Flags availableFlags;
+    protected Flags permanentFlags;
+    protected volatile boolean exists;
+    protected boolean isNamespace;
+    protected volatile String attributes[];
+    protected volatile IMAPProtocol protocol;
+    protected MessageCache messageCache;
+    protected final Object messageCacheLock;
+    protected Hashtable uidTable;
+    protected static final char UNKNOWN_SEPARATOR = 65535;
+    private volatile boolean opened;
+    private boolean reallyClosed;
+    private static final int RUNNING = 0;
+    private static final int IDLE = 1;
+    private static final int ABORTING = 2;
+    private int idleState;
+    private volatile int total;
+    private volatile int recent;
+    private int realTotal;
+    private long uidvalidity;
+    private long uidnext;
+    private boolean doExpungeNotification;
+    private Status cachedStatus;
+    private long cachedStatusTime;
+    private boolean hasMessageCountListener;
+    protected MailLogger logger;
+    private MailLogger connectionPoolLogger;
+    static final boolean $assertionsDisabled = !com/sun/mail/imap/IMAPFolder.desiredAssertionStatus();
+
+
+
+}

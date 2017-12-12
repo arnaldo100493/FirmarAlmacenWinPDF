@@ -1,0 +1,81 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertificationRequest.java
+
+package co.org.bouncy.asn1.pkcs;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package co.org.bouncy.asn1.pkcs:
+//            CertificationRequestInfo
+
+public class CertificationRequest extends ASN1Object
+{
+
+    public static CertificationRequest getInstance(Object o)
+    {
+        if(o instanceof CertificationRequest)
+            return (CertificationRequest)o;
+        if(o != null)
+            return new CertificationRequest(ASN1Sequence.getInstance(o));
+        else
+            return null;
+    }
+
+    protected CertificationRequest()
+    {
+        reqInfo = null;
+        sigAlgId = null;
+        sigBits = null;
+    }
+
+    public CertificationRequest(CertificationRequestInfo requestInfo, AlgorithmIdentifier algorithm, DERBitString signature)
+    {
+        reqInfo = null;
+        sigAlgId = null;
+        sigBits = null;
+        reqInfo = requestInfo;
+        sigAlgId = algorithm;
+        sigBits = signature;
+    }
+
+    public CertificationRequest(ASN1Sequence seq)
+    {
+        reqInfo = null;
+        sigAlgId = null;
+        sigBits = null;
+        reqInfo = CertificationRequestInfo.getInstance(seq.getObjectAt(0));
+        sigAlgId = AlgorithmIdentifier.getInstance(seq.getObjectAt(1));
+        sigBits = (DERBitString)seq.getObjectAt(2);
+    }
+
+    public CertificationRequestInfo getCertificationRequestInfo()
+    {
+        return reqInfo;
+    }
+
+    public AlgorithmIdentifier getSignatureAlgorithm()
+    {
+        return sigAlgId;
+    }
+
+    public DERBitString getSignature()
+    {
+        return sigBits;
+    }
+
+    public ASN1Primitive toASN1Primitive()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(reqInfo);
+        v.add(sigAlgId);
+        v.add(sigBits);
+        return new DERSequence(v);
+    }
+
+    protected CertificationRequestInfo reqInfo;
+    protected AlgorithmIdentifier sigAlgId;
+    protected DERBitString sigBits;
+}

@@ -1,0 +1,161 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DigestMD5.java
+
+package com.sun.mail.smtp;
+
+import com.sun.mail.util.*;
+import java.io.*;
+import java.security.*;
+import java.util.Hashtable;
+import java.util.StringTokenizer;
+import java.util.logging.Level;
+
+public class DigestMD5
+{
+
+    public DigestMD5(MailLogger logger)
+    {
+        this.logger = logger.getLogger(getClass(), "DEBUG DIGEST-MD5");
+        logger.config("DIGEST-MD5 Loaded");
+    }
+
+    public byte[] authClient(String host, String user, String passwd, String realm, String serverChallenge)
+        throws IOException
+    {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        OutputStream b64os = new BASE64EncoderStream(bos, 0x7fffffff);
+        SecureRandom random;
+        try
+        {
+            random = new SecureRandom();
+            md5 = MessageDigest.getInstance("MD5");
+        }
+        catch(NoSuchAlgorithmException ex)
+        {
+            logger.log(Level.FINE, "NoSuchAlgorithmException", ex);
+            throw new IOException(ex.toString());
+        }
+        StringBuffer result = new StringBuffer();
+        uri = (new StringBuilder()).append("smtp/").append(host).toString();
+        String nc = "00000001";
+        String qop = "auth";
+        byte bytes[] = new byte[32];
+        logger.fine("Begin authentication ...");
+        Hashtable map = tokenize(serverChallenge);
+        if(realm == null)
+        {
+            String text = (String)map.get("realm");
+            realm = text == null ? host : (new StringTokenizer(text, ",")).nextToken();
+        }
+        String nonce = (String)map.get("nonce");
+        random.nextBytes(bytes);
+        b64os.write(bytes);
+        b64os.flush();
+        String cnonce = bos.toString("iso-8859-1");
+        bos.reset();
+        md5.update(md5.digest(ASCIIUtility.getBytes((new StringBuilder()).append(user).append(":").append(realm).append(":").append(passwd).toString())));
+        md5.update(ASCIIUtility.getBytes((new StringBuilder()).append(":").append(nonce).append(":").append(cnonce).toString()));
+        clientResponse = (new StringBuilder()).append(toHex(md5.digest())).append(":").append(nonce).append(":").append(nc).append(":").append(cnonce).append(":").append(qop).append(":").toString();
+        md5.update(ASCIIUtility.getBytes((new StringBuilder()).append("AUTHENTICATE:").append(uri).toString()));
+        md5.update(ASCIIUtility.getBytes((new StringBuilder()).append(clientResponse).append(toHex(md5.digest())).toString()));
+        result.append((new StringBuilder()).append("username=\"").append(user).append("\"").toString());
+        result.append((new StringBuilder()).append(",realm=\"").append(realm).append("\"").toString());
+        result.append((new StringBuilder()).append(",qop=").append(qop).toString());
+        result.append((new StringBuilder()).append(",nc=").append(nc).toString());
+        result.append((new StringBuilder()).append(",nonce=\"").append(nonce).append("\"").toString());
+        result.append((new StringBuilder()).append(",cnonce=\"").append(cnonce).append("\"").toString());
+        result.append((new StringBuilder()).append(",digest-uri=\"").append(uri).append("\"").toString());
+        result.append((new StringBuilder()).append(",response=").append(toHex(md5.digest())).toString());
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("Response => ").append(result.toString()).toString());
+        b64os.write(ASCIIUtility.getBytes(result.toString()));
+        b64os.flush();
+        return bos.toByteArray();
+    }
+
+    public boolean authServer(String serverResponse)
+        throws IOException
+    {
+        Hashtable map = tokenize(serverResponse);
+        md5.update(ASCIIUtility.getBytes((new StringBuilder()).append(":").append(uri).toString()));
+        md5.update(ASCIIUtility.getBytes((new StringBuilder()).append(clientResponse).append(toHex(md5.digest())).toString()));
+        String text = toHex(md5.digest());
+        if(!text.equals((String)map.get("rspauth")))
+        {
+            if(logger.isLoggable(Level.FINE))
+                logger.fine((new StringBuilder()).append("Expected => rspauth=").append(text).toString());
+            return false;
+        } else
+        {
+            return true;
+        }
+    }
+
+    private Hashtable tokenize(String serverResponse)
+        throws IOException
+    {
+        Hashtable map = new Hashtable();
+        byte bytes[] = serverResponse.getBytes("iso-8859-1");
+        String key = null;
+        StreamTokenizer tokens = new StreamTokenizer(new InputStreamReader(new BASE64DecoderStream(new ByteArrayInputStream(bytes, 4, bytes.length - 4)), "iso-8859-1"));
+        tokens.ordinaryChars(48, 57);
+        tokens.wordChars(48, 57);
+        do
+        {
+            int ttype;
+            if((ttype = tokens.nextToken()) == -1)
+                break;
+            switch(ttype)
+            {
+            default:
+                break;
+
+            case -3: 
+                if(key == null)
+                {
+                    key = tokens.sval;
+                    continue;
+                }
+                // fall through
+
+            case 34: // '"'
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("Received => ").append(key).append("='").append(tokens.sval).append("'").toString());
+                if(map.containsKey(key))
+                    map.put(key, (new StringBuilder()).append(map.get(key)).append(",").append(tokens.sval).toString());
+                else
+                    map.put(key, tokens.sval);
+                key = null;
+                break;
+            }
+        } while(true);
+        return map;
+    }
+
+    private static String toHex(byte bytes[])
+    {
+        char result[] = new char[bytes.length * 2];
+        int index = 0;
+        int i = 0;
+        for(; index < bytes.length; index++)
+        {
+            int temp = bytes[index] & 0xff;
+            result[i++] = digits[temp >> 4];
+            result[i++] = digits[temp & 0xf];
+        }
+
+        return new String(result);
+    }
+
+    private MailLogger logger;
+    private MessageDigest md5;
+    private String uri;
+    private String clientResponse;
+    private static char digits[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
+        'a', 'b', 'c', 'd', 'e', 'f'
+    };
+
+}

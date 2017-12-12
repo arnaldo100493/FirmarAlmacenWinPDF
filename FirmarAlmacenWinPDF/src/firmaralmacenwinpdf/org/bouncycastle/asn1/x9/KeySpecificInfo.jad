@@ -1,0 +1,47 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KeySpecificInfo.java
+
+package org.bouncycastle.asn1.x9;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+public class KeySpecificInfo extends ASN1Encodable
+{
+
+    public KeySpecificInfo(DERObjectIdentifier algorithm, ASN1OctetString counter)
+    {
+        this.algorithm = algorithm;
+        this.counter = counter;
+    }
+
+    public KeySpecificInfo(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        algorithm = (DERObjectIdentifier)e.nextElement();
+        counter = (ASN1OctetString)e.nextElement();
+    }
+
+    public DERObjectIdentifier getAlgorithm()
+    {
+        return algorithm;
+    }
+
+    public ASN1OctetString getCounter()
+    {
+        return counter;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(algorithm);
+        v.add(counter);
+        return new DERSequence(v);
+    }
+
+    private DERObjectIdentifier algorithm;
+    private ASN1OctetString counter;
+}

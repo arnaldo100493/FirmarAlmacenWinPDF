@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ElGamalParameter.java
+
+package org.bouncycastle.asn1.oiw;
+
+import java.math.BigInteger;
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+public class ElGamalParameter extends ASN1Encodable
+{
+
+    public ElGamalParameter(BigInteger p, BigInteger g)
+    {
+        this.p = new DERInteger(p);
+        this.g = new DERInteger(g);
+    }
+
+    public ElGamalParameter(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        p = (DERInteger)e.nextElement();
+        g = (DERInteger)e.nextElement();
+    }
+
+    public BigInteger getP()
+    {
+        return p.getPositiveValue();
+    }
+
+    public BigInteger getG()
+    {
+        return g.getPositiveValue();
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(p);
+        v.add(g);
+        return new DERSequence(v);
+    }
+
+    DERInteger p;
+    DERInteger g;
+}

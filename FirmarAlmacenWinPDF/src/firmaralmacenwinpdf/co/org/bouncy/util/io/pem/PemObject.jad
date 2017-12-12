@@ -1,0 +1,55 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PemObject.java
+
+package co.org.bouncy.util.io.pem;
+
+import java.util.*;
+
+// Referenced classes of package co.org.bouncy.util.io.pem:
+//            PemObjectGenerator, PemGenerationException
+
+public class PemObject
+    implements PemObjectGenerator
+{
+
+    public PemObject(String type, byte content[])
+    {
+        this(type, EMPTY_LIST, content);
+    }
+
+    public PemObject(String type, List headers, byte content[])
+    {
+        this.type = type;
+        this.headers = Collections.unmodifiableList(headers);
+        this.content = content;
+    }
+
+    public String getType()
+    {
+        return type;
+    }
+
+    public List getHeaders()
+    {
+        return headers;
+    }
+
+    public byte[] getContent()
+    {
+        return content;
+    }
+
+    public PemObject generate()
+        throws PemGenerationException
+    {
+        return this;
+    }
+
+    private static final List EMPTY_LIST = Collections.unmodifiableList(new ArrayList());
+    private String type;
+    private List headers;
+    private byte content[];
+
+}

@@ -1,0 +1,86 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ASN1Encodable.java
+
+package org.bouncycastle.asn1;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1OutputStream, DEROutputStream, DEREncodable, DERObject
+
+public abstract class ASN1Encodable
+    implements DEREncodable
+{
+
+    public ASN1Encodable()
+    {
+    }
+
+    public byte[] getEncoded()
+        throws IOException
+    {
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        ASN1OutputStream aOut = new ASN1OutputStream(bOut);
+        aOut.writeObject(this);
+        return bOut.toByteArray();
+    }
+
+    public byte[] getEncoded(String encoding)
+        throws IOException
+    {
+        if(encoding.equals("DER"))
+        {
+            ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+            DEROutputStream dOut = new DEROutputStream(bOut);
+            dOut.writeObject(this);
+            return bOut.toByteArray();
+        } else
+        {
+            return getEncoded();
+        }
+    }
+
+    public byte[] getDEREncoded()
+    {
+        try
+        {
+            return getEncoded("DER");
+        }
+        catch(IOException e)
+        {
+            return null;
+        }
+    }
+
+    public int hashCode()
+    {
+        return toASN1Object().hashCode();
+    }
+
+    public boolean equals(Object o)
+    {
+        if(this == o)
+            return true;
+        if(!(o instanceof DEREncodable))
+        {
+            return false;
+        } else
+        {
+            DEREncodable other = (DEREncodable)o;
+            return toASN1Object().equals(other.getDERObject());
+        }
+    }
+
+    public DERObject getDERObject()
+    {
+        return toASN1Object();
+    }
+
+    public abstract DERObject toASN1Object();
+
+    public static final String DER = "DER";
+    public static final String BER = "BER";
+}

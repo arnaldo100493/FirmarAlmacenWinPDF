@@ -1,0 +1,337 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKKeyPairGenerator.java
+
+package org.bouncycastle.jce.provider;
+
+import java.math.BigInteger;
+import java.security.*;
+import java.security.spec.*;
+import java.util.Hashtable;
+import javax.crypto.spec.DHParameterSpec;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.cryptopro.CryptoProObjectIdentifiers;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.*;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.jce.spec.*;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKGOST3410PublicKey, JDKGOST3410PrivateKey, JCEElGamalPublicKey, JCEElGamalPrivateKey, 
+//            JDKDSAPublicKey, JDKDSAPrivateKey, JCEDHPublicKey, JCEDHPrivateKey, 
+//            JCERSAPublicKey, JCERSAPrivateCrtKey
+
+public abstract class JDKKeyPairGenerator extends KeyPairGenerator
+{
+    public static class GOST3410 extends JDKKeyPairGenerator
+    {
+
+        public void initialize(int strength, SecureRandom random)
+        {
+            this.strength = strength;
+            this.random = random;
+        }
+
+        private void init(GOST3410ParameterSpec gParams, SecureRandom random)
+        {
+            GOST3410PublicKeyParameterSetSpec spec = gParams.getPublicKeyParameters();
+            param = new GOST3410KeyGenerationParameters(random, new GOST3410Parameters(spec.getP(), spec.getQ(), spec.getA()));
+            engine.init(param);
+            initialised = true;
+            gost3410Params = gParams;
+        }
+
+        public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(params instanceof GOST3410ParameterSpec))
+            {
+                throw new InvalidAlgorithmParameterException("parameter object not a GOST3410ParameterSpec");
+            } else
+            {
+                init((GOST3410ParameterSpec)params, random);
+                return;
+            }
+        }
+
+        public KeyPair generateKeyPair()
+        {
+            if(!initialised)
+                init(new GOST3410ParameterSpec(CryptoProObjectIdentifiers.gostR3410_94_CryptoPro_A.getId()), new SecureRandom());
+            AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+            GOST3410PublicKeyParameters pub = (GOST3410PublicKeyParameters)pair.getPublic();
+            GOST3410PrivateKeyParameters priv = (GOST3410PrivateKeyParameters)pair.getPrivate();
+            return new KeyPair(new JDKGOST3410PublicKey(pub, gost3410Params), new JDKGOST3410PrivateKey(priv, gost3410Params));
+        }
+
+        GOST3410KeyGenerationParameters param;
+        GOST3410KeyPairGenerator engine;
+        GOST3410ParameterSpec gost3410Params;
+        int strength;
+        SecureRandom random;
+        boolean initialised;
+
+        public GOST3410()
+        {
+            super("GOST3410");
+            engine = new GOST3410KeyPairGenerator();
+            strength = 1024;
+            random = null;
+            initialised = false;
+        }
+    }
+
+    public static class ElGamal extends JDKKeyPairGenerator
+    {
+
+        public void initialize(int strength, SecureRandom random)
+        {
+            this.strength = strength;
+            this.random = random;
+        }
+
+        public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(params instanceof ElGamalParameterSpec) && !(params instanceof DHParameterSpec))
+                throw new InvalidAlgorithmParameterException("parameter object not a DHParameterSpec or an ElGamalParameterSpec");
+            if(params instanceof ElGamalParameterSpec)
+            {
+                ElGamalParameterSpec elParams = (ElGamalParameterSpec)params;
+                param = new ElGamalKeyGenerationParameters(random, new ElGamalParameters(elParams.getP(), elParams.getG()));
+            } else
+            {
+                DHParameterSpec dhParams = (DHParameterSpec)params;
+                param = new ElGamalKeyGenerationParameters(random, new ElGamalParameters(dhParams.getP(), dhParams.getG(), dhParams.getL()));
+            }
+            engine.init(param);
+            initialised = true;
+        }
+
+        public KeyPair generateKeyPair()
+        {
+            if(!initialised)
+            {
+                ElGamalParametersGenerator pGen = new ElGamalParametersGenerator();
+                pGen.init(strength, certainty, random);
+                param = new ElGamalKeyGenerationParameters(random, pGen.generateParameters());
+                engine.init(param);
+                initialised = true;
+            }
+            AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+            ElGamalPublicKeyParameters pub = (ElGamalPublicKeyParameters)pair.getPublic();
+            ElGamalPrivateKeyParameters priv = (ElGamalPrivateKeyParameters)pair.getPrivate();
+            return new KeyPair(new JCEElGamalPublicKey(pub), new JCEElGamalPrivateKey(priv));
+        }
+
+        ElGamalKeyGenerationParameters param;
+        ElGamalKeyPairGenerator engine;
+        int strength;
+        int certainty;
+        SecureRandom random;
+        boolean initialised;
+
+        public ElGamal()
+        {
+            super("ElGamal");
+            engine = new ElGamalKeyPairGenerator();
+            strength = 1024;
+            certainty = 20;
+            random = new SecureRandom();
+            initialised = false;
+        }
+    }
+
+    public static class DSA extends JDKKeyPairGenerator
+    {
+
+        public void initialize(int strength, SecureRandom random)
+        {
+            if(strength < 512 || strength > 1024 || strength % 64 != 0)
+            {
+                throw new InvalidParameterException("strength must be from 512 - 1024 and a multiple of 64");
+            } else
+            {
+                this.strength = strength;
+                this.random = random;
+                return;
+            }
+        }
+
+        public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(params instanceof DSAParameterSpec))
+            {
+                throw new InvalidAlgorithmParameterException("parameter object not a DSAParameterSpec");
+            } else
+            {
+                DSAParameterSpec dsaParams = (DSAParameterSpec)params;
+                param = new DSAKeyGenerationParameters(random, new DSAParameters(dsaParams.getP(), dsaParams.getQ(), dsaParams.getG()));
+                engine.init(param);
+                initialised = true;
+                return;
+            }
+        }
+
+        public KeyPair generateKeyPair()
+        {
+            if(!initialised)
+            {
+                DSAParametersGenerator pGen = new DSAParametersGenerator();
+                pGen.init(strength, certainty, random);
+                param = new DSAKeyGenerationParameters(random, pGen.generateParameters());
+                engine.init(param);
+                initialised = true;
+            }
+            AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+            DSAPublicKeyParameters pub = (DSAPublicKeyParameters)pair.getPublic();
+            DSAPrivateKeyParameters priv = (DSAPrivateKeyParameters)pair.getPrivate();
+            return new KeyPair(new JDKDSAPublicKey(pub), new JDKDSAPrivateKey(priv));
+        }
+
+        DSAKeyGenerationParameters param;
+        DSAKeyPairGenerator engine;
+        int strength;
+        int certainty;
+        SecureRandom random;
+        boolean initialised;
+
+        public DSA()
+        {
+            super("DSA");
+            engine = new DSAKeyPairGenerator();
+            strength = 1024;
+            certainty = 20;
+            random = new SecureRandom();
+            initialised = false;
+        }
+    }
+
+    public static class DH extends JDKKeyPairGenerator
+    {
+
+        public void initialize(int strength, SecureRandom random)
+        {
+            this.strength = strength;
+            this.random = random;
+        }
+
+        public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(params instanceof DHParameterSpec))
+            {
+                throw new InvalidAlgorithmParameterException("parameter object not a DHParameterSpec");
+            } else
+            {
+                DHParameterSpec dhParams = (DHParameterSpec)params;
+                param = new DHKeyGenerationParameters(random, new DHParameters(dhParams.getP(), dhParams.getG(), null, dhParams.getL()));
+                engine.init(param);
+                initialised = true;
+                return;
+            }
+        }
+
+        public KeyPair generateKeyPair()
+        {
+            if(!initialised)
+            {
+                Integer paramStrength = new Integer(strength);
+                if(params.containsKey(paramStrength))
+                {
+                    param = (DHKeyGenerationParameters)params.get(paramStrength);
+                } else
+                {
+                    DHParametersGenerator pGen = new DHParametersGenerator();
+                    pGen.init(strength, certainty, random);
+                    param = new DHKeyGenerationParameters(random, pGen.generateParameters());
+                    params.put(paramStrength, param);
+                }
+                engine.init(param);
+                initialised = true;
+            }
+            AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+            DHPublicKeyParameters pub = (DHPublicKeyParameters)pair.getPublic();
+            DHPrivateKeyParameters priv = (DHPrivateKeyParameters)pair.getPrivate();
+            return new KeyPair(new JCEDHPublicKey(pub), new JCEDHPrivateKey(priv));
+        }
+
+        private static Hashtable params = new Hashtable();
+        DHKeyGenerationParameters param;
+        DHBasicKeyPairGenerator engine;
+        int strength;
+        int certainty;
+        SecureRandom random;
+        boolean initialised;
+
+
+        public DH()
+        {
+            super("DH");
+            engine = new DHBasicKeyPairGenerator();
+            strength = 1024;
+            certainty = 20;
+            random = new SecureRandom();
+            initialised = false;
+        }
+    }
+
+    public static class RSA extends JDKKeyPairGenerator
+    {
+
+        public void initialize(int strength, SecureRandom random)
+        {
+            param = new RSAKeyGenerationParameters(defaultPublicExponent, random, strength, 12);
+            engine.init(param);
+        }
+
+        public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+            throws InvalidAlgorithmParameterException
+        {
+            if(!(params instanceof RSAKeyGenParameterSpec))
+            {
+                throw new InvalidAlgorithmParameterException("parameter object not a RSAKeyGenParameterSpec");
+            } else
+            {
+                RSAKeyGenParameterSpec rsaParams = (RSAKeyGenParameterSpec)params;
+                param = new RSAKeyGenerationParameters(rsaParams.getPublicExponent(), random, rsaParams.getKeysize(), 12);
+                engine.init(param);
+                return;
+            }
+        }
+
+        public KeyPair generateKeyPair()
+        {
+            AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+            RSAKeyParameters pub = (RSAKeyParameters)pair.getPublic();
+            RSAPrivateCrtKeyParameters priv = (RSAPrivateCrtKeyParameters)pair.getPrivate();
+            return new KeyPair(new JCERSAPublicKey(pub), new JCERSAPrivateCrtKey(priv));
+        }
+
+        static final BigInteger defaultPublicExponent = BigInteger.valueOf(0x10001L);
+        static final int defaultTests = 12;
+        RSAKeyGenerationParameters param;
+        RSAKeyPairGenerator engine;
+
+
+        public RSA()
+        {
+            super("RSA");
+            engine = new RSAKeyPairGenerator();
+            param = new RSAKeyGenerationParameters(defaultPublicExponent, new SecureRandom(), 2048, 12);
+            engine.init(param);
+        }
+    }
+
+
+    public JDKKeyPairGenerator(String algorithmName)
+    {
+        super(algorithmName);
+    }
+
+    public abstract void initialize(int i, SecureRandom securerandom);
+
+    public abstract KeyPair generateKeyPair();
+}

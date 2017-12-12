@@ -1,0 +1,37 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERFactory.java
+
+package org.bouncycastle.asn1;
+
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            DERSequence, DERSet, ASN1EncodableVector
+
+class DERFactory
+{
+
+    DERFactory()
+    {
+    }
+
+    static DERSequence createSequence(ASN1EncodableVector v)
+    {
+        return v.size() >= 1 ? new DERSequence(v) : EMPTY_SEQUENCE;
+    }
+
+    static DERSet createSet(ASN1EncodableVector v)
+    {
+        return v.size() >= 1 ? new DERSet(v) : EMPTY_SET;
+    }
+
+    static DERSet createSet(ASN1EncodableVector v, boolean needsSorting)
+    {
+        return v.size() >= 1 ? new DERSet(v, needsSorting) : EMPTY_SET;
+    }
+
+    static final DERSequence EMPTY_SEQUENCE = new DERSequence();
+    static final DERSet EMPTY_SET = new DERSet();
+
+}

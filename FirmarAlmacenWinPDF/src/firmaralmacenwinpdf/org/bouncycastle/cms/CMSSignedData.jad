@@ -1,0 +1,403 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSSignedData.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.cert.CertStore;
+import java.security.cert.CertStoreException;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.*;
+import org.bouncycastle.cert.X509AttributeCertificateHolder;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.SignatureAlgorithmIdentifierFinder;
+import org.bouncycastle.util.CollectionStore;
+import org.bouncycastle.util.Store;
+import org.bouncycastle.x509.NoSuchStoreException;
+import org.bouncycastle.x509.X509Store;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSProcessableByteArray, SignerInformation, BaseDigestCalculator, SignerInformationStore, 
+//            CMSException, CMSUtils, CMSSignedHelper, CMSProcessable
+
+public class CMSSignedData
+{
+
+    private CMSSignedData(CMSSignedData c)
+    {
+        signedData = c.signedData;
+        contentInfo = c.contentInfo;
+        signedContent = c.signedContent;
+        signerInfoStore = c.signerInfoStore;
+    }
+
+    public CMSSignedData(byte sigBlock[])
+        throws CMSException
+    {
+        this(CMSUtils.readContentInfo(sigBlock));
+    }
+
+    public CMSSignedData(CMSProcessable signedContent, byte sigBlock[])
+        throws CMSException
+    {
+        this(signedContent, CMSUtils.readContentInfo(sigBlock));
+    }
+
+    public CMSSignedData(Map hashes, byte sigBlock[])
+        throws CMSException
+    {
+        this(hashes, CMSUtils.readContentInfo(sigBlock));
+    }
+
+    public CMSSignedData(CMSProcessable signedContent, InputStream sigData)
+        throws CMSException
+    {
+        this(signedContent, CMSUtils.readContentInfo(new ASN1InputStream(sigData)));
+    }
+
+    public CMSSignedData(InputStream sigData)
+        throws CMSException
+    {
+        this(CMSUtils.readContentInfo(sigData));
+    }
+
+    public CMSSignedData(CMSProcessable signedContent, ContentInfo sigData)
+    {
+        this.signedContent = signedContent;
+        contentInfo = sigData;
+        signedData = SignedData.getInstance(contentInfo.getContent());
+    }
+
+    public CMSSignedData(Map hashes, ContentInfo sigData)
+    {
+        this.hashes = hashes;
+        contentInfo = sigData;
+        signedData = SignedData.getInstance(contentInfo.getContent());
+    }
+
+    public CMSSignedData(ContentInfo sigData)
+    {
+        contentInfo = sigData;
+        signedData = SignedData.getInstance(contentInfo.getContent());
+        if(signedData.getEncapContentInfo().getContent() != null)
+            signedContent = new CMSProcessableByteArray(((ASN1OctetString)(ASN1OctetString)signedData.getEncapContentInfo().getContent()).getOctets());
+        else
+            signedContent = null;
+    }
+
+    public int getVersion()
+    {
+        return signedData.getVersion().getValue().intValue();
+    }
+
+    public SignerInformationStore getSignerInfos()
+    {
+        if(signerInfoStore == null)
+        {
+            ASN1Set s = signedData.getSignerInfos();
+            List signerInfos = new ArrayList();
+            SignatureAlgorithmIdentifierFinder sigAlgFinder = new DefaultSignatureAlgorithmIdentifierFinder();
+            for(int i = 0; i != s.size(); i++)
+            {
+                SignerInfo info = SignerInfo.getInstance(s.getObjectAt(i));
+                ASN1ObjectIdentifier contentType = signedData.getEncapContentInfo().getContentType();
+                if(hashes == null)
+                {
+                    signerInfos.add(new SignerInformation(info, contentType, signedContent, null, sigAlgFinder));
+                } else
+                {
+                    byte hash[] = (byte[])(byte[])hashes.get(info.getDigestAlgorithm().getAlgorithm().getId());
+                    signerInfos.add(new SignerInformation(info, contentType, null, new BaseDigestCalculator(hash), sigAlgFinder));
+                }
+            }
+
+            signerInfoStore = new SignerInformationStore(signerInfos);
+        }
+        return signerInfoStore;
+    }
+
+    /**
+     * @deprecated Method getAttributeCertificates is deprecated
+     */
+
+    public X509Store getAttributeCertificates(String type, String provider)
+        throws NoSuchStoreException, NoSuchProviderException, CMSException
+    {
+        return getAttributeCertificates(type, CMSUtils.getProvider(provider));
+    }
+
+    /**
+     * @deprecated Method getAttributeCertificates is deprecated
+     */
+
+    public X509Store getAttributeCertificates(String type, Provider provider)
+        throws NoSuchStoreException, CMSException
+    {
+        if(attributeStore == null)
+            attributeStore = HELPER.createAttributeStore(type, provider, signedData.getCertificates());
+        return attributeStore;
+    }
+
+    /**
+     * @deprecated Method getCertificates is deprecated
+     */
+
+    public X509Store getCertificates(String type, String provider)
+        throws NoSuchStoreException, NoSuchProviderException, CMSException
+    {
+        return getCertificates(type, CMSUtils.getProvider(provider));
+    }
+
+    /**
+     * @deprecated Method getCertificates is deprecated
+     */
+
+    public X509Store getCertificates(String type, Provider provider)
+        throws NoSuchStoreException, CMSException
+    {
+        if(certificateStore == null)
+            certificateStore = HELPER.createCertificateStore(type, provider, signedData.getCertificates());
+        return certificateStore;
+    }
+
+    /**
+     * @deprecated Method getCRLs is deprecated
+     */
+
+    public X509Store getCRLs(String type, String provider)
+        throws NoSuchStoreException, NoSuchProviderException, CMSException
+    {
+        return getCRLs(type, CMSUtils.getProvider(provider));
+    }
+
+    /**
+     * @deprecated Method getCRLs is deprecated
+     */
+
+    public X509Store getCRLs(String type, Provider provider)
+        throws NoSuchStoreException, CMSException
+    {
+        if(crlStore == null)
+            crlStore = HELPER.createCRLsStore(type, provider, signedData.getCRLs());
+        return crlStore;
+    }
+
+    /**
+     * @deprecated Method getCertificatesAndCRLs is deprecated
+     */
+
+    public CertStore getCertificatesAndCRLs(String type, String provider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, CMSException
+    {
+        return getCertificatesAndCRLs(type, CMSUtils.getProvider(provider));
+    }
+
+    /**
+     * @deprecated Method getCertificatesAndCRLs is deprecated
+     */
+
+    public CertStore getCertificatesAndCRLs(String type, Provider provider)
+        throws NoSuchAlgorithmException, CMSException
+    {
+        ASN1Set certSet = signedData.getCertificates();
+        ASN1Set crlSet = signedData.getCRLs();
+        return HELPER.createCertStore(type, provider, certSet, crlSet);
+    }
+
+    public Store getCertificates()
+    {
+        ASN1Set certSet = signedData.getCertificates();
+        if(certSet != null)
+        {
+            List certList = new ArrayList(certSet.size());
+            Enumeration en = certSet.getObjects();
+            do
+            {
+                if(!en.hasMoreElements())
+                    break;
+                org.bouncycastle.asn1.DERObject obj = ((DEREncodable)en.nextElement()).getDERObject();
+                if(obj instanceof ASN1Sequence)
+                    certList.add(new X509CertificateHolder(X509CertificateStructure.getInstance(obj)));
+            } while(true);
+            return new CollectionStore(certList);
+        } else
+        {
+            return new CollectionStore(new ArrayList());
+        }
+    }
+
+    public Store getCRLs()
+    {
+        ASN1Set crlSet = signedData.getCRLs();
+        if(crlSet != null)
+        {
+            List crlList = new ArrayList(crlSet.size());
+            Enumeration en = crlSet.getObjects();
+            do
+            {
+                if(!en.hasMoreElements())
+                    break;
+                org.bouncycastle.asn1.DERObject obj = ((DEREncodable)en.nextElement()).getDERObject();
+                if(obj instanceof ASN1Sequence)
+                    crlList.add(CertificateList.getInstance(obj));
+            } while(true);
+            return new CollectionStore(crlList);
+        } else
+        {
+            return new CollectionStore(new ArrayList());
+        }
+    }
+
+    public Store getAttributeCertificates()
+    {
+        ASN1Set certSet = signedData.getCertificates();
+        if(certSet != null)
+        {
+            List certList = new ArrayList(certSet.size());
+            Enumeration en = certSet.getObjects();
+            do
+            {
+                if(!en.hasMoreElements())
+                    break;
+                org.bouncycastle.asn1.DERObject obj = ((DEREncodable)en.nextElement()).getDERObject();
+                if(obj instanceof ASN1TaggedObject)
+                    certList.add(new X509AttributeCertificateHolder(AttributeCertificate.getInstance(((ASN1TaggedObject)obj).getObject())));
+            } while(true);
+            return new CollectionStore(certList);
+        } else
+        {
+            return new CollectionStore(new ArrayList());
+        }
+    }
+
+    public String getSignedContentTypeOID()
+    {
+        return signedData.getEncapContentInfo().getContentType().getId();
+    }
+
+    public CMSProcessable getSignedContent()
+    {
+        return signedContent;
+    }
+
+    public ContentInfo getContentInfo()
+    {
+        return contentInfo;
+    }
+
+    public byte[] getEncoded()
+        throws IOException
+    {
+        return contentInfo.getEncoded();
+    }
+
+    public static CMSSignedData replaceSigners(CMSSignedData signedData, SignerInformationStore signerInformationStore)
+    {
+        CMSSignedData cms = new CMSSignedData(signedData);
+        cms.signerInfoStore = signerInformationStore;
+        ASN1EncodableVector digestAlgs = new ASN1EncodableVector();
+        ASN1EncodableVector vec = new ASN1EncodableVector();
+        SignerInformation signer;
+        for(Iterator it = signerInformationStore.getSigners().iterator(); it.hasNext(); vec.add(signer.toSignerInfo()))
+        {
+            signer = (SignerInformation)it.next();
+            digestAlgs.add(CMSSignedHelper.INSTANCE.fixAlgID(signer.getDigestAlgorithmID()));
+        }
+
+        ASN1Set digests = new DERSet(digestAlgs);
+        ASN1Set signers = new DERSet(vec);
+        ASN1Sequence sD = (ASN1Sequence)signedData.signedData.getDERObject();
+        vec = new ASN1EncodableVector();
+        vec.add(sD.getObjectAt(0));
+        vec.add(digests);
+        for(int i = 2; i != sD.size() - 1; i++)
+            vec.add(sD.getObjectAt(i));
+
+        vec.add(signers);
+        cms.signedData = SignedData.getInstance(new BERSequence(vec));
+        cms.contentInfo = new ContentInfo(cms.contentInfo.getContentType(), cms.signedData);
+        return cms;
+    }
+
+    public static CMSSignedData replaceCertificatesAndCRLs(CMSSignedData signedData, CertStore certsAndCrls)
+        throws CMSException
+    {
+        CMSSignedData cms = new CMSSignedData(signedData);
+        ASN1Set certs = null;
+        ASN1Set crls = null;
+        try
+        {
+            ASN1Set set = CMSUtils.createBerSetFromList(CMSUtils.getCertificatesFromStore(certsAndCrls));
+            if(set.size() != 0)
+                certs = set;
+        }
+        catch(CertStoreException e)
+        {
+            throw new CMSException("error getting certs from certStore", e);
+        }
+        try
+        {
+            ASN1Set set = CMSUtils.createBerSetFromList(CMSUtils.getCRLsFromStore(certsAndCrls));
+            if(set.size() != 0)
+                crls = set;
+        }
+        catch(CertStoreException e)
+        {
+            throw new CMSException("error getting crls from certStore", e);
+        }
+        cms.signedData = new SignedData(signedData.signedData.getDigestAlgorithms(), signedData.signedData.getEncapContentInfo(), certs, crls, signedData.signedData.getSignerInfos());
+        cms.contentInfo = new ContentInfo(cms.contentInfo.getContentType(), cms.signedData);
+        return cms;
+    }
+
+    public static CMSSignedData replaceCertificatesAndCRLs(CMSSignedData signedData, Store certificates, Store attrCerts, Store crls)
+        throws CMSException
+    {
+        CMSSignedData cms = new CMSSignedData(signedData);
+        ASN1Set certSet = null;
+        ASN1Set crlSet = null;
+        if(certificates != null || attrCerts != null)
+        {
+            List certs = new ArrayList();
+            if(certificates != null)
+                certs.addAll(CMSUtils.getCertificatesFromStore(certificates));
+            if(attrCerts != null)
+                certs.addAll(CMSUtils.getAttributeCertificatesFromStore(attrCerts));
+            ASN1Set set = CMSUtils.createBerSetFromList(certs);
+            if(set.size() != 0)
+                certSet = set;
+        }
+        if(crls != null)
+        {
+            ASN1Set set = CMSUtils.createBerSetFromList(CMSUtils.getCRLsFromStore(crls));
+            if(set.size() != 0)
+                crlSet = set;
+        }
+        cms.signedData = new SignedData(signedData.signedData.getDigestAlgorithms(), signedData.signedData.getEncapContentInfo(), certSet, crlSet, signedData.signedData.getSignerInfos());
+        cms.contentInfo = new ContentInfo(cms.contentInfo.getContentType(), cms.signedData);
+        return cms;
+    }
+
+    private static final CMSSignedHelper HELPER;
+    SignedData signedData;
+    ContentInfo contentInfo;
+    CMSProcessable signedContent;
+    SignerInformationStore signerInfoStore;
+    X509Store attributeStore;
+    X509Store certificateStore;
+    X509Store crlStore;
+    private Map hashes;
+
+    static 
+    {
+        HELPER = CMSSignedHelper.INSTANCE;
+    }
+}

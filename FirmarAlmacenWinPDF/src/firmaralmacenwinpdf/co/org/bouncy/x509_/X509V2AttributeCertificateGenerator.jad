@@ -1,0 +1,176 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509V2AttributeCertificateGenerator.java
+
+package co.org.bouncy.x509_;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.x509.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.cert.CertificateEncodingException;
+import java.util.Date;
+import java.util.Iterator;
+
+// Referenced classes of package co.org.bouncy.x509_:
+//            X509V2AttributeCertificate, ExtCertificateEncodingException, AttributeCertificateHolder, AttributeCertificateIssuer, 
+//            X509Util, X509Attribute, X509AttributeCertificate
+
+/**
+ * @deprecated Class X509V2AttributeCertificateGenerator is deprecated
+ */
+
+public class X509V2AttributeCertificateGenerator
+{
+
+    public X509V2AttributeCertificateGenerator()
+    {
+        acInfoGen = new V2AttributeCertificateInfoGenerator();
+        extGenerator = new X509ExtensionsGenerator();
+    }
+
+    public void reset()
+    {
+        acInfoGen = new V2AttributeCertificateInfoGenerator();
+        extGenerator.reset();
+    }
+
+    public void setHolder(AttributeCertificateHolder holder)
+    {
+        acInfoGen.setHolder(holder.holder);
+    }
+
+    public void setIssuer(AttributeCertificateIssuer issuer)
+    {
+        acInfoGen.setIssuer(AttCertIssuer.getInstance(issuer.form));
+    }
+
+    public void setSerialNumber(BigInteger serialNumber)
+    {
+        acInfoGen.setSerialNumber(new ASN1Integer(serialNumber));
+    }
+
+    public void setNotBefore(Date date)
+    {
+        acInfoGen.setStartDate(new ASN1GeneralizedTime(date));
+    }
+
+    public void setNotAfter(Date date)
+    {
+        acInfoGen.setEndDate(new ASN1GeneralizedTime(date));
+    }
+
+    public void setSignatureAlgorithm(String signatureAlgorithm)
+    {
+        this.signatureAlgorithm = signatureAlgorithm;
+        try
+        {
+            sigOID = X509Util.getAlgorithmOID(signatureAlgorithm);
+        }
+        catch(Exception e)
+        {
+            throw new IllegalArgumentException("Unknown signature type requested");
+        }
+        sigAlgId = X509Util.getSigAlgID(sigOID, signatureAlgorithm);
+        acInfoGen.setSignature(sigAlgId);
+    }
+
+    public void addAttribute(X509Attribute attribute)
+    {
+        acInfoGen.addAttribute(Attribute.getInstance(attribute.toASN1Object()));
+    }
+
+    public void setIssuerUniqueId(boolean iui[])
+    {
+        throw new RuntimeException("not implemented (yet)");
+    }
+
+    public void addExtension(String oid, boolean critical, ASN1Encodable value)
+        throws IOException
+    {
+        extGenerator.addExtension(new ASN1ObjectIdentifier(oid), critical, value);
+    }
+
+    public void addExtension(String oid, boolean critical, byte value[])
+    {
+        extGenerator.addExtension(new ASN1ObjectIdentifier(oid), critical, value);
+    }
+
+    /**
+     * @deprecated Method generateCertificate is deprecated
+     */
+
+    public X509AttributeCertificate generateCertificate(PrivateKey key, String provider)
+        throws NoSuchProviderException, SecurityException, SignatureException, InvalidKeyException
+    {
+        return generateCertificate(key, provider, null);
+    }
+
+    /**
+     * @deprecated Method generateCertificate is deprecated
+     */
+
+    public X509AttributeCertificate generateCertificate(PrivateKey key, String provider, SecureRandom random)
+        throws NoSuchProviderException, SecurityException, SignatureException, InvalidKeyException
+    {
+        try
+        {
+            return generate(key, provider, random);
+        }
+        catch(NoSuchProviderException e)
+        {
+            throw e;
+        }
+        catch(SignatureException e)
+        {
+            throw e;
+        }
+        catch(InvalidKeyException e)
+        {
+            throw e;
+        }
+        catch(GeneralSecurityException e)
+        {
+            throw new SecurityException((new StringBuilder()).append("exception creating certificate: ").append(e).toString());
+        }
+    }
+
+    public X509AttributeCertificate generate(PrivateKey key, String provider)
+        throws CertificateEncodingException, IllegalStateException, NoSuchProviderException, SignatureException, InvalidKeyException, NoSuchAlgorithmException
+    {
+        return generate(key, provider, null);
+    }
+
+    public X509AttributeCertificate generate(PrivateKey key, String provider, SecureRandom random)
+        throws CertificateEncodingException, IllegalStateException, NoSuchProviderException, NoSuchAlgorithmException, SignatureException, InvalidKeyException
+    {
+        if(!extGenerator.isEmpty())
+            acInfoGen.setExtensions(extGenerator.generate());
+        AttributeCertificateInfo acInfo = acInfoGen.generateAttributeCertificateInfo();
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(acInfo);
+        v.add(sigAlgId);
+        try
+        {
+            v.add(new DERBitString(X509Util.calculateSignature(sigOID, signatureAlgorithm, provider, key, random, acInfo)));
+            return new X509V2AttributeCertificate(new AttributeCertificate(new DERSequence(v)));
+        }
+        catch(IOException e)
+        {
+            throw new ExtCertificateEncodingException("constructed invalid certificate", e);
+        }
+    }
+
+    public Iterator getSignatureAlgNames()
+    {
+        return X509Util.getAlgNames();
+    }
+
+    private V2AttributeCertificateInfoGenerator acInfoGen;
+    private DERObjectIdentifier sigOID;
+    private AlgorithmIdentifier sigAlgId;
+    private String signatureAlgorithm;
+    private X509ExtensionsGenerator extGenerator;
+}

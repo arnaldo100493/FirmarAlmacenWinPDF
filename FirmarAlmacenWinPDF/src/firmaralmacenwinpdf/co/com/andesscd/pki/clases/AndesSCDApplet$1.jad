@@ -1,0 +1,40 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   AndesSCDApplet.java
+
+package co.com.andesscd.pki.clases;
+
+import java.io.PrintStream;
+import java.security.PrivilegedAction;
+import javax.swing.JOptionPane;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            AndesSCDApplet, CMS
+
+class AndesSCDApplet$1
+    implements PrivilegedAction
+{
+
+    public Object run()
+    {
+        try
+        {
+            return CMS.listarWindowsStore();
+        }
+        catch(Exception e)
+        {
+            System.out.println(e.getMessage());
+            JOptionPane.showMessageDialog(null, (new StringBuilder()).append("No fue posible listar los certificados del almacen de windows. ").append(e.getMessage()).toString(), "Error", 0);
+            return null;
+        }
+    }
+
+    final AndesSCDApplet this$0;
+
+    AndesSCDApplet$1()
+    {
+        this$0 = AndesSCDApplet.this;
+        super();
+    }
+}

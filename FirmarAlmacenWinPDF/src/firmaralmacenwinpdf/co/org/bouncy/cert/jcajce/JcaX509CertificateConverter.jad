@@ -1,0 +1,96 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JcaX509CertificateConverter.java
+
+package co.org.bouncy.cert.jcajce;
+
+import co.org.bouncy.cert.X509CertificateHolder;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.security.NoSuchProviderException;
+import java.security.Provider;
+import java.security.cert.*;
+
+// Referenced classes of package co.org.bouncy.cert.jcajce:
+//            DefaultCertHelper, ProviderCertHelper, NamedCertHelper, CertHelper
+
+public class JcaX509CertificateConverter
+{
+    private class ExCertificateException extends CertificateException
+    {
+
+        public Throwable getCause()
+        {
+            return cause;
+        }
+
+        private Throwable cause;
+        final JcaX509CertificateConverter this$0;
+
+        public ExCertificateException(String msg, Throwable cause)
+        {
+            this$0 = JcaX509CertificateConverter.this;
+            super(msg);
+            this.cause = cause;
+        }
+    }
+
+    private class ExCertificateParsingException extends CertificateParsingException
+    {
+
+        public Throwable getCause()
+        {
+            return cause;
+        }
+
+        private Throwable cause;
+        final JcaX509CertificateConverter this$0;
+
+        public ExCertificateParsingException(String msg, Throwable cause)
+        {
+            this$0 = JcaX509CertificateConverter.this;
+            super(msg);
+            this.cause = cause;
+        }
+    }
+
+
+    public JcaX509CertificateConverter()
+    {
+        helper = new DefaultCertHelper();
+        helper = new DefaultCertHelper();
+    }
+
+    public JcaX509CertificateConverter setProvider(Provider provider)
+    {
+        helper = new ProviderCertHelper(provider);
+        return this;
+    }
+
+    public JcaX509CertificateConverter setProvider(String providerName)
+    {
+        helper = new NamedCertHelper(providerName);
+        return this;
+    }
+
+    public X509Certificate getCertificate(X509CertificateHolder certHolder)
+        throws CertificateException
+    {
+        try
+        {
+            CertificateFactory cFact = helper.getCertificateFactory("X.509");
+            return (X509Certificate)cFact.generateCertificate(new ByteArrayInputStream(certHolder.getEncoded()));
+        }
+        catch(IOException e)
+        {
+            throw new ExCertificateParsingException((new StringBuilder()).append("exception parsing certificate: ").append(e.getMessage()).toString(), e);
+        }
+        catch(NoSuchProviderException e)
+        {
+            throw new ExCertificateException((new StringBuilder()).append("cannot find required provider:").append(e.getMessage()).toString(), e);
+        }
+    }
+
+    private CertHelper helper;
+}

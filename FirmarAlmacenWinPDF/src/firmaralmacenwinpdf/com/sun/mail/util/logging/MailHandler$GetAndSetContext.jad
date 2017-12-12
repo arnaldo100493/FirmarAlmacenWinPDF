@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailHandler.java
+
+package com.sun.mail.util.logging;
+
+import java.security.PrivilegedAction;
+
+// Referenced classes of package com.sun.mail.util.logging:
+//            MailHandler
+
+private static final class MailHandler$GetAndSetContext
+    implements PrivilegedAction
+{
+
+    public final Object run()
+    {
+        Thread current = Thread.currentThread();
+        ClassLoader ccl = current.getContextClassLoader();
+        ClassLoader loader;
+        if(source == null)
+            loader = null;
+        else
+        if(source instanceof ClassLoader)
+            loader = (ClassLoader)source;
+        else
+        if(source instanceof Class)
+            loader = ((Class)source).getClassLoader();
+        else
+            loader = source.getClass().getClassLoader();
+        if(ccl != loader)
+        {
+            current.setContextClassLoader(loader);
+            return ccl;
+        } else
+        {
+            return this;
+        }
+    }
+
+    private final Object source;
+
+    MailHandler$GetAndSetContext(Object source)
+    {
+        this.source = source;
+    }
+}

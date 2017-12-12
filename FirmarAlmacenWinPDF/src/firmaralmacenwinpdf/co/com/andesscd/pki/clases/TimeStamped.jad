@@ -1,0 +1,105 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   TimeStamped.java
+
+package co.com.andesscd.pki.clases;
+
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+import co.org.bouncy.cert.X509CertificateHolder;
+import co.org.bouncy.cms.*;
+import co.org.bouncy.tsp.*;
+import co.org.bouncy.util.Store;
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.*;
+import java.util.*;
+
+public class TimeStamped
+{
+
+    public TimeStamped(byte encodedTimeStamped[])
+        throws CMSException, TSPException, IOException, CertificateException, Exception
+    {
+        TimeStampToken timeStampToken = new TimeStampToken(new CMSSignedData(encodedTimeStamped));
+        CMSSignedData cmsSignedData = new CMSSignedData(encodedTimeStamped);
+        SimpleTimeZone simpleTimeZone = new SimpleTimeZone(0, "America/Bogota");
+        encoded = encodedTimeStamped;
+        fechaEstampado = new GregorianCalendar(simpleTimeZone);
+        fechaEstampado.setTime(timeStampToken.getTimeStampInfo().getGenTime());
+        hash = timeStampToken.getTimeStampInfo().getMessageImprintDigest();
+        hashAlgoritmoOid = timeStampToken.getTimeStampInfo().getMessageImprintAlgOID().getId();
+        Store certificateStore = cmsSignedData.getCertificates();
+        Iterator signerIterator = cmsSignedData.getSignerInfos().getSigners().iterator();
+        if(signerIterator.hasNext())
+        {
+            SignerInformation signerInformation = (SignerInformation)signerIterator.next();
+            Iterator certificateIterator = certificateStore.getMatches(signerInformation.getSID()).iterator();
+            X509CertificateHolder certificateHolder = (X509CertificateHolder)certificateIterator.next();
+            CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+            firmante = (X509Certificate)certificateFactory.generateCertificate(new ByteArrayInputStream(certificateHolder.getEncoded()));
+        }
+    }
+
+    public GregorianCalendar getFechaEstampado()
+    {
+        return fechaEstampado;
+    }
+
+    public byte[] getHash()
+    {
+        return hash;
+    }
+
+    public String getHashAlgorithmOid()
+    {
+        return hashAlgoritmoOid;
+    }
+
+    public X509Certificate getCertificadoFirmante()
+    {
+        return firmante;
+    }
+
+    public byte[] getEncoded()
+    {
+        return encoded;
+    }
+
+    public boolean verificarDatos(InputStream stream)
+        throws NoSuchAlgorithmException, IOException, Exception
+    {
+        byte buffer[] = new byte[0x100000];
+        MessageDigest sha1 = MessageDigest.getInstance("SHA");
+        int leidos;
+        do
+        {
+            leidos = stream.read(buffer);
+            if(leidos > 0)
+                sha1.update(buffer, 0, leidos);
+        } while(leidos > 0);
+        byte hashCalculado[] = sha1.digest();
+        if(hash == null)
+            throw new Exception("El hash en el token es nulo");
+        if(hash.length != hashCalculado.length)
+            return false;
+        for(int i = 0; i < hash.length; i++)
+            if(hash[i] != hashCalculado[i])
+                return false;
+
+        return true;
+    }
+
+    public boolean verificarDatos(String rutaArchivo)
+        throws NoSuchAlgorithmException, IOException, Exception
+    {
+        return verificarDatos(((InputStream) (new FileInputStream(rutaArchivo))));
+    }
+
+    private GregorianCalendar fechaEstampado;
+    private byte hash[];
+    private String hashAlgoritmoOid;
+    private X509Certificate firmante;
+    private byte encoded[];
+}

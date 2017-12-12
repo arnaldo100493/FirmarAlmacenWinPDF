@@ -1,0 +1,42 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPFolder.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.ProtocolException;
+import com.sun.mail.imap.protocol.IMAPProtocol;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPFolder
+
+class IMAPFolder$19
+    implements tocolCommand
+{
+
+    public Object doCommand(IMAPProtocol p)
+        throws ProtocolException
+    {
+        if(IMAPFolder.access$000(IMAPFolder.this) == 0)
+        {
+            p.idleStart();
+            IMAPFolder.access$002(IMAPFolder.this, 1);
+            return Boolean.TRUE;
+        }
+        try
+        {
+            messageCacheLock.wait();
+        }
+        catch(InterruptedException ex) { }
+        return Boolean.FALSE;
+    }
+
+    final IMAPFolder this$0;
+
+    IMAPFolder$19()
+    {
+        this$0 = IMAPFolder.this;
+        super();
+    }
+}

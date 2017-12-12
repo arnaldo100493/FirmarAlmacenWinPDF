@@ -1,0 +1,84 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Iso4217CurrencyCode.java
+
+package org.bouncycastle.asn1.x509.qualified;
+
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+
+public class Iso4217CurrencyCode extends ASN1Encodable
+    implements ASN1Choice
+{
+
+    public static Iso4217CurrencyCode getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof Iso4217CurrencyCode))
+            return (Iso4217CurrencyCode)obj;
+        if(obj instanceof DERInteger)
+        {
+            DERInteger numericobj = DERInteger.getInstance(obj);
+            int numeric = numericobj.getValue().intValue();
+            return new Iso4217CurrencyCode(numeric);
+        }
+        if(obj instanceof DERPrintableString)
+        {
+            DERPrintableString alphabetic = DERPrintableString.getInstance(obj);
+            return new Iso4217CurrencyCode(alphabetic.getString());
+        } else
+        {
+            throw new IllegalArgumentException("unknown object in getInstance");
+        }
+    }
+
+    public Iso4217CurrencyCode(int numeric)
+    {
+        if(numeric > 999 || numeric < 1)
+        {
+            throw new IllegalArgumentException("wrong size in numeric code : not in (1..999)");
+        } else
+        {
+            obj = new DERInteger(numeric);
+            return;
+        }
+    }
+
+    public Iso4217CurrencyCode(String alphabetic)
+    {
+        if(alphabetic.length() > 3)
+        {
+            throw new IllegalArgumentException("wrong size in alphabetic code : max size is 3");
+        } else
+        {
+            obj = new DERPrintableString(alphabetic);
+            return;
+        }
+    }
+
+    public boolean isAlphabetic()
+    {
+        return obj instanceof DERPrintableString;
+    }
+
+    public String getAlphabetic()
+    {
+        return ((DERPrintableString)obj).getString();
+    }
+
+    public int getNumeric()
+    {
+        return ((DERInteger)obj).getValue().intValue();
+    }
+
+    public DERObject toASN1Object()
+    {
+        return obj.getDERObject();
+    }
+
+    final int ALPHABETIC_MAXSIZE = 3;
+    final int NUMERIC_MINSIZE = 1;
+    final int NUMERIC_MAXSIZE = 999;
+    DEREncodable obj;
+    int numeric;
+}

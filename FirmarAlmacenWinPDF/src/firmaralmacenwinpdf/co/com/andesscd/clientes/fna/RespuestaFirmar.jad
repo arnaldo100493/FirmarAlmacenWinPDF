@@ -1,0 +1,42 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   RespuestaFirmar.java
+
+package co.com.andesscd.clientes.fna;
+
+import co.com.andesscd.Base64Coder;
+import co.com.andesscd.pki.clases.CMSException;
+
+public class RespuestaFirmar
+{
+
+    public RespuestaFirmar(int estado, String mensaje)
+        throws CMSException
+    {
+        this.estado = estado;
+        this.mensaje = mensaje;
+        if(this.estado != 0)
+            throw new CMSException(this.mensaje);
+        else
+            return;
+    }
+
+    public int getEstado()
+    {
+        return estado;
+    }
+
+    public String getMensaje()
+    {
+        return mensaje;
+    }
+
+    public byte[] getFirma()
+    {
+        return Base64Coder.decode(mensaje);
+    }
+
+    protected int estado;
+    protected String mensaje;
+}

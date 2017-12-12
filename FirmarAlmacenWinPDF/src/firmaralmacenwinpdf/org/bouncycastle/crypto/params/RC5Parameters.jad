@@ -1,0 +1,40 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RC5Parameters.java
+
+package org.bouncycastle.crypto.params;
+
+import org.bouncycastle.crypto.CipherParameters;
+
+public class RC5Parameters
+    implements CipherParameters
+{
+
+    public RC5Parameters(byte key[], int rounds)
+    {
+        if(key.length > 255)
+        {
+            throw new IllegalArgumentException("RC5 key length can be no greater than 255");
+        } else
+        {
+            this.key = new byte[key.length];
+            this.rounds = rounds;
+            System.arraycopy(key, 0, this.key, 0, key.length);
+            return;
+        }
+    }
+
+    public byte[] getKey()
+    {
+        return key;
+    }
+
+    public int getRounds()
+    {
+        return rounds;
+    }
+
+    private byte key[];
+    private int rounds;
+}

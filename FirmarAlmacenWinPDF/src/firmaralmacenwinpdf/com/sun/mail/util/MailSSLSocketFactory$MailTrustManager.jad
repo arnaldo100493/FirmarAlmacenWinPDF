@@ -1,0 +1,60 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailSSLSocketFactory.java
+
+package com.sun.mail.util;
+
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+
+// Referenced classes of package com.sun.mail.util:
+//            MailSSLSocketFactory
+
+private class MailSSLSocketFactory$MailTrustManager
+    implements X509TrustManager
+{
+
+    public void checkClientTrusted(X509Certificate certs[], String authType)
+        throws CertificateException
+    {
+        if(!isTrustAllHosts() && getTrustedHosts() == null)
+            adapteeTrustManager.checkClientTrusted(certs, authType);
+    }
+
+    public void checkServerTrusted(X509Certificate certs[], String authType)
+        throws CertificateException
+    {
+        if(!isTrustAllHosts() && getTrustedHosts() == null)
+            adapteeTrustManager.checkServerTrusted(certs, authType);
+    }
+
+    public X509Certificate[] getAcceptedIssuers()
+    {
+        return adapteeTrustManager.getAcceptedIssuers();
+    }
+
+    private X509TrustManager adapteeTrustManager;
+    final MailSSLSocketFactory this$0;
+
+    private MailSSLSocketFactory$MailTrustManager()
+        throws GeneralSecurityException
+    {
+        this$0 = MailSSLSocketFactory.this;
+        super();
+        adapteeTrustManager = null;
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
+        tmf.init((KeyStore)null);
+        adapteeTrustManager = (X509TrustManager)tmf.getTrustManagers()[0];
+    }
+
+    MailSSLSocketFactory$MailTrustManager(MailSSLSocketFactory._cls1 x1)
+        throws GeneralSecurityException
+    {
+        this();
+    }
+}

@@ -1,0 +1,37 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DHKeyPairGenerator.java
+
+package org.bouncycastle.crypto.generators;
+
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.params.*;
+
+// Referenced classes of package org.bouncycastle.crypto.generators:
+//            DHKeyGeneratorHelper
+
+public class DHKeyPairGenerator
+    implements AsymmetricCipherKeyPairGenerator
+{
+
+    public DHKeyPairGenerator()
+    {
+    }
+
+    public void init(KeyGenerationParameters param)
+    {
+        this.param = (DHKeyGenerationParameters)param;
+    }
+
+    public AsymmetricCipherKeyPair generateKeyPair()
+    {
+        DHKeyGeneratorHelper helper = DHKeyGeneratorHelper.INSTANCE;
+        org.bouncycastle.crypto.params.DHParameters dhp = param.getParameters();
+        java.math.BigInteger x = helper.calculatePrivate(dhp, param.getRandom());
+        java.math.BigInteger y = helper.calculatePublic(dhp, x);
+        return new AsymmetricCipherKeyPair(new DHPublicKeyParameters(y, dhp), new DHPrivateKeyParameters(x, dhp));
+    }
+
+    private DHKeyGenerationParameters param;
+}

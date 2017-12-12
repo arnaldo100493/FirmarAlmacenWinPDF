@@ -1,0 +1,183 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERExternal.java
+
+package org.bouncycastle.asn1;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, DERObjectIdentifier, DERInteger, DERTaggedObject, 
+//            ASN1EncodableVector, DERObject, DEREncodable, DEROutputStream
+
+public class DERExternal extends ASN1Object
+{
+
+    public DERExternal(ASN1EncodableVector vector)
+    {
+        int offset = 0;
+        DERObject enc = getObjFromVector(vector, offset);
+        if(enc instanceof DERObjectIdentifier)
+        {
+            directReference = (DERObjectIdentifier)enc;
+            offset++;
+            enc = getObjFromVector(vector, offset);
+        }
+        if(enc instanceof DERInteger)
+        {
+            indirectReference = (DERInteger)enc;
+            offset++;
+            enc = getObjFromVector(vector, offset);
+        }
+        if(!(enc instanceof DERTaggedObject))
+        {
+            dataValueDescriptor = (ASN1Object)enc;
+            offset++;
+            enc = getObjFromVector(vector, offset);
+        }
+        if(vector.size() != offset + 1)
+            throw new IllegalArgumentException("input vector too large");
+        if(!(enc instanceof DERTaggedObject))
+        {
+            throw new IllegalArgumentException("No tagged object found in vector. Structure doesn't seem to be of type External");
+        } else
+        {
+            DERTaggedObject obj = (DERTaggedObject)enc;
+            setEncoding(obj.getTagNo());
+            externalContent = obj.getObject();
+            return;
+        }
+    }
+
+    private DERObject getObjFromVector(ASN1EncodableVector v, int index)
+    {
+        if(v.size() <= index)
+            throw new IllegalArgumentException("too few objects in input vector");
+        else
+            return v.get(index).getDERObject();
+    }
+
+    public DERExternal(DERObjectIdentifier directReference, DERInteger indirectReference, ASN1Object dataValueDescriptor, DERTaggedObject externalData)
+    {
+        this(directReference, indirectReference, dataValueDescriptor, externalData.getTagNo(), externalData.getDERObject());
+    }
+
+    public DERExternal(DERObjectIdentifier directReference, DERInteger indirectReference, ASN1Object dataValueDescriptor, int encoding, DERObject externalData)
+    {
+        setDirectReference(directReference);
+        setIndirectReference(indirectReference);
+        setDataValueDescriptor(dataValueDescriptor);
+        setEncoding(encoding);
+        setExternalContent(externalData.getDERObject());
+    }
+
+    public int hashCode()
+    {
+        int ret = 0;
+        if(directReference != null)
+            ret = directReference.hashCode();
+        if(indirectReference != null)
+            ret ^= indirectReference.hashCode();
+        if(dataValueDescriptor != null)
+            ret ^= dataValueDescriptor.hashCode();
+        ret ^= externalContent.hashCode();
+        return ret;
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        if(directReference != null)
+            baos.write(directReference.getDEREncoded());
+        if(indirectReference != null)
+            baos.write(indirectReference.getDEREncoded());
+        if(dataValueDescriptor != null)
+            baos.write(dataValueDescriptor.getDEREncoded());
+        DERTaggedObject obj = new DERTaggedObject(encoding, externalContent);
+        baos.write(obj.getDEREncoded());
+        out.writeEncoded(32, 8, baos.toByteArray());
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof DERExternal))
+            return false;
+        if(this == o)
+            return true;
+        DERExternal other = (DERExternal)o;
+        if(directReference != null && (other.directReference == null || !other.directReference.equals(directReference)))
+            return false;
+        if(indirectReference != null && (other.indirectReference == null || !other.indirectReference.equals(indirectReference)))
+            return false;
+        if(dataValueDescriptor != null && (other.dataValueDescriptor == null || !other.dataValueDescriptor.equals(dataValueDescriptor)))
+            return false;
+        else
+            return externalContent.equals(other.externalContent);
+    }
+
+    public ASN1Object getDataValueDescriptor()
+    {
+        return dataValueDescriptor;
+    }
+
+    public DERObjectIdentifier getDirectReference()
+    {
+        return directReference;
+    }
+
+    public int getEncoding()
+    {
+        return encoding;
+    }
+
+    public DERObject getExternalContent()
+    {
+        return externalContent;
+    }
+
+    public DERInteger getIndirectReference()
+    {
+        return indirectReference;
+    }
+
+    private void setDataValueDescriptor(ASN1Object dataValueDescriptor)
+    {
+        this.dataValueDescriptor = dataValueDescriptor;
+    }
+
+    private void setDirectReference(DERObjectIdentifier directReferemce)
+    {
+        directReference = directReferemce;
+    }
+
+    private void setEncoding(int encoding)
+    {
+        if(encoding < 0 || encoding > 2)
+        {
+            throw new IllegalArgumentException((new StringBuilder()).append("invalid encoding value: ").append(encoding).toString());
+        } else
+        {
+            this.encoding = encoding;
+            return;
+        }
+    }
+
+    private void setExternalContent(DERObject externalContent)
+    {
+        this.externalContent = externalContent;
+    }
+
+    private void setIndirectReference(DERInteger indirectReference)
+    {
+        this.indirectReference = indirectReference;
+    }
+
+    private DERObjectIdentifier directReference;
+    private DERInteger indirectReference;
+    private ASN1Object dataValueDescriptor;
+    private int encoding;
+    private DERObject externalContent;
+}

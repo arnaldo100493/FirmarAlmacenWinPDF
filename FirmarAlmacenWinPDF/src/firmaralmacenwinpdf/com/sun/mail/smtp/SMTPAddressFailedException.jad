@@ -1,0 +1,41 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPAddressFailedException.java
+
+package com.sun.mail.smtp;
+
+import javax.mail.SendFailedException;
+import javax.mail.internet.InternetAddress;
+
+public class SMTPAddressFailedException extends SendFailedException
+{
+
+    public SMTPAddressFailedException(InternetAddress addr, String cmd, int rc, String err)
+    {
+        super(err);
+        this.addr = addr;
+        this.cmd = cmd;
+        this.rc = rc;
+    }
+
+    public InternetAddress getAddress()
+    {
+        return addr;
+    }
+
+    public String getCommand()
+    {
+        return cmd;
+    }
+
+    public int getReturnCode()
+    {
+        return rc;
+    }
+
+    protected InternetAddress addr;
+    protected String cmd;
+    protected int rc;
+    private static final long serialVersionUID = 0xb2b55b6465c5351L;
+}

@@ -1,0 +1,66 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GreekList.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.factories.GreekAlphabetFactory;
+import java.util.ArrayList;
+
+// Referenced classes of package co.com.pdf.text:
+//            List, ListItem, Chunk, Font, 
+//            FontFactory, Element
+
+public class GreekList extends List
+{
+
+    public GreekList()
+    {
+        super(true);
+        setGreekFont();
+    }
+
+    public GreekList(int symbolIndent)
+    {
+        super(true, symbolIndent);
+        setGreekFont();
+    }
+
+    public GreekList(boolean greeklower, int symbolIndent)
+    {
+        super(true, symbolIndent);
+        lowercase = greeklower;
+        setGreekFont();
+    }
+
+    protected void setGreekFont()
+    {
+        float fontsize = symbol.getFont().getSize();
+        symbol.setFont(FontFactory.getFont("Symbol", fontsize, 0));
+    }
+
+    public boolean add(Element o)
+    {
+        if(o instanceof ListItem)
+        {
+            ListItem item = (ListItem)o;
+            Chunk chunk = new Chunk(preSymbol, symbol.getFont());
+            chunk.setAttributes(symbol.getAttributes());
+            chunk.append(GreekAlphabetFactory.getString(first + list.size(), lowercase));
+            chunk.append(postSymbol);
+            item.setListSymbol(chunk);
+            item.setIndentationLeft(symbolIndent, autoindent);
+            item.setIndentationRight(0.0F);
+            list.add(item);
+        } else
+        if(o instanceof List)
+        {
+            List nested = (List)o;
+            nested.setIndentationLeft(nested.getIndentationLeft() + symbolIndent);
+            first--;
+            return list.add(nested);
+        }
+        return false;
+    }
+}

@@ -1,0 +1,142 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ASN1TaggedObject.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, ASN1Choice, ASN1TaggedObjectParser, DEREncodable, 
+//            DERObject, ASN1Set, ASN1Sequence, ASN1OctetString, 
+//            DEROutputStream
+
+public abstract class ASN1TaggedObject extends ASN1Object
+    implements ASN1TaggedObjectParser
+{
+
+    public static ASN1TaggedObject getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        if(explicit)
+            return (ASN1TaggedObject)obj.getObject();
+        else
+            throw new IllegalArgumentException("implicitly tagged tagged object");
+    }
+
+    public static ASN1TaggedObject getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof ASN1TaggedObject))
+            return (ASN1TaggedObject)obj;
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public ASN1TaggedObject(int tagNo, DEREncodable obj)
+    {
+        empty = false;
+        explicit = true;
+        this.obj = null;
+        explicit = true;
+        this.tagNo = tagNo;
+        this.obj = obj;
+    }
+
+    public ASN1TaggedObject(boolean explicit, int tagNo, DEREncodable obj)
+    {
+        empty = false;
+        this.explicit = true;
+        this.obj = null;
+        if(obj instanceof ASN1Choice)
+            this.explicit = true;
+        else
+            this.explicit = explicit;
+        this.tagNo = tagNo;
+        this.obj = obj;
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof ASN1TaggedObject))
+            return false;
+        ASN1TaggedObject other = (ASN1TaggedObject)o;
+        if(tagNo != other.tagNo || empty != other.empty || explicit != other.explicit)
+            return false;
+        if(obj == null)
+        {
+            if(other.obj != null)
+                return false;
+        } else
+        if(!obj.getDERObject().equals(other.obj.getDERObject()))
+            return false;
+        return true;
+    }
+
+    public int hashCode()
+    {
+        int code = tagNo;
+        if(obj != null)
+            code ^= obj.hashCode();
+        return code;
+    }
+
+    public int getTagNo()
+    {
+        return tagNo;
+    }
+
+    public boolean isExplicit()
+    {
+        return explicit;
+    }
+
+    public boolean isEmpty()
+    {
+        return empty;
+    }
+
+    public DERObject getObject()
+    {
+        if(obj != null)
+            return obj.getDERObject();
+        else
+            return null;
+    }
+
+    public DEREncodable getObjectParser(int tag, boolean isExplicit)
+    {
+        switch(tag)
+        {
+        case 17: // '\021'
+            return ASN1Set.getInstance(this, isExplicit).parser();
+
+        case 16: // '\020'
+            return ASN1Sequence.getInstance(this, isExplicit).parser();
+
+        case 4: // '\004'
+            return ASN1OctetString.getInstance(this, isExplicit).parser();
+        }
+        if(isExplicit)
+            return getObject();
+        else
+            throw new RuntimeException((new StringBuilder()).append("implicit tagging not implemented for tag: ").append(tag).toString());
+    }
+
+    public DERObject getLoadedObject()
+    {
+        return getDERObject();
+    }
+
+    abstract void encode(DEROutputStream deroutputstream)
+        throws IOException;
+
+    public String toString()
+    {
+        return (new StringBuilder()).append("[").append(tagNo).append("]").append(obj).toString();
+    }
+
+    int tagNo;
+    boolean empty;
+    boolean explicit;
+    DEREncodable obj;
+}

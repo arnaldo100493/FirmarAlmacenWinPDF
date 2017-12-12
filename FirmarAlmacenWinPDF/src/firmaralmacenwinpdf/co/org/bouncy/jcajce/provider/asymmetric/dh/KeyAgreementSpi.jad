@@ -1,0 +1,170 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KeyAgreementSpi.java
+
+package co.org.bouncy.jcajce.provider.asymmetric.dh;
+
+import co.org.bouncy.crypto.params.DESParameters;
+import co.org.bouncy.util.Integers;
+import co.org.bouncy.util.Strings;
+import java.math.BigInteger;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.SecureRandom;
+import java.security.spec.AlgorithmParameterSpec;
+import java.util.Hashtable;
+import javax.crypto.SecretKey;
+import javax.crypto.ShortBufferException;
+import javax.crypto.interfaces.DHPrivateKey;
+import javax.crypto.interfaces.DHPublicKey;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+// Referenced classes of package co.org.bouncy.jcajce.provider.asymmetric.dh:
+//            BCDHPublicKey
+
+public class KeyAgreementSpi extends javax.crypto.KeyAgreementSpi
+{
+
+    public KeyAgreementSpi()
+    {
+    }
+
+    private byte[] bigIntToBytes(BigInteger r)
+    {
+        byte tmp[] = r.toByteArray();
+        if(tmp[0] == 0)
+        {
+            byte ntmp[] = new byte[tmp.length - 1];
+            System.arraycopy(tmp, 1, ntmp, 0, ntmp.length);
+            return ntmp;
+        } else
+        {
+            return tmp;
+        }
+    }
+
+    protected Key engineDoPhase(Key key, boolean lastPhase)
+        throws InvalidKeyException, IllegalStateException
+    {
+        if(x == null)
+            throw new IllegalStateException("Diffie-Hellman not initialised.");
+        if(!(key instanceof DHPublicKey))
+            throw new InvalidKeyException("DHKeyAgreement doPhase requires DHPublicKey");
+        DHPublicKey pubKey = (DHPublicKey)key;
+        if(!pubKey.getParams().getG().equals(g) || !pubKey.getParams().getP().equals(p))
+            throw new InvalidKeyException("DHPublicKey not for this KeyAgreement!");
+        if(lastPhase)
+        {
+            result = ((DHPublicKey)key).getY().modPow(x, p);
+            return null;
+        } else
+        {
+            result = ((DHPublicKey)key).getY().modPow(x, p);
+            return new BCDHPublicKey(result, pubKey.getParams());
+        }
+    }
+
+    protected byte[] engineGenerateSecret()
+        throws IllegalStateException
+    {
+        if(x == null)
+            throw new IllegalStateException("Diffie-Hellman not initialised.");
+        else
+            return bigIntToBytes(result);
+    }
+
+    protected int engineGenerateSecret(byte sharedSecret[], int offset)
+        throws IllegalStateException, ShortBufferException
+    {
+        if(x == null)
+            throw new IllegalStateException("Diffie-Hellman not initialised.");
+        byte secret[] = bigIntToBytes(result);
+        if(sharedSecret.length - offset < secret.length)
+        {
+            throw new ShortBufferException("DHKeyAgreement - buffer too short");
+        } else
+        {
+            System.arraycopy(secret, 0, sharedSecret, offset, secret.length);
+            return secret.length;
+        }
+    }
+
+    protected SecretKey engineGenerateSecret(String algorithm)
+    {
+        if(x == null)
+            throw new IllegalStateException("Diffie-Hellman not initialised.");
+        String algKey = Strings.toUpperCase(algorithm);
+        byte res[] = bigIntToBytes(result);
+        if(algorithms.containsKey(algKey))
+        {
+            Integer length = (Integer)algorithms.get(algKey);
+            byte key[] = new byte[length.intValue() / 8];
+            System.arraycopy(res, 0, key, 0, key.length);
+            if(algKey.startsWith("DES"))
+                DESParameters.setOddParity(key);
+            return new SecretKeySpec(key, algorithm);
+        } else
+        {
+            return new SecretKeySpec(res, algorithm);
+        }
+    }
+
+    protected void engineInit(Key key, AlgorithmParameterSpec params, SecureRandom random)
+        throws InvalidKeyException, InvalidAlgorithmParameterException
+    {
+        if(!(key instanceof DHPrivateKey))
+            throw new InvalidKeyException("DHKeyAgreement requires DHPrivateKey for initialisation");
+        DHPrivateKey privKey = (DHPrivateKey)key;
+        if(params != null)
+        {
+            if(!(params instanceof DHParameterSpec))
+                throw new InvalidAlgorithmParameterException("DHKeyAgreement only accepts DHParameterSpec");
+            DHParameterSpec p = (DHParameterSpec)params;
+            this.p = p.getP();
+            g = p.getG();
+        } else
+        {
+            this.p = privKey.getParams().getP();
+            g = privKey.getParams().getG();
+        }
+        x = result = privKey.getX();
+    }
+
+    protected void engineInit(Key key, SecureRandom random)
+        throws InvalidKeyException
+    {
+        if(!(key instanceof DHPrivateKey))
+        {
+            throw new InvalidKeyException("DHKeyAgreement requires DHPrivateKey");
+        } else
+        {
+            DHPrivateKey privKey = (DHPrivateKey)key;
+            p = privKey.getParams().getP();
+            g = privKey.getParams().getG();
+            x = result = privKey.getX();
+            return;
+        }
+    }
+
+    private BigInteger x;
+    private BigInteger p;
+    private BigInteger g;
+    private BigInteger result;
+    private static final Hashtable algorithms;
+
+    static 
+    {
+        algorithms = new Hashtable();
+        Integer i64 = Integers.valueOf(64);
+        Integer i192 = Integers.valueOf(192);
+        Integer i128 = Integers.valueOf(128);
+        Integer i256 = Integers.valueOf(256);
+        algorithms.put("DES", i64);
+        algorithms.put("DESEDE", i192);
+        algorithms.put("BLOWFISH", i128);
+        algorithms.put("AES", i256);
+    }
+}

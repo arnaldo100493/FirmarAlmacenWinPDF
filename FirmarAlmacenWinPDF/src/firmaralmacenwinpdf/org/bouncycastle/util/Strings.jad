@@ -1,0 +1,214 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Strings.java
+
+package org.bouncycastle.util;
+
+import java.io.ByteArrayOutputStream;
+import java.util.Vector;
+
+public final class Strings
+{
+
+    public Strings()
+    {
+    }
+
+    public static String fromUTF8ByteArray(byte bytes[])
+    {
+        int i = 0;
+        int length = 0;
+        while(i < bytes.length) 
+        {
+            length++;
+            if((bytes[i] & 0xf0) == 240)
+            {
+                length++;
+                i += 4;
+            } else
+            if((bytes[i] & 0xe0) == 224)
+                i += 3;
+            else
+            if((bytes[i] & 0xc0) == 192)
+                i += 2;
+            else
+                i++;
+        }
+        char cs[] = new char[length];
+        i = 0;
+        length = 0;
+        char ch;
+        for(; i < bytes.length; cs[length++] = ch)
+        {
+            if((bytes[i] & 0xf0) == 240)
+            {
+                int codePoint = (bytes[i] & 3) << 18 | (bytes[i + 1] & 0x3f) << 12 | (bytes[i + 2] & 0x3f) << 6 | bytes[i + 3] & 0x3f;
+                int U = codePoint - 0x10000;
+                char W1 = (char)(0xd800 | U >> 10);
+                char W2 = (char)(0xdc00 | U & 0x3ff);
+                cs[length++] = W1;
+                ch = W2;
+                i += 4;
+                continue;
+            }
+            if((bytes[i] & 0xe0) == 224)
+            {
+                ch = (char)((bytes[i] & 0xf) << 12 | (bytes[i + 1] & 0x3f) << 6 | bytes[i + 2] & 0x3f);
+                i += 3;
+                continue;
+            }
+            if((bytes[i] & 0xd0) == 208)
+            {
+                ch = (char)((bytes[i] & 0x1f) << 6 | bytes[i + 1] & 0x3f);
+                i += 2;
+                continue;
+            }
+            if((bytes[i] & 0xc0) == 192)
+            {
+                ch = (char)((bytes[i] & 0x1f) << 6 | bytes[i + 1] & 0x3f);
+                i += 2;
+            } else
+            {
+                ch = (char)(bytes[i] & 0xff);
+                i++;
+            }
+        }
+
+        return new String(cs);
+    }
+
+    public static byte[] toUTF8ByteArray(String string)
+    {
+        return toUTF8ByteArray(string.toCharArray());
+    }
+
+    public static byte[] toUTF8ByteArray(char string[])
+    {
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        char c[] = string;
+        for(int i = 0; i < c.length; i++)
+        {
+            char ch = c[i];
+            if(ch < '\200')
+            {
+                bOut.write(ch);
+                continue;
+            }
+            if(ch < '\u0800')
+            {
+                bOut.write(0xc0 | ch >> 6);
+                bOut.write(0x80 | ch & 0x3f);
+                continue;
+            }
+            if(ch >= '\uD800' && ch <= '\uDFFF')
+            {
+                if(i + 1 >= c.length)
+                    throw new IllegalStateException("invalid UTF-16 codepoint");
+                char W1 = ch;
+                ch = c[++i];
+                char W2 = ch;
+                if(W1 > '\uDBFF')
+                    throw new IllegalStateException("invalid UTF-16 codepoint");
+                int codePoint = ((W1 & 0x3ff) << 10 | W2 & 0x3ff) + 0x10000;
+                bOut.write(0xf0 | codePoint >> 18);
+                bOut.write(0x80 | codePoint >> 12 & 0x3f);
+                bOut.write(0x80 | codePoint >> 6 & 0x3f);
+                bOut.write(0x80 | codePoint & 0x3f);
+            } else
+            {
+                bOut.write(0xe0 | ch >> 12);
+                bOut.write(0x80 | ch >> 6 & 0x3f);
+                bOut.write(0x80 | ch & 0x3f);
+            }
+        }
+
+        return bOut.toByteArray();
+    }
+
+    public static String toUpperCase(String string)
+    {
+        boolean changed = false;
+        char chars[] = string.toCharArray();
+        for(int i = 0; i != chars.length; i++)
+        {
+            char ch = chars[i];
+            if('a' <= ch && 'z' >= ch)
+            {
+                changed = true;
+                chars[i] = (char)((ch - 97) + 65);
+            }
+        }
+
+        if(changed)
+            return new String(chars);
+        else
+            return string;
+    }
+
+    public static String toLowerCase(String string)
+    {
+        boolean changed = false;
+        char chars[] = string.toCharArray();
+        for(int i = 0; i != chars.length; i++)
+        {
+            char ch = chars[i];
+            if('A' <= ch && 'Z' >= ch)
+            {
+                changed = true;
+                chars[i] = (char)((ch - 65) + 97);
+            }
+        }
+
+        if(changed)
+            return new String(chars);
+        else
+            return string;
+    }
+
+    public static byte[] toByteArray(char chars[])
+    {
+        byte bytes[] = new byte[chars.length];
+        for(int i = 0; i != bytes.length; i++)
+            bytes[i] = (byte)chars[i];
+
+        return bytes;
+    }
+
+    public static byte[] toByteArray(String string)
+    {
+        byte bytes[] = new byte[string.length()];
+        for(int i = 0; i != bytes.length; i++)
+        {
+            char ch = string.charAt(i);
+            bytes[i] = (byte)ch;
+        }
+
+        return bytes;
+    }
+
+    public static String[] split(String input, char delimiter)
+    {
+        Vector v = new Vector();
+        for(boolean moreTokens = true; moreTokens;)
+        {
+            int tokenLocation = input.indexOf(delimiter);
+            if(tokenLocation > 0)
+            {
+                String subString = input.substring(0, tokenLocation);
+                v.addElement(subString);
+                input = input.substring(tokenLocation + 1);
+            } else
+            {
+                moreTokens = false;
+                v.addElement(input);
+            }
+        }
+
+        String res[] = new String[v.size()];
+        for(int i = 0; i != res.length; i++)
+            res[i] = (String)v.elementAt(i);
+
+        return res;
+    }
+}

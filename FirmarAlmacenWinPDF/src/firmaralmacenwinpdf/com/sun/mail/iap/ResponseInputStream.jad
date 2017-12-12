@@ -1,0 +1,97 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ResponseInputStream.java
+
+package com.sun.mail.iap;
+
+import com.sun.mail.util.ASCIIUtility;
+import java.io.*;
+
+// Referenced classes of package com.sun.mail.iap:
+//            ByteArray
+
+public class ResponseInputStream
+{
+
+    public ResponseInputStream(InputStream in)
+    {
+        bin = new BufferedInputStream(in, 2048);
+    }
+
+    public ByteArray readResponse()
+        throws IOException
+    {
+        return readResponse(null);
+    }
+
+    public ByteArray readResponse(ByteArray ba)
+        throws IOException
+    {
+        if(ba == null)
+            ba = new ByteArray(new byte[128], 0, 128);
+        byte buffer[] = ba.getBytes();
+        int idx = 0;
+        do
+        {
+            int b = 0;
+            for(boolean gotCRLF = false; !gotCRLF && (b = bin.read()) != -1; buffer[idx++] = (byte)b)
+            {
+                switch(b)
+                {
+                case 10: // '\n'
+                    if(idx > 0 && buffer[idx - 1] == 13)
+                        gotCRLF = true;
+                    break;
+                }
+                if(idx < buffer.length)
+                    continue;
+                int incr = buffer.length;
+                if(incr > 0x40000)
+                    incr = 0x40000;
+                ba.grow(incr);
+                buffer = ba.getBytes();
+            }
+
+            if(b == -1)
+                throw new IOException("Connection dropped by server?");
+            if(idx < 5 || buffer[idx - 3] != 125)
+                break;
+            int i;
+            for(i = idx - 4; i >= 0 && buffer[i] != 123; i--);
+            if(i < 0)
+                break;
+            int count = 0;
+            try
+            {
+                count = ASCIIUtility.parseInt(buffer, i + 1, idx - 3);
+            }
+            catch(NumberFormatException e)
+            {
+                break;
+            }
+            if(count > 0)
+            {
+                int avail = buffer.length - idx;
+                if(count + 16 > avail)
+                {
+                    ba.grow(256 <= (count + 16) - avail ? (count + 16) - avail : 256);
+                    buffer = ba.getBytes();
+                }
+                while(count > 0) 
+                {
+                    int actual = bin.read(buffer, idx, count);
+                    count -= actual;
+                    idx += actual;
+                }
+            }
+        } while(true);
+        ba.setCount(idx);
+        return ba;
+    }
+
+    private static final int minIncrement = 256;
+    private static final int maxIncrement = 0x40000;
+    private static final int incrementSlop = 16;
+    private BufferedInputStream bin;
+}

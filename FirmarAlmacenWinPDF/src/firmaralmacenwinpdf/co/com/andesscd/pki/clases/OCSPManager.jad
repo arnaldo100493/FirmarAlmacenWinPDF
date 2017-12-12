@@ -1,0 +1,156 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   OCSPManager.java
+
+package co.com.andesscd.pki.clases;
+
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+import co.org.bouncy.asn1.DEROctetString;
+import co.org.bouncy.asn1.ocsp.OCSPObjectIdentifiers;
+import co.org.bouncy.asn1.x509.Extension;
+import co.org.bouncy.asn1.x509.Extensions;
+import co.org.bouncy.asn1.x509.SubjectPublicKeyInfo;
+import co.org.bouncy.cert.X509CRLHolder;
+import co.org.bouncy.cert.X509CertificateHolder;
+import co.org.bouncy.cert.ocsp.BasicOCSPResp;
+import co.org.bouncy.cert.ocsp.BasicOCSPRespBuilder;
+import co.org.bouncy.cert.ocsp.CertificateID;
+import co.org.bouncy.cert.ocsp.CertificateStatus;
+import co.org.bouncy.cert.ocsp.OCSPException;
+import co.org.bouncy.cert.ocsp.OCSPReq;
+import co.org.bouncy.cert.ocsp.OCSPReqBuilder;
+import co.org.bouncy.cert.ocsp.OCSPResp;
+import co.org.bouncy.cert.ocsp.OCSPRespBuilder;
+import co.org.bouncy.cert.ocsp.Req;
+import co.org.bouncy.cert.ocsp.RevokedStatus;
+import co.org.bouncy.cert.ocsp.SingleResp;
+import co.org.bouncy.operator.DigestCalculatorProvider;
+import co.org.bouncy.operator.OperatorCreationException;
+import co.org.bouncy.operator.jcajce.JcaContentSignerBuilder;
+import co.org.bouncy.operator.jcajce.JcaContentVerifierProviderBuilder;
+import co.org.bouncy.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.math.BigInteger;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Date;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CRLManager
+
+public class OCSPManager
+{
+
+    public OCSPManager()
+    {
+    }
+
+    public static OCSPReq generateOCSPRequest(X509Certificate issuerCert, BigInteger serialNumber)
+        throws co.org.bouncy.ocsp.OCSPException, co.org.bouncy.ocsp.OCSPException, CertificateEncodingException, OperatorCreationException, OCSPException, IOException
+    {
+        CertificateID id = new CertificateID((new JcaDigestCalculatorProviderBuilder()).setProvider("BC").build().get(CertificateID.HASH_SHA1), new X509CertificateHolder(issuerCert.getEncoded()), serialNumber);
+        OCSPReqBuilder ocspGen = new OCSPReqBuilder();
+        ocspGen.addRequest(id);
+        BigInteger nonce = BigInteger.valueOf(System.currentTimeMillis());
+        Extension ext = new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, true, new DEROctetString(nonce.toByteArray()));
+        ocspGen.setRequestExtensions(new Extensions(new Extension[] {
+            ext
+        }));
+        return ocspGen.build();
+    }
+
+    public static void listRequest(OCSPReq req)
+    {
+        Req requests[] = req.getRequestList();
+        for(int i = 0; i != requests.length; i++)
+        {
+            CertificateID certID = requests[i].getCertID();
+            System.out.println((new StringBuilder()).append("OCSP Request to check certificate number ").append(certID.getSerialNumber()).toString());
+        }
+
+    }
+
+    public static OCSPResp generateOCSPResponse(OCSPReq request, X509Certificate caCert, PrivateKey privKey, X509CRLHolder crl)
+    {
+        SubjectPublicKeyInfo keyinfo;
+        int response = 2;
+        keyinfo = SubjectPublicKeyInfo.getInstance(caCert.getPublicKey().getEncoded());
+        BasicOCSPRespBuilder respGen;
+        try
+        {
+            respGen = new BasicOCSPRespBuilder(keyinfo, (new JcaDigestCalculatorProviderBuilder()).setProvider("BC").build().get(CertificateID.HASH_SHA1));
+        }
+        catch(Exception e)
+        {
+            return null;
+        }
+        Extension ext = request.getExtension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce);
+        if(ext != null)
+            respGen.setResponseExtensions(new Extensions(new Extension[] {
+                ext
+            }));
+        Req requests[] = request.getRequestList();
+        for(int i = 0; i != requests.length; i++)
+        {
+            CertificateID certID = requests[i].getCertID();
+            BigInteger serial = certID.getSerialNumber();
+            if(CRLManager.serialNotInCRL(crl, serial))
+                respGen.addResponse(certID, CertificateStatus.GOOD);
+            else
+                respGen.addResponse(certID, new RevokedStatus(new Date(), 9));
+        }
+
+        try
+        {
+            co.org.bouncy.operator.ContentSigner contentSigner = (new JcaContentSignerBuilder("SHA1withRSA")).setProvider("BC").build(privKey);
+            BasicOCSPResp basicResp = respGen.build(contentSigner, new X509CertificateHolder[] {
+                new X509CertificateHolder(caCert.getEncoded())
+            }, new Date());
+            int response = 0;
+            return (new OCSPRespBuilder()).build(response, basicResp);
+        }
+        catch(Exception e)
+        {
+            return null;
+        }
+    }
+
+    public static String analyseResponse(OCSPResp response, OCSPReq request, X509Certificate caCert)
+        throws Exception
+    {
+        BasicOCSPResp basicResponse = (BasicOCSPResp)response.getResponseObject();
+        if(basicResponse.isSignatureValid((new JcaContentVerifierProviderBuilder()).setProvider("BC").build(caCert.getPublicKey())))
+        {
+            SingleResp responses[] = basicResponse.getResponses();
+            byte reqNonce[] = request.getExtension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce).getExtnId().getEncoded();
+            byte respNonce[] = basicResponse.getExtension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce).getExtnId().getEncoded();
+            if(reqNonce == null || Arrays.equals(reqNonce, respNonce))
+            {
+                String message = "";
+                int i = 0;
+                if(i != responses.length)
+                {
+                    message = (new StringBuilder()).append(message).append(" certificate number ").append(responses[i].getCertID().getSerialNumber()).toString();
+                    if(responses[i].getCertStatus() == CertificateStatus.GOOD)
+                        return (new StringBuilder()).append(message).append(" status: good").toString();
+                    else
+                        return (new StringBuilder()).append(message).append(" status: revoked").toString();
+                } else
+                {
+                    return message;
+                }
+            } else
+            {
+                return "response nonce failed to validate";
+            }
+        } else
+        {
+            return "response failed to verify OCSP signature";
+        }
+    }
+}

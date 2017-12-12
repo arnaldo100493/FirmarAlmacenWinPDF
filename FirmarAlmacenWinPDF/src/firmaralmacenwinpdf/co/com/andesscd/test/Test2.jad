@@ -1,0 +1,42 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:47 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   Test2.java
+
+package co.com.andesscd.test;
+
+import co.com.andesscd.clientes.fna.FNAWebClient;
+import co.com.andesscd.pki.clases.CMS;
+import java.io.PrintStream;
+
+public class Test2
+{
+
+    public Test2()
+    {
+    }
+
+    public static void main(String args[])
+    {
+        try
+        {
+            CMS.iniciarComponente();
+            java.security.KeyStore ks = null;
+            CMS cms = new CMS("I:\\tmp\\1484410092804_x_firmar.pdf");
+            String wsdlURL = "https://ra.andesscd.com.co/test/WebService/wsdl.php?WSDL";
+            String wssUserName = "JEPR";
+            String wssUserToken = "ZnthRDbYXN";
+            FNAWebClient fnaWebClient = new FNAWebClient(wsdlURL, wssUserName, wssUserToken);
+            String identificacion = "1032357357";
+            String pin = "11231275";
+            String userTsa = "sealmail";
+            String passTsa = "sm_A9oF7";
+            System.out.println("***************HA SIDO FIRMADO***************");
+        }
+        catch(Exception ex)
+        {
+            System.out.println(ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+}

@@ -1,0 +1,43 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MultiCertStoreParameters.java
+
+package co.org.bouncy.jce;
+
+import java.security.cert.CertStoreParameters;
+import java.util.Collection;
+
+public class MultiCertStoreParameters
+    implements CertStoreParameters
+{
+
+    public MultiCertStoreParameters(Collection certStores)
+    {
+        this(certStores, true);
+    }
+
+    public MultiCertStoreParameters(Collection certStores, boolean searchAllStores)
+    {
+        this.certStores = certStores;
+        this.searchAllStores = searchAllStores;
+    }
+
+    public Collection getCertStores()
+    {
+        return certStores;
+    }
+
+    public boolean getSearchAllStores()
+    {
+        return searchAllStores;
+    }
+
+    public Object clone()
+    {
+        return this;
+    }
+
+    private Collection certStores;
+    private boolean searchAllStores;
+}

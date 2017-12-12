@@ -1,0 +1,1821 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPTransport.java
+
+package com.sun.mail.smtp;
+
+import com.sun.mail.auth.Ntlm;
+import com.sun.mail.util.*;
+import java.io.*;
+import java.lang.reflect.Constructor;
+import java.net.*;
+import java.util.*;
+import java.util.logging.Level;
+import javax.mail.*;
+import javax.mail.internet.*;
+import javax.net.ssl.SSLSocket;
+
+// Referenced classes of package com.sun.mail.smtp:
+//            SaslAuthenticator, SMTPMessage, SMTPSendFailedException, SMTPSenderFailedException, 
+//            SMTPAddressSucceededException, SMTPAddressFailedException, SMTPOutputStream, DigestMD5
+
+public class SMTPTransport extends Transport
+{
+    private class NtlmAuthenticator extends Authenticator
+    {
+
+        String getInitialResponse(String host, String authzid, String user, String passwd)
+            throws MessagingException, IOException
+        {
+            ntlm = new Ntlm(getNTLMDomain(), getLocalHost(), user, passwd, logger);
+            flags = PropUtil.getIntProperty(_22_NTLM_22_.getProperties(), (new StringBuilder()).append("mail.").append(name).append(".auth.ntlm.flags").toString(), 0);
+            String type1 = ntlm.generateType1Msg(flags);
+            return type1;
+        }
+
+        void doAuth(String host, String authzid, String user, String passwd)
+            throws MessagingException, IOException
+        {
+            String type3 = ntlm.generateType3Msg(getLastServerResponse().substring(4).trim());
+            resp = simpleCommand(type3);
+        }
+
+        private Ntlm ntlm;
+        private int flags;
+        final SMTPTransport this$0;
+
+        NtlmAuthenticator()
+        {
+            this$0 = SMTPTransport.this;
+            super("NTLM");
+        }
+    }
+
+    private class DigestMD5Authenticator extends Authenticator
+    {
+
+        private synchronized DigestMD5 getMD5()
+        {
+            if(md5support == null)
+                md5support = new DigestMD5(logger);
+            return md5support;
+        }
+
+        void doAuth(String host, String authzid, String user, String passwd)
+            throws MessagingException, IOException
+        {
+            DigestMD5 md5 = getMD5();
+            if(md5 == null)
+            {
+                resp = -1;
+                return;
+            }
+            byte b[] = md5.authClient(host, user, passwd, getSASLRealm(), getLastServerResponse());
+            resp = simpleCommand(b);
+            if(resp == 334)
+                if(!md5.authServer(getLastServerResponse()))
+                    resp = -1;
+                else
+                    resp = simpleCommand(new byte[0]);
+        }
+
+        private DigestMD5 md5support;
+        final SMTPTransport this$0;
+
+        DigestMD5Authenticator()
+        {
+            this$0 = SMTPTransport.this;
+            super("DIGEST-MD5");
+        }
+    }
+
+    private class PlainAuthenticator extends Authenticator
+    {
+
+        String getInitialResponse(String host, String authzid, String user, String passwd)
+            throws MessagingException, IOException
+        {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            OutputStream b64os = new BASE64EncoderStream(bos, 0x7fffffff);
+            if(authzid != null)
+                b64os.write(ASCIIUtility.getBytes(authzid));
+            b64os.write(0);
+            b64os.write(ASCIIUtility.getBytes(user));
+            b64os.write(0);
+            b64os.write(ASCIIUtility.getBytes(passwd));
+            b64os.flush();
+            return ASCIIUtility.toString(bos.toByteArray());
+        }
+
+        void doAuth(String host, String authzid, String user, String passwd)
+            throws MessagingException, IOException
+        {
+            throw new AuthenticationFailedException("PLAIN asked for more");
+        }
+
+        final SMTPTransport this$0;
+
+        PlainAuthenticator()
+        {
+            this$0 = SMTPTransport.this;
+            super("PLAIN");
+        }
+    }
+
+    private class LoginAuthenticator extends Authenticator
+    {
+
+        void doAuth(String host, String authzid, String user, String passwd)
+            throws MessagingException, IOException
+        {
+            resp = simpleCommand(BASE64EncoderStream.encode(ASCIIUtility.getBytes(user)));
+            if(resp == 334)
+                resp = simpleCommand(BASE64EncoderStream.encode(ASCIIUtility.getBytes(passwd)));
+        }
+
+        final SMTPTransport this$0;
+
+        LoginAuthenticator()
+        {
+            this$0 = SMTPTransport.this;
+            super("LOGIN");
+        }
+    }
+
+    private abstract class Authenticator
+    {
+
+        String getMechanism()
+        {
+            return mech;
+        }
+
+        boolean authenticate(String host, String authzid, String user, String passwd)
+            throws MessagingException
+        {
+            String ir = getInitialResponse(host, authzid, user, passwd);
+            if(noauthdebug && isTracing())
+            {
+                logger.fine((new StringBuilder()).append("AUTH ").append(mech).append(" command trace suppressed").toString());
+                suspendTracing();
+            }
+            if(ir != null)
+                resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(ir.length() != 0 ? ir : "=").toString());
+            else
+                resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).toString());
+            if(resp == 530)
+            {
+                startTLS();
+                if(ir != null)
+                    resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(ir).toString());
+                else
+                    resp = simpleCommand((new StringBuilder()).append("AUTH ").append(mech).toString());
+            }
+            if(resp == 334)
+                doAuth(host, authzid, user, passwd);
+            if(noauthdebug && isTracing())
+                logger.fine((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(resp != 235 ? "failed" : "succeeded").toString());
+            resumeTracing();
+            if(resp != 235)
+            {
+                closeConnection();
+                throw new AuthenticationFailedException(getLastServerResponse());
+            }
+            break MISSING_BLOCK_LABEL_689;
+            IOException ex;
+            ex;
+            logger.log(Level.FINE, (new StringBuilder()).append("AUTH ").append(mech).append(" failed").toString(), ex);
+            if(noauthdebug && isTracing())
+                logger.fine((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(resp != 235 ? "failed" : "succeeded").toString());
+            resumeTracing();
+            if(resp != 235)
+            {
+                closeConnection();
+                throw new AuthenticationFailedException(getLastServerResponse());
+            }
+            break MISSING_BLOCK_LABEL_689;
+            Exception exception1;
+            exception1;
+            if(noauthdebug && isTracing())
+                logger.fine((new StringBuilder()).append("AUTH ").append(mech).append(" ").append(resp != 235 ? "failed" : "succeeded").toString());
+            resumeTracing();
+            if(resp != 235)
+            {
+                closeConnection();
+                throw new AuthenticationFailedException(getLastServerResponse());
+            } else
+            {
+                throw exception1;
+            }
+            return true;
+        }
+
+        String getInitialResponse(String host, String authzid, String user, String s)
+            throws MessagingException, IOException
+        {
+            return null;
+        }
+
+        abstract void doAuth(String s, String s1, String s2, String s3)
+            throws MessagingException, IOException;
+
+        protected int resp;
+        private String mech;
+        final SMTPTransport this$0;
+
+        Authenticator(String mech)
+        {
+            this$0 = SMTPTransport.this;
+            super();
+            this.mech = mech.toUpperCase(Locale.ENGLISH);
+        }
+    }
+
+
+    public SMTPTransport(Session session, URLName urlname)
+    {
+        this(session, urlname, "smtp", false);
+    }
+
+    protected SMTPTransport(Session session, URLName urlname, String name, boolean isSSL)
+    {
+        super(session, urlname);
+        this.name = "smtp";
+        defaultPort = 25;
+        this.isSSL = false;
+        sendPartiallyFailed = false;
+        authenticators = new HashMap();
+        quitWait = false;
+        saslRealm = "UNKNOWN";
+        authorizationID = "UNKNOWN";
+        enableSASL = false;
+        saslMechanisms = UNKNOWN_SA;
+        ntlmDomain = "UNKNOWN";
+        noopStrict = true;
+        noauthdebug = true;
+        logger = new MailLogger(getClass(), "DEBUG SMTP", session);
+        traceLogger = logger.getSubLogger("protocol", null);
+        noauthdebug = !PropUtil.getBooleanSessionProperty(session, "mail.debug.auth", false);
+        if(urlname != null)
+            name = urlname.getProtocol();
+        this.name = name;
+        if(!isSSL)
+            isSSL = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".ssl.enable").toString(), false);
+        if(isSSL)
+            defaultPort = 465;
+        else
+            defaultPort = 25;
+        this.isSSL = isSSL;
+        quitWait = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".quitwait").toString(), true);
+        reportSuccess = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".reportsuccess").toString(), false);
+        useStartTLS = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".starttls.enable").toString(), false);
+        requireStartTLS = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".starttls.required").toString(), false);
+        useRset = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".userset").toString(), false);
+        noopStrict = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".noop.strict").toString(), true);
+        enableSASL = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".sasl.enable").toString(), false);
+        if(enableSASL)
+            logger.config("enable SASL");
+        Authenticator a[] = {
+            new LoginAuthenticator(), new PlainAuthenticator(), new DigestMD5Authenticator(), new NtlmAuthenticator()
+        };
+        StringBuffer sb = new StringBuffer();
+        for(int i = 0; i < a.length; i++)
+        {
+            authenticators.put(a[i].getMechanism(), a[i]);
+            sb.append(a[i].getMechanism()).append(' ');
+        }
+
+        defaultAuthenticationMechanisms = sb.toString();
+    }
+
+    public synchronized String getLocalHost()
+    {
+        if(localHostName == null || localHostName.length() <= 0)
+            localHostName = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".localhost").toString());
+        if(localHostName == null || localHostName.length() <= 0)
+            localHostName = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".localaddress").toString());
+        try
+        {
+            if(localHostName == null || localHostName.length() <= 0)
+            {
+                InetAddress localHost = InetAddress.getLocalHost();
+                localHostName = localHost.getCanonicalHostName();
+                if(localHostName == null)
+                    localHostName = (new StringBuilder()).append("[").append(localHost.getHostAddress()).append("]").toString();
+            }
+        }
+        catch(UnknownHostException uhex) { }
+        if((localHostName == null || localHostName.length() <= 0) && serverSocket != null && serverSocket.isBound())
+        {
+            InetAddress localHost = serverSocket.getLocalAddress();
+            localHostName = localHost.getCanonicalHostName();
+            if(localHostName == null)
+                localHostName = (new StringBuilder()).append("[").append(localHost.getHostAddress()).append("]").toString();
+        }
+        return localHostName;
+    }
+
+    public synchronized void setLocalHost(String localhost)
+    {
+        localHostName = localhost;
+    }
+
+    public synchronized void connect(Socket socket)
+        throws MessagingException
+    {
+        serverSocket = socket;
+        super.connect();
+    }
+
+    public synchronized String getAuthorizationId()
+    {
+        if(authorizationID == "UNKNOWN")
+            authorizationID = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".sasl.authorizationid").toString());
+        return authorizationID;
+    }
+
+    public synchronized void setAuthorizationID(String authzid)
+    {
+        authorizationID = authzid;
+    }
+
+    public synchronized boolean getSASLEnabled()
+    {
+        return enableSASL;
+    }
+
+    public synchronized void setSASLEnabled(boolean enableSASL)
+    {
+        this.enableSASL = enableSASL;
+    }
+
+    public synchronized String getSASLRealm()
+    {
+        if(saslRealm == "UNKNOWN")
+        {
+            saslRealm = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".sasl.realm").toString());
+            if(saslRealm == null)
+                saslRealm = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".saslrealm").toString());
+        }
+        return saslRealm;
+    }
+
+    public synchronized void setSASLRealm(String saslRealm)
+    {
+        this.saslRealm = saslRealm;
+    }
+
+    public synchronized String[] getSASLMechanisms()
+    {
+        if(saslMechanisms == UNKNOWN_SA)
+        {
+            List v = new ArrayList(5);
+            String s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".sasl.mechanisms").toString());
+            if(s != null && s.length() > 0)
+            {
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("SASL mechanisms allowed: ").append(s).toString());
+                StringTokenizer st = new StringTokenizer(s, " ,");
+                do
+                {
+                    if(!st.hasMoreTokens())
+                        break;
+                    String m = st.nextToken();
+                    if(m.length() > 0)
+                        v.add(m);
+                } while(true);
+            }
+            saslMechanisms = new String[v.size()];
+            v.toArray(saslMechanisms);
+        }
+        if(saslMechanisms == null)
+            return null;
+        else
+            return (String[])(String[])saslMechanisms.clone();
+    }
+
+    public synchronized void setSASLMechanisms(String mechanisms[])
+    {
+        if(mechanisms != null)
+            mechanisms = (String[])(String[])mechanisms.clone();
+        saslMechanisms = mechanisms;
+    }
+
+    public synchronized String getNTLMDomain()
+    {
+        if(ntlmDomain == "UNKNOWN")
+            ntlmDomain = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".auth.ntlm.domain").toString());
+        return ntlmDomain;
+    }
+
+    public synchronized void setNTLMDomain(String ntlmDomain)
+    {
+        this.ntlmDomain = ntlmDomain;
+    }
+
+    public synchronized boolean getReportSuccess()
+    {
+        return reportSuccess;
+    }
+
+    public synchronized void setReportSuccess(boolean reportSuccess)
+    {
+        this.reportSuccess = reportSuccess;
+    }
+
+    public synchronized boolean getStartTLS()
+    {
+        return useStartTLS;
+    }
+
+    public synchronized void setStartTLS(boolean useStartTLS)
+    {
+        this.useStartTLS = useStartTLS;
+    }
+
+    public synchronized boolean getRequireStartTLS()
+    {
+        return requireStartTLS;
+    }
+
+    public synchronized void setRequireStartTLS(boolean requireStartTLS)
+    {
+        this.requireStartTLS = requireStartTLS;
+    }
+
+    public boolean isSSL()
+    {
+        return serverSocket instanceof SSLSocket;
+    }
+
+    public synchronized boolean getUseRset()
+    {
+        return useRset;
+    }
+
+    public synchronized void setUseRset(boolean useRset)
+    {
+        this.useRset = useRset;
+    }
+
+    public synchronized boolean getNoopStrict()
+    {
+        return noopStrict;
+    }
+
+    public synchronized void setNoopStrict(boolean noopStrict)
+    {
+        this.noopStrict = noopStrict;
+    }
+
+    public synchronized String getLastServerResponse()
+    {
+        return lastServerResponse;
+    }
+
+    public synchronized int getLastReturnCode()
+    {
+        return lastReturnCode;
+    }
+
+    protected synchronized boolean protocolConnect(String host, int port, String user, String passwd)
+        throws MessagingException
+    {
+        boolean useEhlo;
+        boolean useAuth;
+        boolean connected;
+        useEhlo = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".ehlo").toString(), true);
+        useAuth = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".auth").toString(), false);
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("useEhlo ").append(useEhlo).append(", useAuth ").append(useAuth).toString());
+        if(useAuth && (user == null || passwd == null))
+            return false;
+        if(port == -1)
+            port = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".port").toString(), -1);
+        if(port == -1)
+            port = defaultPort;
+        if(host == null || host.length() == 0)
+            host = "localhost";
+        connected = false;
+        boolean flag;
+        if(serverSocket != null)
+            openServer();
+        else
+            openServer(host, port);
+        boolean succeed = false;
+        if(useEhlo)
+            succeed = ehlo(getLocalHost());
+        if(!succeed)
+            helo(getLocalHost());
+        if(useStartTLS || requireStartTLS)
+            if(serverSocket instanceof SSLSocket)
+                logger.fine("STARTTLS requested but already using SSL");
+            else
+            if(supportsExtension("STARTTLS"))
+            {
+                startTLS();
+                ehlo(getLocalHost());
+            } else
+            if(requireStartTLS)
+            {
+                logger.fine("STARTTLS required but not supported");
+                throw new MessagingException("STARTTLS is required but host does not support STARTTLS");
+            }
+        if(!useAuth && (user == null || passwd == null) || !supportsExtension("AUTH") && !supportsExtension("AUTH=LOGIN"))
+            break MISSING_BLOCK_LABEL_408;
+        connected = authenticate(user, passwd);
+        flag = connected;
+        if(!connected)
+            try
+            {
+                closeConnection();
+            }
+            catch(MessagingException mex) { }
+        return flag;
+        connected = true;
+        flag = true;
+        if(!connected)
+            try
+            {
+                closeConnection();
+            }
+            catch(MessagingException mex) { }
+        return flag;
+        Exception exception1;
+        exception1;
+        if(!connected)
+            try
+            {
+                closeConnection();
+            }
+            catch(MessagingException mex) { }
+        throw exception1;
+    }
+
+    private boolean authenticate(String user, String passwd)
+        throws MessagingException
+    {
+        String mechs = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".auth.mechanisms").toString());
+        if(mechs == null)
+            mechs = defaultAuthenticationMechanisms;
+        String authzid = getAuthorizationId();
+        if(authzid == null)
+            authzid = user;
+        if(enableSASL)
+        {
+            logger.fine("Authenticate with SASL");
+            if(sasllogin(getSASLMechanisms(), getSASLRealm(), authzid, user, passwd))
+                return true;
+            logger.fine("SASL authentication failed");
+        }
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("Attempt to authenticate using mechanisms: ").append(mechs).toString());
+        StringTokenizer st = new StringTokenizer(mechs);
+        do
+        {
+            if(!st.hasMoreTokens())
+                break;
+            String m = st.nextToken();
+            String dprop = (new StringBuilder()).append("mail.").append(name).append(".auth.").append(m.toLowerCase(Locale.ENGLISH)).append(".disable").toString();
+            boolean disabled = PropUtil.getBooleanSessionProperty(session, dprop, false);
+            if(disabled)
+            {
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("mechanism ").append(m).append(" disabled by property: ").append(dprop).toString());
+            } else
+            {
+                m = m.toUpperCase(Locale.ENGLISH);
+                if(!supportsAuthentication(m))
+                {
+                    logger.log(Level.FINE, "mechanism {0} not supported by server", m);
+                } else
+                {
+                    Authenticator a = (Authenticator)authenticators.get(m);
+                    if(a == null)
+                        logger.log(Level.FINE, "no authenticator for mechanism {0}", m);
+                    else
+                        return a.authenticate(host, authzid, user, passwd);
+                }
+            }
+        } while(true);
+        throw new AuthenticationFailedException("No authentication mechansims supported by both server and client");
+    }
+
+    public boolean sasllogin(String allowed[], String realm, String authzid, String u, String p)
+        throws MessagingException
+    {
+        String mechs[];
+        if(saslAuthenticator == null)
+            try
+            {
+                Class sac = Class.forName("com.sun.mail.smtp.SMTPSaslAuthenticator");
+                Constructor c = sac.getConstructor(new Class[] {
+                    com/sun/mail/smtp/SMTPTransport, java/lang/String, java/util/Properties, com/sun/mail/util/MailLogger, java/lang/String
+                });
+                saslAuthenticator = (SaslAuthenticator)c.newInstance(new Object[] {
+                    this, name, session.getProperties(), logger, host
+                });
+            }
+            catch(Exception ex)
+            {
+                logger.log(Level.FINE, "Can't load SASL authenticator", ex);
+                return false;
+            }
+        List v;
+        if(allowed != null && allowed.length > 0)
+        {
+            v = new ArrayList(allowed.length);
+            for(int i = 0; i < allowed.length; i++)
+                if(supportsAuthentication(allowed[i]))
+                    v.add(allowed[i]);
+
+        } else
+        {
+            v = new ArrayList();
+            if(extMap != null)
+            {
+                String a = (String)extMap.get("AUTH");
+                if(a != null)
+                {
+                    for(StringTokenizer st = new StringTokenizer(a); st.hasMoreTokens(); v.add(st.nextToken()));
+                }
+            }
+        }
+        mechs = (String[])(String[])v.toArray(new String[v.size()]);
+        boolean flag;
+        if(noauthdebug && isTracing())
+        {
+            logger.fine("SASL AUTH command trace suppressed");
+            suspendTracing();
+        }
+        flag = saslAuthenticator.authenticate(mechs, realm, authzid, u, p);
+        resumeTracing();
+        return flag;
+        Exception exception1;
+        exception1;
+        resumeTracing();
+        throw exception1;
+    }
+
+    public synchronized void sendMessage(Message message, Address addresses[])
+        throws MessagingException, SendFailedException
+    {
+        sendMessageStart(message == null ? "" : message.getSubject());
+        checkConnected();
+        if(!(message instanceof MimeMessage))
+        {
+            logger.fine("Can only send RFC822 msgs");
+            throw new MessagingException("SMTP can only send RFC822 messages");
+        }
+        for(int i = 0; i < addresses.length; i++)
+            if(!(addresses[i] instanceof InternetAddress))
+                throw new MessagingException((new StringBuilder()).append(addresses[i]).append(" is not an InternetAddress").toString());
+
+        if(addresses.length == 0)
+            throw new SendFailedException("No recipient addresses");
+        this.message = (MimeMessage)message;
+        this.addresses = addresses;
+        validUnsentAddr = addresses;
+        expandGroups();
+        boolean use8bit = false;
+        if(message instanceof SMTPMessage)
+            use8bit = ((SMTPMessage)message).getAllow8bitMIME();
+        if(!use8bit)
+            use8bit = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".allow8bitmime").toString(), false);
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("use8bit ").append(use8bit).toString());
+        if(use8bit && supportsExtension("8BITMIME") && convertTo8Bit(this.message))
+            try
+            {
+                this.message.saveChanges();
+            }
+            catch(MessagingException mex) { }
+        try
+        {
+            mailFrom();
+            rcptTo();
+            this.message.writeTo(data(), ignoreList);
+            finishData();
+            if(sendPartiallyFailed)
+            {
+                logger.fine("Sending partially failed because of invalid destination addresses");
+                notifyTransportListeners(3, validSentAddr, validUnsentAddr, invalidAddr, this.message);
+                throw new SMTPSendFailedException(".", lastReturnCode, lastServerResponse, exception, validSentAddr, validUnsentAddr, invalidAddr);
+            }
+            notifyTransportListeners(1, validSentAddr, validUnsentAddr, invalidAddr, this.message);
+        }
+        catch(MessagingException mex)
+        {
+            logger.log(Level.FINE, "MessagingException while sending", mex);
+            if(mex.getNextException() instanceof IOException)
+            {
+                logger.fine("nested IOException, closing");
+                try
+                {
+                    closeConnection();
+                }
+                catch(MessagingException cex) { }
+            }
+            addressesFailed();
+            notifyTransportListeners(2, validSentAddr, validUnsentAddr, invalidAddr, this.message);
+            throw mex;
+        }
+        catch(IOException ex)
+        {
+            logger.log(Level.FINE, "IOException while sending, closing", ex);
+            try
+            {
+                closeConnection();
+            }
+            catch(MessagingException mex) { }
+            addressesFailed();
+            notifyTransportListeners(2, validSentAddr, validUnsentAddr, invalidAddr, this.message);
+            throw new MessagingException("IOException while sending message", ex);
+        }
+        validSentAddr = validUnsentAddr = invalidAddr = null;
+        this.addresses = null;
+        this.message = null;
+        exception = null;
+        sendPartiallyFailed = false;
+        notificationDone = false;
+        break MISSING_BLOCK_LABEL_609;
+        Exception exception1;
+        exception1;
+        validSentAddr = validUnsentAddr = invalidAddr = null;
+        this.addresses = null;
+        this.message = null;
+        exception = null;
+        sendPartiallyFailed = false;
+        notificationDone = false;
+        throw exception1;
+        sendMessageEnd();
+        return;
+    }
+
+    private void addressesFailed()
+    {
+        if(validSentAddr != null)
+            if(validUnsentAddr != null)
+            {
+                Address newa[] = new Address[validSentAddr.length + validUnsentAddr.length];
+                System.arraycopy(validSentAddr, 0, newa, 0, validSentAddr.length);
+                System.arraycopy(validUnsentAddr, 0, newa, validSentAddr.length, validUnsentAddr.length);
+                validSentAddr = null;
+                validUnsentAddr = newa;
+            } else
+            {
+                validUnsentAddr = validSentAddr;
+                validSentAddr = null;
+            }
+    }
+
+    public synchronized void close()
+        throws MessagingException
+    {
+        if(!super.isConnected())
+            return;
+        if(serverSocket != null)
+        {
+            sendCommand("QUIT");
+            if(quitWait)
+            {
+                int resp = readServerResponse();
+                if(resp != 221 && resp != -1 && logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("QUIT failed with ").append(resp).toString());
+            }
+        }
+        closeConnection();
+        break MISSING_BLOCK_LABEL_98;
+        Exception exception1;
+        exception1;
+        closeConnection();
+        throw exception1;
+    }
+
+    private void closeConnection()
+        throws MessagingException
+    {
+        try
+        {
+            if(serverSocket != null)
+                serverSocket.close();
+        }
+        catch(IOException ioex)
+        {
+            throw new MessagingException("Server Close Failed", ioex);
+        }
+        serverSocket = null;
+        serverOutput = null;
+        serverInput = null;
+        lineInputStream = null;
+        if(super.isConnected())
+            super.close();
+        break MISSING_BLOCK_LABEL_94;
+        Exception exception1;
+        exception1;
+        serverSocket = null;
+        serverOutput = null;
+        serverInput = null;
+        lineInputStream = null;
+        if(super.isConnected())
+            super.close();
+        throw exception1;
+    }
+
+    public synchronized boolean isConnected()
+    {
+        if(!super.isConnected())
+            return false;
+        if(useRset)
+            sendCommand("RSET");
+        else
+            sendCommand("NOOP");
+        int resp = readServerResponse();
+        if(resp >= 0 && (noopStrict ? resp == 250 : resp != 421))
+            return true;
+        try
+        {
+            try
+            {
+                closeConnection();
+            }
+            catch(MessagingException mex) { }
+            return false;
+        }
+        catch(Exception ex) { }
+        try
+        {
+            closeConnection();
+        }
+        catch(MessagingException mex) { }
+        return false;
+    }
+
+    protected void notifyTransportListeners(int type, Address validSent[], Address validUnsent[], Address invalid[], Message msg)
+    {
+        if(!notificationDone)
+        {
+            super.notifyTransportListeners(type, validSent, validUnsent, invalid, msg);
+            notificationDone = true;
+        }
+    }
+
+    private void expandGroups()
+    {
+        Vector groups = null;
+        for(int i = 0; i < addresses.length; i++)
+        {
+            InternetAddress a = (InternetAddress)addresses[i];
+            if(a.isGroup())
+            {
+                if(groups == null)
+                {
+                    groups = new Vector();
+                    for(int k = 0; k < i; k++)
+                        groups.addElement(addresses[k]);
+
+                }
+                try
+                {
+                    InternetAddress ia[] = a.getGroup(true);
+                    if(ia != null)
+                    {
+                        for(int j = 0; j < ia.length; j++)
+                            groups.addElement(ia[j]);
+
+                    } else
+                    {
+                        groups.addElement(a);
+                    }
+                }
+                catch(ParseException pex)
+                {
+                    groups.addElement(a);
+                }
+                continue;
+            }
+            if(groups != null)
+                groups.addElement(a);
+        }
+
+        if(groups != null)
+        {
+            InternetAddress newa[] = new InternetAddress[groups.size()];
+            groups.copyInto(newa);
+            addresses = newa;
+        }
+    }
+
+    private boolean convertTo8Bit(MimePart part)
+    {
+        boolean changed = false;
+        InputStream is;
+        if(!part.isMimeType("text/*"))
+            break MISSING_BLOCK_LABEL_138;
+        String enc = part.getEncoding();
+        if(enc == null || !enc.equalsIgnoreCase("quoted-printable") && !enc.equalsIgnoreCase("base64"))
+            break MISSING_BLOCK_LABEL_208;
+        is = null;
+        is = part.getInputStream();
+        if(is8Bit(is))
+        {
+            part.setContent(part.getContent(), part.getContentType());
+            part.setHeader("Content-Transfer-Encoding", "8bit");
+            changed = true;
+        }
+        if(is != null)
+            try
+            {
+                is.close();
+            }
+            catch(IOException ex2) { }
+        break MISSING_BLOCK_LABEL_208;
+        Exception exception1;
+        exception1;
+        if(is != null)
+            try
+            {
+                is.close();
+            }
+            catch(IOException ex2) { }
+        throw exception1;
+        if(part.isMimeType("multipart/*"))
+        {
+            MimeMultipart mp = (MimeMultipart)part.getContent();
+            int count = mp.getCount();
+            for(int i = 0; i < count; i++)
+                if(convertTo8Bit((MimePart)mp.getBodyPart(i)))
+                    changed = true;
+
+        }
+        break MISSING_BLOCK_LABEL_208;
+        IOException ioex;
+        ioex;
+        break MISSING_BLOCK_LABEL_208;
+        MessagingException mex;
+        mex;
+        return changed;
+    }
+
+    private boolean is8Bit(InputStream is)
+    {
+        int linelen;
+        boolean need8bit;
+        linelen = 0;
+        need8bit = false;
+_L2:
+        int b;
+        if((b = is.read()) < 0)
+            break; /* Loop/switch isn't completed */
+        b &= 0xff;
+        if(b == 13 || b == 10)
+        {
+            linelen = 0;
+            break MISSING_BLOCK_LABEL_55;
+        }
+        if(b == 0)
+            return false;
+        try
+        {
+            if(++linelen > 998)
+                return false;
+        }
+        catch(IOException ex)
+        {
+            return false;
+        }
+        if(b > 127)
+            need8bit = true;
+        if(true) goto _L2; else goto _L1
+_L1:
+        if(need8bit)
+            logger.fine("found an 8bit part");
+        return need8bit;
+    }
+
+    protected void finalize()
+        throws Throwable
+    {
+        super.finalize();
+        try
+        {
+            closeConnection();
+        }
+        catch(MessagingException mex) { }
+    }
+
+    protected void helo(String domain)
+        throws MessagingException
+    {
+        if(domain != null)
+            issueCommand((new StringBuilder()).append("HELO ").append(domain).toString(), 250);
+        else
+            issueCommand("HELO", 250);
+    }
+
+    protected boolean ehlo(String domain)
+        throws MessagingException
+    {
+        String cmd;
+        if(domain != null)
+            cmd = (new StringBuilder()).append("EHLO ").append(domain).toString();
+        else
+            cmd = "EHLO";
+        sendCommand(cmd);
+        int resp = readServerResponse();
+        if(resp == 250)
+        {
+            BufferedReader rd = new BufferedReader(new StringReader(lastServerResponse));
+            extMap = new Hashtable();
+            try
+            {
+                boolean first = true;
+                do
+                {
+                    String line;
+                    if((line = rd.readLine()) == null)
+                        break;
+                    if(first)
+                        first = false;
+                    else
+                    if(line.length() >= 5)
+                    {
+                        line = line.substring(4);
+                        int i = line.indexOf(' ');
+                        String arg = "";
+                        if(i > 0)
+                        {
+                            arg = line.substring(i + 1);
+                            line = line.substring(0, i);
+                        }
+                        if(logger.isLoggable(Level.FINE))
+                            logger.fine((new StringBuilder()).append("Found extension \"").append(line).append("\", arg \"").append(arg).append("\"").toString());
+                        extMap.put(line.toUpperCase(Locale.ENGLISH), arg);
+                    }
+                } while(true);
+            }
+            catch(IOException ex) { }
+        }
+        return resp == 250;
+    }
+
+    protected void mailFrom()
+        throws MessagingException
+    {
+        String from = null;
+        if(message instanceof SMTPMessage)
+            from = ((SMTPMessage)message).getEnvelopeFrom();
+        if(from == null || from.length() <= 0)
+            from = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".from").toString());
+        if(from == null || from.length() <= 0)
+        {
+            Address fa[];
+            Address me;
+            if(message != null && (fa = message.getFrom()) != null && fa.length > 0)
+                me = fa[0];
+            else
+                me = InternetAddress.getLocalAddress(session);
+            if(me != null)
+                from = ((InternetAddress)me).getAddress();
+            else
+                throw new MessagingException("can't determine local email address");
+        }
+        String cmd = (new StringBuilder()).append("MAIL FROM:").append(normalizeAddress(from)).toString();
+        if(supportsExtension("DSN"))
+        {
+            String ret = null;
+            if(message instanceof SMTPMessage)
+                ret = ((SMTPMessage)message).getDSNRet();
+            if(ret == null)
+                ret = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".dsn.ret").toString());
+            if(ret != null)
+                cmd = (new StringBuilder()).append(cmd).append(" RET=").append(ret).toString();
+        }
+        if(supportsExtension("AUTH"))
+        {
+            String submitter = null;
+            if(message instanceof SMTPMessage)
+                submitter = ((SMTPMessage)message).getSubmitter();
+            if(submitter == null)
+                submitter = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".submitter").toString());
+            if(submitter != null)
+                try
+                {
+                    String s = xtext(submitter);
+                    cmd = (new StringBuilder()).append(cmd).append(" AUTH=").append(s).toString();
+                }
+                catch(IllegalArgumentException ex)
+                {
+                    if(logger.isLoggable(Level.FINE))
+                        logger.log(Level.FINE, (new StringBuilder()).append("ignoring invalid submitter: ").append(submitter).toString(), ex);
+                }
+        }
+        String ext = null;
+        if(message instanceof SMTPMessage)
+            ext = ((SMTPMessage)message).getMailExtension();
+        if(ext == null)
+            ext = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".mailextension").toString());
+        if(ext != null && ext.length() > 0)
+            cmd = (new StringBuilder()).append(cmd).append(" ").append(ext).toString();
+        try
+        {
+            issueSendCommand(cmd, 250);
+        }
+        catch(SMTPSendFailedException ex)
+        {
+            int retCode = ex.getReturnCode();
+            switch(retCode)
+            {
+            default:
+                break;
+
+            case 501: 
+            case 503: 
+            case 550: 
+            case 551: 
+            case 553: 
+                try
+                {
+                    ex.setNextException(new SMTPSenderFailedException(new InternetAddress(from), cmd, retCode, ex.getMessage()));
+                }
+                catch(AddressException aex) { }
+                break;
+            }
+            throw ex;
+        }
+    }
+
+    protected void rcptTo()
+        throws MessagingException
+    {
+        MessagingException mex;
+        String lsr;
+        int lrc;
+        Vector valid = new Vector();
+        Vector validUnsent = new Vector();
+        Vector invalid = new Vector();
+        int retCode = -1;
+        mex = null;
+        boolean sendFailed = false;
+        MessagingException sfex = null;
+        validSentAddr = validUnsentAddr = invalidAddr = null;
+        boolean sendPartial = false;
+        if(message instanceof SMTPMessage)
+            sendPartial = ((SMTPMessage)message).getSendPartial();
+        if(!sendPartial)
+            sendPartial = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".sendpartial").toString(), false);
+        if(sendPartial)
+            logger.fine("sendPartial set");
+        boolean dsn = false;
+        String notify = null;
+        if(supportsExtension("DSN"))
+        {
+            if(message instanceof SMTPMessage)
+                notify = ((SMTPMessage)message).getDSNNotify();
+            if(notify == null)
+                notify = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".dsn.notify").toString());
+            if(notify != null)
+                dsn = true;
+        }
+        for(int i = 0; i < addresses.length; i++)
+        {
+            sfex = null;
+            InternetAddress ia = (InternetAddress)addresses[i];
+            String cmd = (new StringBuilder()).append("RCPT TO:").append(normalizeAddress(ia.getAddress())).toString();
+            if(dsn)
+                cmd = (new StringBuilder()).append(cmd).append(" NOTIFY=").append(notify).toString();
+            sendCommand(cmd);
+            retCode = readServerResponse();
+            switch(retCode)
+            {
+            case 250: 
+            case 251: 
+                valid.addElement(ia);
+                if(!reportSuccess)
+                    continue;
+                sfex = new SMTPAddressSucceededException(ia, cmd, retCode, lastServerResponse);
+                if(mex == null)
+                    mex = sfex;
+                else
+                    mex.setNextException(sfex);
+                break;
+
+            case 501: 
+            case 503: 
+            case 550: 
+            case 551: 
+            case 553: 
+                if(!sendPartial)
+                    sendFailed = true;
+                invalid.addElement(ia);
+                sfex = new SMTPAddressFailedException(ia, cmd, retCode, lastServerResponse);
+                if(mex == null)
+                    mex = sfex;
+                else
+                    mex.setNextException(sfex);
+                break;
+
+            case 450: 
+            case 451: 
+            case 452: 
+            case 552: 
+                if(!sendPartial)
+                    sendFailed = true;
+                validUnsent.addElement(ia);
+                sfex = new SMTPAddressFailedException(ia, cmd, retCode, lastServerResponse);
+                if(mex == null)
+                    mex = sfex;
+                else
+                    mex.setNextException(sfex);
+                break;
+
+            default:
+                if(retCode >= 400 && retCode <= 499)
+                    validUnsent.addElement(ia);
+                else
+                if(retCode >= 500 && retCode <= 599)
+                {
+                    invalid.addElement(ia);
+                } else
+                {
+                    if(logger.isLoggable(Level.FINE))
+                        logger.fine((new StringBuilder()).append("got response code ").append(retCode).append(", with response: ").append(lastServerResponse).toString());
+                    String _lsr = lastServerResponse;
+                    int _lrc = lastReturnCode;
+                    if(serverSocket != null)
+                        issueCommand("RSET", -1);
+                    lastServerResponse = _lsr;
+                    lastReturnCode = _lrc;
+                    throw new SMTPAddressFailedException(ia, cmd, retCode, _lsr);
+                }
+                if(!sendPartial)
+                    sendFailed = true;
+                sfex = new SMTPAddressFailedException(ia, cmd, retCode, lastServerResponse);
+                if(mex == null)
+                    mex = sfex;
+                else
+                    mex.setNextException(sfex);
+                break;
+            }
+        }
+
+        if(sendPartial && valid.size() == 0)
+            sendFailed = true;
+        if(sendFailed)
+        {
+            invalidAddr = new Address[invalid.size()];
+            invalid.copyInto(invalidAddr);
+            validUnsentAddr = new Address[valid.size() + validUnsent.size()];
+            int i = 0;
+            for(int j = 0; j < valid.size(); j++)
+                validUnsentAddr[i++] = (Address)valid.elementAt(j);
+
+            for(int j = 0; j < validUnsent.size(); j++)
+                validUnsentAddr[i++] = (Address)validUnsent.elementAt(j);
+
+        } else
+        if(reportSuccess || sendPartial && (invalid.size() > 0 || validUnsent.size() > 0))
+        {
+            sendPartiallyFailed = true;
+            exception = mex;
+            invalidAddr = new Address[invalid.size()];
+            invalid.copyInto(invalidAddr);
+            validUnsentAddr = new Address[validUnsent.size()];
+            validUnsent.copyInto(validUnsentAddr);
+            validSentAddr = new Address[valid.size()];
+            valid.copyInto(validSentAddr);
+        } else
+        {
+            validSentAddr = addresses;
+        }
+        if(logger.isLoggable(Level.FINE))
+        {
+            if(validSentAddr != null && validSentAddr.length > 0)
+            {
+                logger.fine("Verified Addresses");
+                for(int l = 0; l < validSentAddr.length; l++)
+                    logger.fine((new StringBuilder()).append("  ").append(validSentAddr[l]).toString());
+
+            }
+            if(validUnsentAddr != null && validUnsentAddr.length > 0)
+            {
+                logger.fine("Valid Unsent Addresses");
+                for(int j = 0; j < validUnsentAddr.length; j++)
+                    logger.fine((new StringBuilder()).append("  ").append(validUnsentAddr[j]).toString());
+
+            }
+            if(invalidAddr != null && invalidAddr.length > 0)
+            {
+                logger.fine("Invalid Addresses");
+                for(int k = 0; k < invalidAddr.length; k++)
+                    logger.fine((new StringBuilder()).append("  ").append(invalidAddr[k]).toString());
+
+            }
+        }
+        if(!sendFailed)
+            break MISSING_BLOCK_LABEL_1449;
+        logger.fine("Sending failed because of invalid destination addresses");
+        notifyTransportListeners(2, validSentAddr, validUnsentAddr, invalidAddr, message);
+        lsr = lastServerResponse;
+        lrc = lastReturnCode;
+        if(serverSocket != null)
+            issueCommand("RSET", -1);
+        lastServerResponse = lsr;
+        lastReturnCode = lrc;
+        break MISSING_BLOCK_LABEL_1424;
+        MessagingException ex;
+        ex;
+        try
+        {
+            close();
+        }
+        catch(MessagingException ex2)
+        {
+            logger.log(Level.FINE, "close failed", ex2);
+        }
+        lastServerResponse = lsr;
+        lastReturnCode = lrc;
+        break MISSING_BLOCK_LABEL_1424;
+        Exception exception1;
+        exception1;
+        lastServerResponse = lsr;
+        lastReturnCode = lrc;
+        throw exception1;
+        throw new SendFailedException("Invalid Addresses", mex, validSentAddr, validUnsentAddr, invalidAddr);
+    }
+
+    protected OutputStream data()
+        throws MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            issueSendCommand("DATA", 354);
+            dataStream = new SMTPOutputStream(serverOutput);
+            return dataStream;
+        }
+    }
+
+    protected void finishData()
+        throws IOException, MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            dataStream.ensureAtBOL();
+            issueSendCommand(".", 250);
+            return;
+        }
+    }
+
+    protected void startTLS()
+        throws MessagingException
+    {
+        issueCommand("STARTTLS", 220);
+        try
+        {
+            serverSocket = SocketFetcher.startTLS(serverSocket, host, session.getProperties(), (new StringBuilder()).append("mail.").append(name).toString());
+            initStreams();
+        }
+        catch(IOException ioex)
+        {
+            closeConnection();
+            throw new MessagingException("Could not convert socket to TLS", ioex);
+        }
+    }
+
+    private void openServer(String host, int port)
+        throws MessagingException
+    {
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("trying to connect to host \"").append(host).append("\", port ").append(port).append(", isSSL ").append(isSSL).toString());
+        try
+        {
+            Properties props = session.getProperties();
+            serverSocket = SocketFetcher.getSocket(host, port, props, (new StringBuilder()).append("mail.").append(name).toString(), isSSL);
+            port = serverSocket.getPort();
+            this.host = host;
+            initStreams();
+            int r = -1;
+            if((r = readServerResponse()) != 220)
+            {
+                serverSocket.close();
+                serverSocket = null;
+                serverOutput = null;
+                serverInput = null;
+                lineInputStream = null;
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("could not connect to host \"").append(host).append("\", port: ").append(port).append(", response: ").append(r).append("\n").toString());
+                throw new MessagingException((new StringBuilder()).append("Could not connect to SMTP host: ").append(host).append(", port: ").append(port).append(", response: ").append(r).toString());
+            }
+            if(logger.isLoggable(Level.FINE))
+                logger.fine((new StringBuilder()).append("connected to host \"").append(host).append("\", port: ").append(port).append("\n").toString());
+        }
+        catch(UnknownHostException uhex)
+        {
+            throw new MessagingException((new StringBuilder()).append("Unknown SMTP host: ").append(host).toString(), uhex);
+        }
+        catch(SocketConnectException scex)
+        {
+            throw new MailConnectException(scex);
+        }
+        catch(IOException ioe)
+        {
+            throw new MessagingException((new StringBuilder()).append("Could not connect to SMTP host: ").append(host).append(", port: ").append(port).toString(), ioe);
+        }
+    }
+
+    private void openServer()
+        throws MessagingException
+    {
+        int port = -1;
+        host = "UNKNOWN";
+        try
+        {
+            port = serverSocket.getPort();
+            host = serverSocket.getInetAddress().getHostName();
+            if(logger.isLoggable(Level.FINE))
+                logger.fine((new StringBuilder()).append("starting protocol to host \"").append(host).append("\", port ").append(port).toString());
+            initStreams();
+            int r = -1;
+            if((r = readServerResponse()) != 220)
+            {
+                serverSocket.close();
+                serverSocket = null;
+                serverOutput = null;
+                serverInput = null;
+                lineInputStream = null;
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("got bad greeting from host \"").append(host).append("\", port: ").append(port).append(", response: ").append(r).append("\n").toString());
+                throw new MessagingException((new StringBuilder()).append("Got bad greeting from SMTP host: ").append(host).append(", port: ").append(port).append(", response: ").append(r).toString());
+            }
+            if(logger.isLoggable(Level.FINE))
+                logger.fine((new StringBuilder()).append("protocol started to host \"").append(host).append("\", port: ").append(port).append("\n").toString());
+        }
+        catch(IOException ioe)
+        {
+            throw new MessagingException((new StringBuilder()).append("Could not start protocol to SMTP host: ").append(host).append(", port: ").append(port).toString(), ioe);
+        }
+    }
+
+    private void initStreams()
+        throws IOException
+    {
+        boolean quote = PropUtil.getBooleanSessionProperty(session, "mail.debug.quote", false);
+        traceInput = new TraceInputStream(serverSocket.getInputStream(), traceLogger);
+        traceInput.setQuote(quote);
+        traceOutput = new TraceOutputStream(serverSocket.getOutputStream(), traceLogger);
+        traceOutput.setQuote(quote);
+        serverOutput = new BufferedOutputStream(traceOutput);
+        serverInput = new BufferedInputStream(traceInput);
+        lineInputStream = new LineInputStream(serverInput);
+    }
+
+    private boolean isTracing()
+    {
+        return traceLogger.isLoggable(Level.FINEST);
+    }
+
+    private void suspendTracing()
+    {
+        if(traceLogger.isLoggable(Level.FINEST))
+        {
+            traceInput.setTrace(false);
+            traceOutput.setTrace(false);
+        }
+    }
+
+    private void resumeTracing()
+    {
+        if(traceLogger.isLoggable(Level.FINEST))
+        {
+            traceInput.setTrace(true);
+            traceOutput.setTrace(true);
+        }
+    }
+
+    public synchronized void issueCommand(String cmd, int expect)
+        throws MessagingException
+    {
+        sendCommand(cmd);
+        int resp = readServerResponse();
+        if(expect != -1 && resp != expect)
+            throw new MessagingException(lastServerResponse);
+        else
+            return;
+    }
+
+    private void issueSendCommand(String cmd, int expect)
+        throws MessagingException
+    {
+        sendCommand(cmd);
+        int ret;
+        if((ret = readServerResponse()) != expect)
+        {
+            int vsl = validSentAddr != null ? validSentAddr.length : 0;
+            int vul = validUnsentAddr != null ? validUnsentAddr.length : 0;
+            Address valid[] = new Address[vsl + vul];
+            if(vsl > 0)
+                System.arraycopy(validSentAddr, 0, valid, 0, vsl);
+            if(vul > 0)
+                System.arraycopy(validUnsentAddr, 0, valid, vsl, vul);
+            validSentAddr = null;
+            validUnsentAddr = valid;
+            if(logger.isLoggable(Level.FINE))
+                logger.fine((new StringBuilder()).append("got response code ").append(ret).append(", with response: ").append(lastServerResponse).toString());
+            String _lsr = lastServerResponse;
+            int _lrc = lastReturnCode;
+            if(serverSocket != null)
+                issueCommand("RSET", -1);
+            lastServerResponse = _lsr;
+            lastReturnCode = _lrc;
+            throw new SMTPSendFailedException(cmd, ret, lastServerResponse, exception, validSentAddr, validUnsentAddr, invalidAddr);
+        } else
+        {
+            return;
+        }
+    }
+
+    public synchronized int simpleCommand(String cmd)
+        throws MessagingException
+    {
+        sendCommand(cmd);
+        return readServerResponse();
+    }
+
+    protected int simpleCommand(byte cmd[])
+        throws MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+        {
+            throw new AssertionError();
+        } else
+        {
+            sendCommand(cmd);
+            return readServerResponse();
+        }
+    }
+
+    protected void sendCommand(String cmd)
+        throws MessagingException
+    {
+        sendCommand(ASCIIUtility.getBytes(cmd));
+    }
+
+    private void sendCommand(byte cmdBytes[])
+        throws MessagingException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        try
+        {
+            serverOutput.write(cmdBytes);
+            serverOutput.write(CRLF);
+            serverOutput.flush();
+        }
+        catch(IOException ex)
+        {
+            throw new MessagingException("Can't send command to SMTP host", ex);
+        }
+    }
+
+    protected int readServerResponse()
+        throws MessagingException
+    {
+        String serverResponse;
+        StringBuffer buf;
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        serverResponse = "";
+        int returnCode = 0;
+        buf = new StringBuffer(100);
+        String line = null;
+_L1:
+        line = lineInputStream.readLine();
+        if(line == null)
+        {
+            serverResponse = buf.toString();
+            if(serverResponse.length() == 0)
+                serverResponse = "[EOF]";
+            lastServerResponse = serverResponse;
+            lastReturnCode = -1;
+            logger.log(Level.FINE, "EOF: {0}", serverResponse);
+            return -1;
+        }
+        try
+        {
+            buf.append(line);
+            buf.append("\n");
+            if(!isNotLastLine(line))
+            {
+                serverResponse = buf.toString();
+                break MISSING_BLOCK_LABEL_168;
+            }
+        }
+        catch(IOException ioex)
+        {
+            logger.log(Level.FINE, "exception reading response", ioex);
+            lastServerResponse = "";
+            lastReturnCode = 0;
+            throw new MessagingException("Exception reading response", ioex);
+        }
+          goto _L1
+        int returnCode;
+        if(serverResponse.length() >= 3)
+            try
+            {
+                returnCode = Integer.parseInt(serverResponse.substring(0, 3));
+            }
+            catch(NumberFormatException nfe)
+            {
+                try
+                {
+                    close();
+                }
+                catch(MessagingException mex)
+                {
+                    logger.log(Level.FINE, "close failed", mex);
+                }
+                returnCode = -1;
+            }
+            catch(StringIndexOutOfBoundsException ex)
+            {
+                try
+                {
+                    close();
+                }
+                catch(MessagingException mex)
+                {
+                    logger.log(Level.FINE, "close failed", mex);
+                }
+                returnCode = -1;
+            }
+        else
+            returnCode = -1;
+        if(returnCode == -1)
+            logger.log(Level.FINE, "bad server response: {0}", serverResponse);
+        lastServerResponse = serverResponse;
+        lastReturnCode = returnCode;
+        return returnCode;
+    }
+
+    protected void checkConnected()
+    {
+        if(!super.isConnected())
+            throw new IllegalStateException("Not connected");
+        else
+            return;
+    }
+
+    private boolean isNotLastLine(String line)
+    {
+        return line != null && line.length() >= 4 && line.charAt(3) == '-';
+    }
+
+    private String normalizeAddress(String addr)
+    {
+        if(!addr.startsWith("<") && !addr.endsWith(">"))
+            return (new StringBuilder()).append("<").append(addr).append(">").toString();
+        else
+            return addr;
+    }
+
+    public boolean supportsExtension(String ext)
+    {
+        return extMap != null && extMap.get(ext.toUpperCase(Locale.ENGLISH)) != null;
+    }
+
+    public String getExtensionParameter(String ext)
+    {
+        return extMap != null ? (String)extMap.get(ext.toUpperCase(Locale.ENGLISH)) : null;
+    }
+
+    protected boolean supportsAuthentication(String auth)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(extMap == null)
+            return false;
+        String a = (String)extMap.get("AUTH");
+        if(a == null)
+            return false;
+        for(StringTokenizer st = new StringTokenizer(a); st.hasMoreTokens();)
+        {
+            String tok = st.nextToken();
+            if(tok.equalsIgnoreCase(auth))
+                return true;
+        }
+
+        if(auth.equalsIgnoreCase("LOGIN") && supportsExtension("AUTH=LOGIN"))
+        {
+            logger.fine("use AUTH=LOGIN hack");
+            return true;
+        } else
+        {
+            return false;
+        }
+    }
+
+    protected static String xtext(String s)
+    {
+        StringBuffer sb = null;
+        for(int i = 0; i < s.length(); i++)
+        {
+            char c = s.charAt(i);
+            if(c >= '\200')
+                throw new IllegalArgumentException((new StringBuilder()).append("Non-ASCII character in SMTP submitter: ").append(s).toString());
+            if(c < '!' || c > '~' || c == '+' || c == '=')
+            {
+                if(sb == null)
+                {
+                    sb = new StringBuffer(s.length() + 4);
+                    sb.append(s.substring(0, i));
+                }
+                sb.append('+');
+                sb.append(hexchar[(c & 0xf0) >> 4]);
+                sb.append(hexchar[c & 0xf]);
+                continue;
+            }
+            if(sb != null)
+                sb.append(c);
+        }
+
+        return sb == null ? s : sb.toString();
+    }
+
+    private void sendMessageStart(String s)
+    {
+    }
+
+    private void sendMessageEnd()
+    {
+    }
+
+    private String name;
+    private int defaultPort;
+    private boolean isSSL;
+    private String host;
+    private MimeMessage message;
+    private Address addresses[];
+    private Address validSentAddr[];
+    private Address validUnsentAddr[];
+    private Address invalidAddr[];
+    private boolean sendPartiallyFailed;
+    private MessagingException exception;
+    private SMTPOutputStream dataStream;
+    private Hashtable extMap;
+    private Map authenticators;
+    private String defaultAuthenticationMechanisms;
+    private boolean quitWait;
+    private String saslRealm;
+    private String authorizationID;
+    private boolean enableSASL;
+    private String saslMechanisms[];
+    private String ntlmDomain;
+    private boolean reportSuccess;
+    private boolean useStartTLS;
+    private boolean requireStartTLS;
+    private boolean useRset;
+    private boolean noopStrict;
+    private MailLogger logger;
+    private MailLogger traceLogger;
+    private String localHostName;
+    private String lastServerResponse;
+    private int lastReturnCode;
+    private boolean notificationDone;
+    private SaslAuthenticator saslAuthenticator;
+    private boolean noauthdebug;
+    private static final String ignoreList[] = {
+        "Bcc", "Content-Length"
+    };
+    private static final byte CRLF[] = {
+        13, 10
+    };
+    private static final String UNKNOWN = "UNKNOWN";
+    private static final String UNKNOWN_SA[] = new String[0];
+    private BufferedInputStream serverInput;
+    private LineInputStream lineInputStream;
+    private OutputStream serverOutput;
+    private Socket serverSocket;
+    private TraceInputStream traceInput;
+    private TraceOutputStream traceOutput;
+    private static char hexchar[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
+        'A', 'B', 'C', 'D', 'E', 'F'
+    };
+    static final boolean $assertionsDisabled = !com/sun/mail/smtp/SMTPTransport.desiredAssertionStatus();
+
+
+
+
+
+
+
+
+
+}

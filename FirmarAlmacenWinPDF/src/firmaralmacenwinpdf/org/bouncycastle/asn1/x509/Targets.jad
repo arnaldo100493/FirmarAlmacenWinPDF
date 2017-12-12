@@ -1,0 +1,53 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Targets.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            Target
+
+public class Targets extends ASN1Encodable
+{
+
+    public static Targets getInstance(Object obj)
+    {
+        if(obj instanceof Targets)
+            return (Targets)obj;
+        if(obj instanceof ASN1Sequence)
+            return new Targets((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass()).toString());
+    }
+
+    private Targets(ASN1Sequence targets)
+    {
+        this.targets = targets;
+    }
+
+    public Targets(Target targets[])
+    {
+        this.targets = new DERSequence(targets);
+    }
+
+    public Target[] getTargets()
+    {
+        Target targs[] = new Target[targets.size()];
+        int count = 0;
+        for(Enumeration e = targets.getObjects(); e.hasMoreElements();)
+            targs[count++] = Target.getInstance(e.nextElement());
+
+        return targs;
+    }
+
+    public DERObject toASN1Object()
+    {
+        return targets;
+    }
+
+    private ASN1Sequence targets;
+}

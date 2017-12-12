@@ -1,0 +1,196 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BcKeyStoreSpi.java
+
+package co.org.bouncy.jcajce.provider.keystore.bc;
+
+import java.io.*;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.util.Date;
+import javax.crypto.*;
+
+// Referenced classes of package co.org.bouncy.jcajce.provider.keystore.bc:
+//            BcKeyStoreSpi
+
+private class BcKeyStoreSpi$StoreEntry
+{
+
+    int getType()
+    {
+        return type;
+    }
+
+    String getAlias()
+    {
+        return alias;
+    }
+
+    Object getObject()
+    {
+        return obj;
+    }
+
+    Object getObject(char password[])
+        throws NoSuchAlgorithmException, UnrecoverableKeyException
+    {
+        if((password == null || password.length == 0) && (obj instanceof Key))
+            return obj;
+        if(type != 4) goto _L2; else goto _L1
+_L1:
+        ByteArrayInputStream bIn;
+        DataInputStream dIn;
+        bIn = new ByteArrayInputStream((byte[])(byte[])obj);
+        dIn = new DataInputStream(bIn);
+        CipherInputStream cIn;
+        byte salt[] = new byte[dIn.readInt()];
+        dIn.readFully(salt);
+        int iterationCount = dIn.readInt();
+        Cipher cipher = makePBECipher("PBEWithSHAAnd3-KeyTripleDES-CBC", 2, password, salt, iterationCount);
+        cIn = new CipherInputStream(dIn, cipher);
+        try
+        {
+            return BcKeyStoreSpi.access$100(BcKeyStoreSpi.this, new DataInputStream(cIn));
+        }
+        catch(Exception x)
+        {
+            bIn = new ByteArrayInputStream((byte[])(byte[])obj);
+        }
+        dIn = new DataInputStream(bIn);
+        byte salt[] = new byte[dIn.readInt()];
+        dIn.readFully(salt);
+        int iterationCount = dIn.readInt();
+        Cipher cipher = makePBECipher("BrokenPBEWithSHAAnd3-KeyTripleDES-CBC", 2, password, salt, iterationCount);
+        cIn = new CipherInputStream(dIn, cipher);
+        Key k = null;
+        try
+        {
+            k = BcKeyStoreSpi.access$100(BcKeyStoreSpi.this, new DataInputStream(cIn));
+        }
+        catch(Exception y)
+        {
+            bIn = new ByteArrayInputStream((byte[])(byte[])obj);
+            dIn = new DataInputStream(bIn);
+            salt = new byte[dIn.readInt()];
+            dIn.readFully(salt);
+            iterationCount = dIn.readInt();
+            cipher = makePBECipher("OldPBEWithSHAAnd3-KeyTripleDES-CBC", 2, password, salt, iterationCount);
+            cIn = new CipherInputStream(dIn, cipher);
+            k = BcKeyStoreSpi.access$100(BcKeyStoreSpi.this, new DataInputStream(cIn));
+        }
+        if(k != null)
+        {
+            ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+            DataOutputStream dOut = new DataOutputStream(bOut);
+            dOut.writeInt(salt.length);
+            dOut.write(salt);
+            dOut.writeInt(iterationCount);
+            Cipher out = makePBECipher("PBEWithSHAAnd3-KeyTripleDES-CBC", 1, password, salt, iterationCount);
+            CipherOutputStream cOut = new CipherOutputStream(dOut, out);
+            dOut = new DataOutputStream(cOut);
+            BcKeyStoreSpi.access$000(BcKeyStoreSpi.this, k, dOut);
+            dOut.close();
+            obj = bOut.toByteArray();
+            return k;
+        }
+        try
+        {
+            throw new UnrecoverableKeyException("no match");
+        }
+        catch(Exception e)
+        {
+            throw new UnrecoverableKeyException("no match");
+        }
+_L2:
+        throw new RuntimeException("forget something!");
+    }
+
+    Certificate[] getCertificateChain()
+    {
+        return certChain;
+    }
+
+    Date getDate()
+    {
+        return date;
+    }
+
+    int type;
+    String alias;
+    Object obj;
+    Certificate certChain[];
+    Date date;
+    final BcKeyStoreSpi this$0;
+
+    BcKeyStoreSpi$StoreEntry(String alias, Certificate obj)
+    {
+        this$0 = BcKeyStoreSpi.this;
+        super();
+        date = new Date();
+        type = 1;
+        this.alias = alias;
+        this.obj = obj;
+        certChain = null;
+    }
+
+    BcKeyStoreSpi$StoreEntry(String alias, byte obj[], Certificate certChain[])
+    {
+        this$0 = BcKeyStoreSpi.this;
+        super();
+        date = new Date();
+        type = 3;
+        this.alias = alias;
+        this.obj = obj;
+        this.certChain = certChain;
+    }
+
+    BcKeyStoreSpi$StoreEntry(String alias, Key key, char password[], Certificate certChain[])
+        throws Exception
+    {
+        this$0 = BcKeyStoreSpi.this;
+        super();
+        date = new Date();
+        type = 4;
+        this.alias = alias;
+        this.certChain = certChain;
+        byte salt[] = new byte[20];
+        random.setSeed(System.currentTimeMillis());
+        random.nextBytes(salt);
+        int iterationCount = 1024 + (random.nextInt() & 0x3ff);
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        DataOutputStream dOut = new DataOutputStream(bOut);
+        dOut.writeInt(salt.length);
+        dOut.write(salt);
+        dOut.writeInt(iterationCount);
+        Cipher cipher = makePBECipher("PBEWithSHAAnd3-KeyTripleDES-CBC", 1, password, salt, iterationCount);
+        CipherOutputStream cOut = new CipherOutputStream(dOut, cipher);
+        dOut = new DataOutputStream(cOut);
+        BcKeyStoreSpi.access$000(BcKeyStoreSpi.this, key, dOut);
+        dOut.close();
+        obj = bOut.toByteArray();
+    }
+
+    BcKeyStoreSpi$StoreEntry(String alias, Date date, int type, Object obj)
+    {
+        this$0 = BcKeyStoreSpi.this;
+        super();
+        this.date = new Date();
+        this.alias = alias;
+        this.date = date;
+        this.type = type;
+        this.obj = obj;
+    }
+
+    BcKeyStoreSpi$StoreEntry(String alias, Date date, int type, Object obj, Certificate certChain[])
+    {
+        this$0 = BcKeyStoreSpi.this;
+        super();
+        this.date = new Date();
+        this.alias = alias;
+        this.date = date;
+        this.type = type;
+        this.obj = obj;
+        this.certChain = certChain;
+    }
+}

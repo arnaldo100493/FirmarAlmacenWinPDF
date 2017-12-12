@@ -1,0 +1,27 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X962NamedCurves.java
+
+package co.org.bouncy.asn1.x9;
+
+import co.org.bouncy.math.ec.ECCurve;
+import co.org.bouncy.util.encoders.Hex;
+import java.math.BigInteger;
+
+// Referenced classes of package co.org.bouncy.asn1.x9:
+//            X9ECParametersHolder, X9ECParameters, X962NamedCurves
+
+static class X962NamedCurves$6 extends X9ECParametersHolder
+{
+
+    protected X9ECParameters createParameters()
+    {
+        ECCurve cFp239v3 = new co.org.bouncy.math.ec.ECCurve.Fp(new BigInteger("883423532389192164791648750360308885314476597252960362792450860609699839"), new BigInteger("7fffffffffffffffffffffff7fffffffffff8000000000007ffffffffffc", 16), new BigInteger("255705fa2a306654b1f4cb03d6a750a30c250102d4988717d9ba15ab6d3e", 16));
+        return new X9ECParameters(cFp239v3, cFp239v3.decodePoint(Hex.decode("036768ae8e18bb92cfcf005c949aa2c6d94853d0e660bbf854b1c9505fe95a")), new BigInteger("7fffffffffffffffffffffff7fffff975deb41b3a6057c3c432146526551", 16), BigInteger.valueOf(1L), Hex.decode("7d7374168ffe3471b60a857686a19475d3bfa2ff"));
+    }
+
+    X962NamedCurves$6()
+    {
+    }
+}

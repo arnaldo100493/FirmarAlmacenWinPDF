@@ -1,0 +1,71 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   RevocacionRequest.java
+
+package co.com.andesscd.clientes.fna;
+
+
+public class RevocacionRequest
+{
+
+    public RevocacionRequest()
+    {
+    }
+
+    public int getTipoDoc()
+    {
+        return tipoDoc;
+    }
+
+    public void setTipoDoc(int value)
+    {
+        tipoDoc = value;
+    }
+
+    public String getDocumento()
+    {
+        return documento;
+    }
+
+    public void setDocumento(String value)
+    {
+        documento = value;
+    }
+
+    public String getSerialcertificado()
+    {
+        return serialcertificado;
+    }
+
+    public void setSerialcertificado(String value)
+    {
+        serialcertificado = value;
+    }
+
+    public int getIdcausalrevocacion()
+    {
+        return idcausalrevocacion;
+    }
+
+    public void setIdcausalrevocacion(int value)
+    {
+        idcausalrevocacion = value;
+    }
+
+    public String getObservacion()
+    {
+        return observacion;
+    }
+
+    public void setObservacion(String value)
+    {
+        observacion = value;
+    }
+
+    protected int tipoDoc;
+    protected String documento;
+    protected String serialcertificado;
+    protected int idcausalrevocacion;
+    protected String observacion;
+}

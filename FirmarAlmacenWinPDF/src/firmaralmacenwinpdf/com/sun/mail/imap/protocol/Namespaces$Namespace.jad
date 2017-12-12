@@ -1,0 +1,56 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Namespaces.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.ProtocolException;
+import com.sun.mail.iap.Response;
+
+// Referenced classes of package com.sun.mail.imap.protocol:
+//            BASE64MailboxDecoder, Namespaces
+
+public static class Namespaces$Namespace
+{
+
+    public String prefix;
+    public char delimiter;
+
+    public Namespaces$Namespace(Response r)
+        throws ProtocolException
+    {
+        if(r.readByte() != 40)
+            throw new ProtocolException("Missing '(' at start of Namespace");
+        prefix = BASE64MailboxDecoder.decode(r.readString());
+        r.skipSpaces();
+        if(r.peekByte() == 34)
+        {
+            r.readByte();
+            delimiter = (char)r.readByte();
+            if(delimiter == '\\')
+                delimiter = (char)r.readByte();
+            if(r.readByte() != 34)
+                throw new ProtocolException("Missing '\"' at end of QUOTED_CHAR");
+        } else
+        {
+            String s = r.readAtom();
+            if(s == null)
+                throw new ProtocolException("Expected NIL, got null");
+            if(!s.equalsIgnoreCase("NIL"))
+                throw new ProtocolException((new StringBuilder()).append("Expected NIL, got ").append(s).toString());
+            delimiter = '\0';
+        }
+        if(r.peekByte() != 41)
+        {
+            r.skipSpaces();
+            r.readString();
+            r.skipSpaces();
+            r.readStringList();
+        }
+        if(r.readByte() != 41)
+            throw new ProtocolException("Missing ')' at end of Namespace");
+        else
+            return;
+    }
+}

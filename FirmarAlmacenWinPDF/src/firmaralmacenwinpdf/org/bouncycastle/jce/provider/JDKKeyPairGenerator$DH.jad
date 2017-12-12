@@ -1,0 +1,87 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKKeyPairGenerator.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.util.Hashtable;
+import javax.crypto.spec.DHParameterSpec;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.DHBasicKeyPairGenerator;
+import org.bouncycastle.crypto.generators.DHParametersGenerator;
+import org.bouncycastle.crypto.params.*;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKKeyPairGenerator, JCEDHPublicKey, JCEDHPrivateKey
+
+public static class JDKKeyPairGenerator$DH extends JDKKeyPairGenerator
+{
+
+    public void initialize(int strength, SecureRandom random)
+    {
+        this.strength = strength;
+        this.random = random;
+    }
+
+    public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+        throws InvalidAlgorithmParameterException
+    {
+        if(!(params instanceof DHParameterSpec))
+        {
+            throw new InvalidAlgorithmParameterException("parameter object not a DHParameterSpec");
+        } else
+        {
+            DHParameterSpec dhParams = (DHParameterSpec)params;
+            param = new DHKeyGenerationParameters(random, new DHParameters(dhParams.getP(), dhParams.getG(), null, dhParams.getL()));
+            engine.init(param);
+            initialised = true;
+            return;
+        }
+    }
+
+    public KeyPair generateKeyPair()
+    {
+        if(!initialised)
+        {
+            Integer paramStrength = new Integer(strength);
+            if(params.containsKey(paramStrength))
+            {
+                param = (DHKeyGenerationParameters)params.get(paramStrength);
+            } else
+            {
+                DHParametersGenerator pGen = new DHParametersGenerator();
+                pGen.init(strength, certainty, random);
+                param = new DHKeyGenerationParameters(random, pGen.generateParameters());
+                params.put(paramStrength, param);
+            }
+            engine.init(param);
+            initialised = true;
+        }
+        AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+        DHPublicKeyParameters pub = (DHPublicKeyParameters)pair.getPublic();
+        DHPrivateKeyParameters priv = (DHPrivateKeyParameters)pair.getPrivate();
+        return new KeyPair(new JCEDHPublicKey(pub), new JCEDHPrivateKey(priv));
+    }
+
+    private static Hashtable params = new Hashtable();
+    DHKeyGenerationParameters param;
+    DHBasicKeyPairGenerator engine;
+    int strength;
+    int certainty;
+    SecureRandom random;
+    boolean initialised;
+
+
+    public JDKKeyPairGenerator$DH()
+    {
+        super("DH");
+        engine = new DHBasicKeyPairGenerator();
+        strength = 1024;
+        certainty = 20;
+        random = new SecureRandom();
+        initialised = false;
+    }
+}

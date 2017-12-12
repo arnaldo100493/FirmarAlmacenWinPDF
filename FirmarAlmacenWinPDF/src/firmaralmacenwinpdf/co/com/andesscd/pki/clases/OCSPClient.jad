@@ -1,0 +1,230 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   OCSPClient.java
+
+package co.com.andesscd.pki.clases;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.ocsp.OCSPObjectIdentifiers;
+import co.org.bouncy.asn1.x509.*;
+import co.org.bouncy.cert.X509CertificateHolder;
+import co.org.bouncy.cert.ocsp.*;
+import co.org.bouncy.operator.DigestCalculatorProvider;
+import co.org.bouncy.operator.OperatorCreationException;
+import co.org.bouncy.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import co.org.bouncy.util.Arrays;
+import co.org.bouncy.x509.extension.X509ExtensionUtil;
+import java.io.*;
+import java.math.BigInteger;
+import java.net.*;
+import java.security.*;
+import java.security.cert.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            CMS, RESULTADO_VERIFICACION
+
+public class OCSPClient
+{
+
+    public OCSPClient()
+    {
+    }
+
+    private static ASN1Object getExtensionValue(X509Certificate cert, String oid)
+        throws IOException
+    {
+        if(cert == null)
+            return null;
+        byte bytes[] = cert.getExtensionValue(oid);
+        if(bytes == null)
+            return null;
+        else
+            return X509ExtensionUtil.fromExtensionValue(bytes);
+    }
+
+    private static ArrayList getAuthorityInformationAccessOcspUrl(X509Certificate cert)
+        throws IOException
+    {
+        ArrayList ocspUrls = new ArrayList();
+        try
+        {
+            ASN1Object obj = getExtensionValue(cert, X509Extension.authorityInfoAccess.getId());
+            ASN1Sequence s = (ASN1Sequence)obj;
+            Enumeration elements = s.getObjects();
+            do
+            {
+                if(!elements.hasMoreElements())
+                    break;
+                ASN1Sequence element = (ASN1Sequence)elements.nextElement();
+                DERObjectIdentifier oid = (DERObjectIdentifier)element.getObjectAt(0);
+                if(oid.getId().compareTo("1.3.6.1.5.5.7.48.1") == 0)
+                {
+                    ASN1TaggedObject taggedObject = (ASN1TaggedObject)element.getObjectAt(1);
+                    GeneralName gn = GeneralName.getInstance(taggedObject);
+                    ocspUrls.add(DERIA5String.getInstance(gn.getName()).getString());
+                }
+            } while(true);
+        }
+        catch(IOException ex)
+        {
+            throw new IOException((new StringBuilder()).append("Error obtenindo la ruta OCSP: ").append(ex.getMessage()).toString(), ex);
+        }
+        return ocspUrls;
+    }
+
+    private static OCSPReq generateOcspRequest(CertificateID id)
+        throws OCSPException, IOException, OCSPException
+    {
+        OCSPReqBuilder ocspRequestBuilder = new OCSPReqBuilder();
+        ocspRequestBuilder.addRequest(id);
+        co.org.bouncy.asn1.ASN1OctetString asn1 = new DEROctetString(new DEROctetString(new byte[] {
+            1, 3, 6, 1, 5, 5, 7, 48, 1, 1
+        }));
+        Extensions e = new Extensions(new Extension(OCSPObjectIdentifiers.id_pkix_ocsp, DERBoolean.FALSE, asn1));
+        return ocspRequestBuilder.setRequestExtensions(e).build();
+    }
+
+    private static OCSPReq generateOcspRequest(X509Certificate issuerCert, BigInteger serialNumber)
+        throws OCSPException, OCSPException, OperatorCreationException, IOException, CertificateEncodingException
+    {
+        CertificateID id = new CertificateID((new JcaDigestCalculatorProviderBuilder()).setProvider("BC").build().get(CertificateID.HASH_SHA1), new X509CertificateHolder(issuerCert.getEncoded()), serialNumber);
+        return generateOcspRequest(id);
+    }
+
+    private static InputStream postData(String ocspurl, byte data[])
+        throws MalformedURLException, IOException, Exception
+    {
+        URL url = new URL(ocspurl);
+        HttpURLConnection conexionOCSP;
+        if(CMS.getProxy() != null)
+            conexionOCSP = (HttpURLConnection)url.openConnection(CMS.getProxy());
+        else
+            conexionOCSP = (HttpURLConnection)url.openConnection();
+        conexionOCSP.setRequestProperty("Content-Type", "application/ocsp-request");
+        conexionOCSP.setRequestProperty("Accept", "application/ocsp-response");
+        conexionOCSP.setDoOutput(true);
+        conexionOCSP.setReadTimeout(20000);
+        OutputStream outputStream = conexionOCSP.getOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(new BufferedOutputStream(outputStream));
+        dataOutputStream.write(data);
+        dataOutputStream.flush();
+        dataOutputStream.close();
+        if(conexionOCSP.getResponseCode() / 100 != 2)
+            throw new Exception((new StringBuilder()).append("Error: ").append(conexionOCSP.getResponseCode()).toString());
+        else
+            return (InputStream)conexionOCSP.getContent();
+    }
+
+    private static void validateCertificateId(X509Certificate issuerCert, X509Certificate eeCert, CertificateID certificateId)
+        throws OCSPException, Exception
+    {
+        CertificateID expectedId = new CertificateID((new JcaDigestCalculatorProviderBuilder()).setProvider("BC").build().get(CertificateID.HASH_SHA1), new X509CertificateHolder(issuerCert.getEncoded()), eeCert.getSerialNumber());
+        if(expectedId.getSerialNumber().compareTo(certificateId.getSerialNumber()) != 0)
+            throw new Exception("Invalid certificate ID in response");
+        if(!Arrays.areEqual(expectedId.getIssuerNameHash(), certificateId.getIssuerNameHash()))
+            throw new Exception("Invalid certificate Issuer in response");
+        else
+            return;
+    }
+
+    private static RESULTADO_VERIFICACION processOcspResponse(X509Certificate eeCert, X509Certificate issuerCert, InputStream RespStream)
+        throws IOException, OCSPException, Exception
+    {
+        OCSPResp r = new OCSPResp(RespStream);
+        if(r.getStatus() == 0)
+        {
+            BasicOCSPResp obr = (BasicOCSPResp)r.getResponseObject();
+            if(obr.getResponses().length == 1)
+            {
+                SingleResp resp = obr.getResponses()[0];
+                validateCertificateId(issuerCert, eeCert, resp.getCertID());
+                Object localStatus = resp.getCertStatus();
+                if(localStatus instanceof RevokedStatus)
+                    return RESULTADO_VERIFICACION.CERTIFICADO_REVOCADO;
+                if(localStatus instanceof UnknownStatus)
+                    return RESULTADO_VERIFICACION.ESTADO_DE_REVOCACION_DESCONOCIDO;
+                else
+                    return RESULTADO_VERIFICACION.VALIDO;
+            }
+        }
+        return RESULTADO_VERIFICACION.ERROR_DESCONOCIDO;
+    }
+
+    private static RESULTADO_VERIFICACION consultarOCSP(X509Certificate eeCert, X509Certificate issuerCert, String url)
+    {
+        ArrayList urls;
+        try
+        {
+            if(url != null && !url.isEmpty())
+                break MISSING_BLOCK_LABEL_40;
+            urls = getAuthorityInformationAccessOcspUrl(eeCert);
+            if(urls == null || urls.isEmpty())
+                return RESULTADO_VERIFICACION.SIN_INFORMACION_OCSP;
+        }
+        catch(Exception ex)
+        {
+            return RESULTADO_VERIFICACION.ERROR_DESCONOCIDO;
+        }
+        url = (String)urls.get(0);
+        OCSPReq req = generateOcspRequest(issuerCert, eeCert.getSerialNumber());
+        InputStream resp = postData(url, req.getEncoded());
+        return processOcspResponse(eeCert, issuerCert, resp);
+    }
+
+    public static RESULTADO_VERIFICACION consultarOCSP(Certificate cadenaCertificacion[], String url)
+    {
+        X509Certificate eeCert;
+        X509Certificate certificadoPadre;
+        try
+        {
+            if(cadenaCertificacion.length < 2)
+                return RESULTADO_VERIFICACION.CADENA_INCOMPLETA;
+        }
+        catch(Exception e)
+        {
+            return RESULTADO_VERIFICACION.ERROR_DESCONOCIDO;
+        }
+        eeCert = (X509Certificate)cadenaCertificacion[0];
+        certificadoPadre = (X509Certificate)cadenaCertificacion[1];
+        return consultarOCSP(eeCert, certificadoPadre, url);
+    }
+
+    public static RESULTADO_VERIFICACION consultarOCSP(KeyStore trustKeyStore, KeyStore keyStore, String alias, String url)
+        throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, Exception
+    {
+        if(keyStore == null)
+        {
+            keyStore = KeyStore.getInstance("Windows-MY");
+            keyStore.load(null, null);
+        }
+        Certificate certificado = keyStore.getCertificate(alias);
+        if(certificado == null)
+            throw new Exception((new StringBuilder()).append("El almacen de llaves no posee el alias ").append(alias).toString());
+        else
+            return consultarOCSP(trustKeyStore, (X509Certificate)certificado, url);
+    }
+
+    public static RESULTADO_VERIFICACION consultarOCSP(KeyStore trustKeyStore, X509Certificate certificado, String url)
+        throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException
+    {
+        if(trustKeyStore == null)
+        {
+            trustKeyStore = KeyStore.getInstance("Windows-MY");
+            trustKeyStore.load(null, null);
+        }
+        String alias = trustKeyStore.getCertificateAlias(certificado);
+        if(alias == null)
+        {
+            trustKeyStore.deleteEntry("temporal");
+            trustKeyStore.setCertificateEntry("temporal", certificado);
+            trustKeyStore.load(null, null);
+            alias = "temporal";
+        }
+        Certificate cadenaCertificacion[] = trustKeyStore.getCertificateChain(alias);
+        trustKeyStore.deleteEntry("temporal");
+        return consultarOCSP(cadenaCertificacion, url);
+    }
+}

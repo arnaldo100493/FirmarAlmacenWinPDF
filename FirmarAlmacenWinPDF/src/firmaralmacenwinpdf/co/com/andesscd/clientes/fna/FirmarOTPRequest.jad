@@ -1,0 +1,115 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:44 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   FirmarOTPRequest.java
+
+package co.com.andesscd.clientes.fna;
+
+
+public class FirmarOTPRequest
+{
+
+    public FirmarOTPRequest()
+    {
+    }
+
+    public int getTipoDoc()
+    {
+        return tipoDoc;
+    }
+
+    public void setTipoDoc(int value)
+    {
+        tipoDoc = value;
+    }
+
+    public String getDocumento()
+    {
+        return documento;
+    }
+
+    public void setDocumento(String value)
+    {
+        documento = value;
+    }
+
+    public String getPin()
+    {
+        return pin;
+    }
+
+    public void setPin(String value)
+    {
+        pin = value;
+    }
+
+    public int getOtp()
+    {
+        return otp;
+    }
+
+    public void setOtp(int value)
+    {
+        otp = value;
+    }
+
+    public String getArchivo()
+    {
+        return archivo;
+    }
+
+    public void setArchivo(String value)
+    {
+        archivo = value;
+    }
+
+    public String getFirmaVisible()
+    {
+        return firmaVisible;
+    }
+
+    public void setFirmaVisible(String value)
+    {
+        firmaVisible = value;
+    }
+
+    public String getFirmarEstampa()
+    {
+        return firmarEstampa;
+    }
+
+    public void setFirmarEstampa(String value)
+    {
+        firmarEstampa = value;
+    }
+
+    public String getLoginTSA()
+    {
+        return loginTSA;
+    }
+
+    public void setLoginTSA(String value)
+    {
+        loginTSA = value;
+    }
+
+    public String getPassswordTSA()
+    {
+        return passswordTSA;
+    }
+
+    public void setPassswordTSA(String value)
+    {
+        passswordTSA = value;
+    }
+
+    protected int tipoDoc;
+    protected String documento;
+    protected String pin;
+    protected int otp;
+    protected String archivo;
+    protected String firmaVisible;
+    protected String firmarEstampa;
+    protected String loginTSA;
+    protected String passswordTSA;
+}

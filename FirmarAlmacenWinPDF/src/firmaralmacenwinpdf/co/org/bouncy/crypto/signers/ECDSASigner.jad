@@ -1,0 +1,112 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECDSASigner.java
+
+package co.org.bouncy.crypto.signers;
+
+import co.org.bouncy.crypto.CipherParameters;
+import co.org.bouncy.crypto.DSA;
+import co.org.bouncy.crypto.params.*;
+import co.org.bouncy.math.ec.*;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class ECDSASigner
+    implements ECConstants, DSA
+{
+
+    public ECDSASigner()
+    {
+    }
+
+    public void init(boolean forSigning, CipherParameters param)
+    {
+        if(forSigning)
+        {
+            if(param instanceof ParametersWithRandom)
+            {
+                ParametersWithRandom rParam = (ParametersWithRandom)param;
+                random = rParam.getRandom();
+                key = (ECPrivateKeyParameters)rParam.getParameters();
+            } else
+            {
+                random = new SecureRandom();
+                key = (ECPrivateKeyParameters)param;
+            }
+        } else
+        {
+            key = (ECPublicKeyParameters)param;
+        }
+    }
+
+    public BigInteger[] generateSignature(byte message[])
+    {
+        BigInteger n = key.getParameters().getN();
+        BigInteger e = calculateE(n, message);
+        BigInteger r = null;
+        BigInteger s = null;
+        do
+        {
+            BigInteger k = null;
+            int nBitLength = n.bitLength();
+            do
+            {
+                do
+                    k = new BigInteger(nBitLength, random);
+                while(k.equals(ZERO) || k.compareTo(n) >= 0);
+                ECPoint p = key.getParameters().getG().multiply(k);
+                BigInteger x = p.getX().toBigInteger();
+                r = x.mod(n);
+            } while(r.equals(ZERO));
+            BigInteger d = ((ECPrivateKeyParameters)key).getD();
+            s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
+        } while(s.equals(ZERO));
+        BigInteger res[] = new BigInteger[2];
+        res[0] = r;
+        res[1] = s;
+        return res;
+    }
+
+    public boolean verifySignature(byte message[], BigInteger r, BigInteger s)
+    {
+        BigInteger n = key.getParameters().getN();
+        BigInteger e = calculateE(n, message);
+        if(r.compareTo(ONE) < 0 || r.compareTo(n) >= 0)
+            return false;
+        if(s.compareTo(ONE) < 0 || s.compareTo(n) >= 0)
+            return false;
+        BigInteger c = s.modInverse(n);
+        BigInteger u1 = e.multiply(c).mod(n);
+        BigInteger u2 = r.multiply(c).mod(n);
+        ECPoint G = key.getParameters().getG();
+        ECPoint Q = ((ECPublicKeyParameters)key).getQ();
+        ECPoint point = ECAlgorithms.sumOfTwoMultiplies(G, u1, Q, u2);
+        if(point.isInfinity())
+        {
+            return false;
+        } else
+        {
+            BigInteger v = point.getX().toBigInteger().mod(n);
+            return v.equals(r);
+        }
+    }
+
+    private BigInteger calculateE(BigInteger n, byte message[])
+    {
+        int log2n = n.bitLength();
+        int messageBitLength = message.length * 8;
+        if(log2n >= messageBitLength)
+        {
+            return new BigInteger(1, message);
+        } else
+        {
+            BigInteger trunc = new BigInteger(1, message);
+            trunc = trunc.shiftRight(messageBitLength - log2n);
+            return trunc;
+        }
+    }
+
+    ECKeyParameters key;
+    SecureRandom random;
+}

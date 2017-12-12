@@ -1,0 +1,103 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MimeUtil.java
+
+package com.sun.mail.util;
+
+import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import javax.mail.internet.MimePart;
+
+public class MimeUtil
+{
+
+    private MimeUtil()
+    {
+    }
+
+    public static String cleanContentType(MimePart mp, String contentType)
+    {
+        if(cleanContentType != null)
+            try
+            {
+                return (String)cleanContentType.invoke(null, new Object[] {
+                    mp, contentType
+                });
+            }
+            catch(Exception ex)
+            {
+                return contentType;
+            }
+        else
+            return contentType;
+    }
+
+    private static ClassLoader getContextClassLoader()
+    {
+        return (ClassLoader)AccessController.doPrivileged(new PrivilegedAction() {
+
+            public Object run()
+            {
+                ClassLoader cl = null;
+                try
+                {
+                    cl = Thread.currentThread().getContextClassLoader();
+                }
+                catch(SecurityException ex) { }
+                return cl;
+            }
+
+        }
+);
+    }
+
+    private static final Method cleanContentType;
+
+    static 
+    {
+        Method meth = null;
+        try
+        {
+            String cth = System.getProperty("mail.mime.contenttypehandler");
+            if(cth != null)
+            {
+                ClassLoader cl = getContextClassLoader();
+                Class clsHandler = null;
+                if(cl != null)
+                    try
+                    {
+                        clsHandler = Class.forName(cth, false, cl);
+                    }
+                    catch(ClassNotFoundException cex) { }
+                if(clsHandler == null)
+                    clsHandler = Class.forName(cth);
+                meth = clsHandler.getMethod("cleanContentType", new Class[] {
+                    javax/mail/internet/MimePart, java/lang/String
+                });
+            }
+        }
+        catch(ClassNotFoundException ex)
+        {
+            cleanContentType = meth;
+            break MISSING_BLOCK_LABEL_106;
+        }
+        catch(NoSuchMethodException ex)
+        {
+            cleanContentType = meth;
+            break MISSING_BLOCK_LABEL_106;
+        }
+        catch(RuntimeException ex)
+        {
+            cleanContentType = meth;
+            break MISSING_BLOCK_LABEL_106;
+        }
+        cleanContentType = meth;
+        break MISSING_BLOCK_LABEL_106;
+        Exception exception;
+        exception;
+        cleanContentType = meth;
+        throw exception;
+    }
+}

@@ -1,0 +1,55 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MessageBundle.java
+
+package co.org.bouncy.i18n;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Locale;
+import java.util.TimeZone;
+
+// Referenced classes of package co.org.bouncy.i18n:
+//            TextBundle, MissingEntryException
+
+public class MessageBundle extends TextBundle
+{
+
+    public MessageBundle(String resource, String id)
+        throws NullPointerException
+    {
+        super(resource, id);
+    }
+
+    public MessageBundle(String resource, String id, String encoding)
+        throws NullPointerException, UnsupportedEncodingException
+    {
+        super(resource, id, encoding);
+    }
+
+    public MessageBundle(String resource, String id, Object arguments[])
+        throws NullPointerException
+    {
+        super(resource, id, arguments);
+    }
+
+    public MessageBundle(String resource, String id, String encoding, Object arguments[])
+        throws NullPointerException, UnsupportedEncodingException
+    {
+        super(resource, id, encoding, arguments);
+    }
+
+    public String getTitle(Locale loc, TimeZone timezone)
+        throws MissingEntryException
+    {
+        return getEntry("title", loc, timezone);
+    }
+
+    public String getTitle(Locale loc)
+        throws MissingEntryException
+    {
+        return getEntry("title", loc, TimeZone.getDefault());
+    }
+
+    public static final String TITLE_ENTRY = "title";
+}

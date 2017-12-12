@@ -1,0 +1,114 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Accuracy.java
+
+package org.bouncycastle.asn1.tsp;
+
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+
+public class Accuracy extends ASN1Encodable
+{
+
+    protected Accuracy()
+    {
+    }
+
+    public Accuracy(DERInteger seconds, DERInteger millis, DERInteger micros)
+    {
+        this.seconds = seconds;
+        if(millis != null && (millis.getValue().intValue() < 1 || millis.getValue().intValue() > 999))
+            throw new IllegalArgumentException("Invalid millis field : not in (1..999)");
+        this.millis = millis;
+        if(micros != null && (micros.getValue().intValue() < 1 || micros.getValue().intValue() > 999))
+        {
+            throw new IllegalArgumentException("Invalid micros field : not in (1..999)");
+        } else
+        {
+            this.micros = micros;
+            return;
+        }
+    }
+
+    public Accuracy(ASN1Sequence seq)
+    {
+        seconds = null;
+        millis = null;
+        micros = null;
+        for(int i = 0; i < seq.size(); i++)
+        {
+            if(seq.getObjectAt(i) instanceof DERInteger)
+            {
+                seconds = (DERInteger)seq.getObjectAt(i);
+                continue;
+            }
+            if(!(seq.getObjectAt(i) instanceof DERTaggedObject))
+                continue;
+            DERTaggedObject extra = (DERTaggedObject)seq.getObjectAt(i);
+            switch(extra.getTagNo())
+            {
+            case 0: // '\0'
+                millis = DERInteger.getInstance(extra, false);
+                if(millis.getValue().intValue() < 1 || millis.getValue().intValue() > 999)
+                    throw new IllegalArgumentException("Invalid millis field : not in (1..999).");
+                break;
+
+            case 1: // '\001'
+                micros = DERInteger.getInstance(extra, false);
+                if(micros.getValue().intValue() < 1 || micros.getValue().intValue() > 999)
+                    throw new IllegalArgumentException("Invalid micros field : not in (1..999).");
+                break;
+
+            default:
+                throw new IllegalArgumentException("Invalig tag number");
+            }
+        }
+
+    }
+
+    public static Accuracy getInstance(Object o)
+    {
+        if(o == null || (o instanceof Accuracy))
+            return (Accuracy)o;
+        if(o instanceof ASN1Sequence)
+            return new Accuracy((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Unknown object in 'Accuracy' factory : ").append(o.getClass().getName()).append(".").toString());
+    }
+
+    public DERInteger getSeconds()
+    {
+        return seconds;
+    }
+
+    public DERInteger getMillis()
+    {
+        return millis;
+    }
+
+    public DERInteger getMicros()
+    {
+        return micros;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(seconds != null)
+            v.add(seconds);
+        if(millis != null)
+            v.add(new DERTaggedObject(false, 0, millis));
+        if(micros != null)
+            v.add(new DERTaggedObject(false, 1, micros));
+        return new DERSequence(v);
+    }
+
+    DERInteger seconds;
+    DERInteger millis;
+    DERInteger micros;
+    protected static final int MIN_MILLIS = 1;
+    protected static final int MAX_MILLIS = 999;
+    protected static final int MIN_MICROS = 1;
+    protected static final int MAX_MICROS = 999;
+}

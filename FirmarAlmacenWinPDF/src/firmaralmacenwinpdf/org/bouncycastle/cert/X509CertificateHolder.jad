@@ -1,0 +1,190 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509CertificateHolder.java
+
+package org.bouncycastle.cert;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.math.BigInteger;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.IssuerAndSerialNumber;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.*;
+import org.bouncycastle.operator.ContentVerifier;
+import org.bouncycastle.operator.ContentVerifierProvider;
+
+// Referenced classes of package org.bouncycastle.cert:
+//            CertIOException, CertException, CertUtils
+
+public class X509CertificateHolder
+{
+
+    private static X509CertificateStructure parseBytes(byte certEncoding[])
+        throws IOException
+    {
+        try
+        {
+            return X509CertificateStructure.getInstance(ASN1Object.fromByteArray(certEncoding));
+        }
+        catch(ClassCastException e)
+        {
+            throw new CertIOException((new StringBuilder()).append("malformed data: ").append(e.getMessage()).toString(), e);
+        }
+        catch(IllegalArgumentException e)
+        {
+            throw new CertIOException((new StringBuilder()).append("malformed data: ").append(e.getMessage()).toString(), e);
+        }
+    }
+
+    public X509CertificateHolder(byte certEncoding[])
+        throws IOException
+    {
+        this(parseBytes(certEncoding));
+    }
+
+    public X509CertificateHolder(X509CertificateStructure x509Certificate)
+    {
+        this.x509Certificate = x509Certificate;
+        extensions = x509Certificate.getTBSCertificate().getExtensions();
+    }
+
+    public int getVersion()
+    {
+        return x509Certificate.getVersion();
+    }
+
+    public boolean hasExtensions()
+    {
+        return extensions != null;
+    }
+
+    public X509Extension getExtension(ASN1ObjectIdentifier oid)
+    {
+        if(extensions != null)
+            return extensions.getExtension(oid);
+        else
+            return null;
+    }
+
+    public List getExtensionOIDs()
+    {
+        return CertUtils.getExtensionOIDs(extensions);
+    }
+
+    public Set getCriticalExtensionOIDs()
+    {
+        return CertUtils.getCriticalExtensionOIDs(extensions);
+    }
+
+    public Set getNonCriticalExtensionOIDs()
+    {
+        return CertUtils.getNonCriticalExtensionOIDs(extensions);
+    }
+
+    public IssuerAndSerialNumber getIssuerAndSerialNumber()
+    {
+        return new IssuerAndSerialNumber(x509Certificate.getIssuer(), x509Certificate.getSerialNumber());
+    }
+
+    public BigInteger getSerialNumber()
+    {
+        return x509Certificate.getSerialNumber().getValue();
+    }
+
+    public X500Name getIssuer()
+    {
+        return X500Name.getInstance(x509Certificate.getIssuer());
+    }
+
+    public X500Name getSubject()
+    {
+        return X500Name.getInstance(x509Certificate.getSubject());
+    }
+
+    public Date getNotBefore()
+    {
+        return x509Certificate.getStartDate().getDate();
+    }
+
+    public Date getNotAfter()
+    {
+        return x509Certificate.getEndDate().getDate();
+    }
+
+    public SubjectPublicKeyInfo getSubjectPublicKeyInfo()
+    {
+        return x509Certificate.getSubjectPublicKeyInfo();
+    }
+
+    public X509CertificateStructure toASN1Structure()
+    {
+        return x509Certificate;
+    }
+
+    public AlgorithmIdentifier getSignatureAlgorithm()
+    {
+        return x509Certificate.getSignatureAlgorithm();
+    }
+
+    public byte[] getSignature()
+    {
+        return x509Certificate.getSignature().getBytes();
+    }
+
+    public boolean isValidOn(Date date)
+    {
+        return !date.before(x509Certificate.getStartDate().getDate()) && !date.after(x509Certificate.getEndDate().getDate());
+    }
+
+    public boolean isSignatureValid(ContentVerifierProvider verifierProvider)
+        throws CertException
+    {
+        TBSCertificateStructure tbsCert = x509Certificate.getTBSCertificate();
+        if(!tbsCert.getSignature().equals(x509Certificate.getSignatureAlgorithm()))
+            throw new CertException("signature invalid - algorithm identifier mismatch");
+        ContentVerifier verifier;
+        try
+        {
+            verifier = verifierProvider.get(tbsCert.getSignature());
+            OutputStream sOut = verifier.getOutputStream();
+            sOut.write(tbsCert.getDEREncoded());
+            sOut.close();
+        }
+        catch(Exception e)
+        {
+            throw new CertException((new StringBuilder()).append("unable to process signature: ").append(e.getMessage()).toString(), e);
+        }
+        return verifier.verify(x509Certificate.getSignature().getBytes());
+    }
+
+    public boolean equals(Object o)
+    {
+        if(o == this)
+            return true;
+        if(!(o instanceof X509CertificateHolder))
+        {
+            return false;
+        } else
+        {
+            X509CertificateHolder other = (X509CertificateHolder)o;
+            return x509Certificate.equals(other.x509Certificate);
+        }
+    }
+
+    public int hashCode()
+    {
+        return x509Certificate.hashCode();
+    }
+
+    public byte[] getEncoded()
+        throws IOException
+    {
+        return x509Certificate.getEncoded();
+    }
+
+    private X509CertificateStructure x509Certificate;
+    private X509Extensions extensions;
+}

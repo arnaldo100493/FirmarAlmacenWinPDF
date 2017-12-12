@@ -1,0 +1,148 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BASE64MailboxEncoder.java
+
+package com.sun.mail.imap.protocol;
+
+import java.io.*;
+
+public class BASE64MailboxEncoder
+{
+
+    public static String encode(String original)
+    {
+        BASE64MailboxEncoder base64stream = null;
+        char origchars[] = original.toCharArray();
+        int length = origchars.length;
+        boolean changedString = false;
+        CharArrayWriter writer = new CharArrayWriter(length);
+        for(int index = 0; index < length; index++)
+        {
+            char current = origchars[index];
+            if(current >= ' ' && current <= '~')
+            {
+                if(base64stream != null)
+                    base64stream.flush();
+                if(current == '&')
+                {
+                    changedString = true;
+                    writer.write(38);
+                    writer.write(45);
+                } else
+                {
+                    writer.write(current);
+                }
+                continue;
+            }
+            if(base64stream == null)
+            {
+                base64stream = new BASE64MailboxEncoder(writer);
+                changedString = true;
+            }
+            base64stream.write(current);
+        }
+
+        if(base64stream != null)
+            base64stream.flush();
+        if(changedString)
+            return writer.toString();
+        else
+            return original;
+    }
+
+    public BASE64MailboxEncoder(Writer what)
+    {
+        buffer = new byte[4];
+        bufsize = 0;
+        started = false;
+        out = null;
+        out = what;
+    }
+
+    public void write(int c)
+    {
+        try
+        {
+            if(!started)
+            {
+                started = true;
+                out.write(38);
+            }
+            buffer[bufsize++] = (byte)(c >> 8);
+            buffer[bufsize++] = (byte)(c & 0xff);
+            if(bufsize >= 3)
+            {
+                encode();
+                bufsize -= 3;
+            }
+        }
+        catch(IOException e) { }
+    }
+
+    public void flush()
+    {
+        try
+        {
+            if(bufsize > 0)
+            {
+                encode();
+                bufsize = 0;
+            }
+            if(started)
+            {
+                out.write(45);
+                started = false;
+            }
+        }
+        catch(IOException e) { }
+    }
+
+    protected void encode()
+        throws IOException
+    {
+        if(bufsize == 1)
+        {
+            byte a = buffer[0];
+            byte b = 0;
+            byte c = 0;
+            out.write(pem_array[a >>> 2 & 0x3f]);
+            out.write(pem_array[(a << 4 & 0x30) + (b >>> 4 & 0xf)]);
+        } else
+        if(bufsize == 2)
+        {
+            byte a = buffer[0];
+            byte b = buffer[1];
+            byte c = 0;
+            out.write(pem_array[a >>> 2 & 0x3f]);
+            out.write(pem_array[(a << 4 & 0x30) + (b >>> 4 & 0xf)]);
+            out.write(pem_array[(b << 2 & 0x3c) + (c >>> 6 & 3)]);
+        } else
+        {
+            byte a = buffer[0];
+            byte b = buffer[1];
+            byte c = buffer[2];
+            out.write(pem_array[a >>> 2 & 0x3f]);
+            out.write(pem_array[(a << 4 & 0x30) + (b >>> 4 & 0xf)]);
+            out.write(pem_array[(b << 2 & 0x3c) + (c >>> 6 & 3)]);
+            out.write(pem_array[c & 0x3f]);
+            if(bufsize == 4)
+                buffer[0] = buffer[3];
+        }
+    }
+
+    protected byte buffer[];
+    protected int bufsize;
+    protected boolean started;
+    protected Writer out;
+    private static final char pem_array[] = {
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 
+        'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 
+        'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 
+        'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 
+        'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', 
+        '8', '9', '+', ','
+    };
+
+}

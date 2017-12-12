@@ -1,0 +1,23 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GenericKey.java
+
+package org.bouncycastle.operator;
+
+
+public class GenericKey
+{
+
+    public GenericKey(Object representation)
+    {
+        this.representation = representation;
+    }
+
+    public Object getRepresentation()
+    {
+        return representation;
+    }
+
+    private Object representation;
+}

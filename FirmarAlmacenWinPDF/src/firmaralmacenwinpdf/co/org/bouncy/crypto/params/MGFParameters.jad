@@ -1,0 +1,31 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MGFParameters.java
+
+package co.org.bouncy.crypto.params;
+
+import co.org.bouncy.crypto.DerivationParameters;
+
+public class MGFParameters
+    implements DerivationParameters
+{
+
+    public MGFParameters(byte seed[])
+    {
+        this(seed, 0, seed.length);
+    }
+
+    public MGFParameters(byte seed[], int off, int len)
+    {
+        this.seed = new byte[len];
+        System.arraycopy(seed, off, this.seed, 0, len);
+    }
+
+    public byte[] getSeed()
+    {
+        return seed;
+    }
+
+    byte seed[];
+}

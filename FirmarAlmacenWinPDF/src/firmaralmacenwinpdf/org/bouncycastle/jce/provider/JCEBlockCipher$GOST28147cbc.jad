@@ -1,0 +1,21 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JCEBlockCipher.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.crypto.engines.GOST28147Engine;
+import org.bouncycastle.crypto.modes.CBCBlockCipher;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JCEBlockCipher
+
+public static class JCEBlockCipher$GOST28147cbc extends JCEBlockCipher
+{
+
+    public JCEBlockCipher$GOST28147cbc()
+    {
+        super(new CBCBlockCipher(new GOST28147Engine()), 64);
+    }
+}

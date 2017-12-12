@@ -1,0 +1,54 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ProofOfPossessionSigningKeyBuilder.java
+
+package org.bouncycastle.cert.crmf;
+
+import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.crmf.*;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.operator.ContentSigner;
+
+// Referenced classes of package org.bouncycastle.cert.crmf:
+//            CRMFException, PKMACValueGenerator, CRMFUtil
+
+public class ProofOfPossessionSigningKeyBuilder
+{
+
+    public ProofOfPossessionSigningKeyBuilder(SubjectPublicKeyInfo pubKeyInfo)
+    {
+        this.pubKeyInfo = pubKeyInfo;
+    }
+
+    public ProofOfPossessionSigningKeyBuilder setSender(GeneralName name)
+    {
+        this.name = name;
+        return this;
+    }
+
+    public ProofOfPossessionSigningKeyBuilder setPublicKeyMac(PKMACValueGenerator generator, char password[])
+        throws CRMFException
+    {
+        publicKeyMAC = generator.generate(password, pubKeyInfo);
+        return this;
+    }
+
+    public POPOSigningKey build(ContentSigner signer)
+    {
+        if(name != null && publicKeyMAC != null)
+            throw new IllegalStateException("name and publicKeyMAC cannot both be set.");
+        POPOSigningKeyInput popo;
+        if(name != null)
+            popo = new POPOSigningKeyInput(name, pubKeyInfo);
+        else
+            popo = new POPOSigningKeyInput(publicKeyMAC, pubKeyInfo);
+        CRMFUtil.derEncodeToStream(popo, signer.getOutputStream());
+        return new POPOSigningKey(popo, signer.getAlgorithmIdentifier(), new DERBitString(signer.getSignature()));
+    }
+
+    private SubjectPublicKeyInfo pubKeyInfo;
+    private GeneralName name;
+    private PKMACValue publicKeyMAC;
+}

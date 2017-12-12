@@ -1,0 +1,67 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DHParameter.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import java.math.BigInteger;
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+public class DHParameter extends ASN1Encodable
+{
+
+    public DHParameter(BigInteger p, BigInteger g, int l)
+    {
+        this.p = new DERInteger(p);
+        this.g = new DERInteger(g);
+        if(l != 0)
+            this.l = new DERInteger(l);
+        else
+            this.l = null;
+    }
+
+    public DHParameter(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        p = (DERInteger)e.nextElement();
+        g = (DERInteger)e.nextElement();
+        if(e.hasMoreElements())
+            l = (DERInteger)e.nextElement();
+        else
+            l = null;
+    }
+
+    public BigInteger getP()
+    {
+        return p.getPositiveValue();
+    }
+
+    public BigInteger getG()
+    {
+        return g.getPositiveValue();
+    }
+
+    public BigInteger getL()
+    {
+        if(l == null)
+            return null;
+        else
+            return l.getPositiveValue();
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(p);
+        v.add(g);
+        if(getL() != null)
+            v.add(l);
+        return new DERSequence(v);
+    }
+
+    DERInteger p;
+    DERInteger g;
+    DERInteger l;
+}

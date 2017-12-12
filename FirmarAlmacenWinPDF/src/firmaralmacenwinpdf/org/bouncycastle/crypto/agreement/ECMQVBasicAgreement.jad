@@ -1,0 +1,61 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECMQVBasicAgreement.java
+
+package org.bouncycastle.crypto.agreement;
+
+import java.math.BigInteger;
+import org.bouncycastle.crypto.BasicAgreement;
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.math.ec.*;
+
+public class ECMQVBasicAgreement
+    implements BasicAgreement
+{
+
+    public ECMQVBasicAgreement()
+    {
+    }
+
+    public void init(CipherParameters key)
+    {
+        privParams = (MQVPrivateParameters)key;
+    }
+
+    public BigInteger calculateAgreement(CipherParameters pubKey)
+    {
+        MQVPublicParameters pubParams = (MQVPublicParameters)pubKey;
+        ECPrivateKeyParameters staticPrivateKey = privParams.getStaticPrivateKey();
+        ECPoint agreement = calculateMqvAgreement(staticPrivateKey.getParameters(), staticPrivateKey, privParams.getEphemeralPrivateKey(), privParams.getEphemeralPublicKey(), pubParams.getStaticPublicKey(), pubParams.getEphemeralPublicKey());
+        return agreement.getX().toBigInteger();
+    }
+
+    private ECPoint calculateMqvAgreement(ECDomainParameters parameters, ECPrivateKeyParameters d1U, ECPrivateKeyParameters d2U, ECPublicKeyParameters Q2U, ECPublicKeyParameters Q1V, ECPublicKeyParameters Q2V)
+    {
+        BigInteger n = parameters.getN();
+        int e = (n.bitLength() + 1) / 2;
+        BigInteger powE = ECConstants.ONE.shiftLeft(e);
+        ECPoint q;
+        if(Q2U == null)
+            q = parameters.getG().multiply(d2U.getD());
+        else
+            q = Q2U.getQ();
+        BigInteger x = q.getX().toBigInteger();
+        BigInteger xBar = x.mod(powE);
+        BigInteger Q2UBar = xBar.setBit(e);
+        BigInteger s = d1U.getD().multiply(Q2UBar).mod(n).add(d2U.getD()).mod(n);
+        BigInteger xPrime = Q2V.getQ().getX().toBigInteger();
+        BigInteger xPrimeBar = xPrime.mod(powE);
+        BigInteger Q2VBar = xPrimeBar.setBit(e);
+        BigInteger hs = parameters.getH().multiply(s).mod(n);
+        ECPoint p = ECAlgorithms.sumOfTwoMultiplies(Q1V.getQ(), Q2VBar.multiply(hs).mod(n), Q2V.getQ(), hs);
+        if(p.isInfinity())
+            throw new IllegalStateException("Infinity is not a valid agreement value for MQV");
+        else
+            return p;
+    }
+
+    MQVPrivateParameters privParams;
+}

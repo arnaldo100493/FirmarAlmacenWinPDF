@@ -1,0 +1,93 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Line2D.java
+
+package co.com.pdf.awt.geom;
+
+import co.com.pdf.awt.geom.misc.Messages;
+import java.util.NoSuchElementException;
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            PathIterator, Line2D, AffineTransform
+
+class Line2D$Iterator
+    implements PathIterator
+{
+
+    public int getWindingRule()
+    {
+        return 1;
+    }
+
+    public boolean isDone()
+    {
+        return index > 1;
+    }
+
+    public void next()
+    {
+        index++;
+    }
+
+    public int currentSegment(double coords[])
+    {
+        if(isDone())
+            throw new NoSuchElementException(Messages.getString("awt.4B"));
+        int type;
+        if(index == 0)
+        {
+            type = 0;
+            coords[0] = x1;
+            coords[1] = y1;
+        } else
+        {
+            type = 1;
+            coords[0] = x2;
+            coords[1] = y2;
+        }
+        if(t != null)
+            t.transform(coords, 0, coords, 0, 1);
+        return type;
+    }
+
+    public int currentSegment(float coords[])
+    {
+        if(isDone())
+            throw new NoSuchElementException(Messages.getString("awt.4B"));
+        int type;
+        if(index == 0)
+        {
+            type = 0;
+            coords[0] = (float)x1;
+            coords[1] = (float)y1;
+        } else
+        {
+            type = 1;
+            coords[0] = (float)x2;
+            coords[1] = (float)y2;
+        }
+        if(t != null)
+            t.transform(coords, 0, coords, 0, 1);
+        return type;
+    }
+
+    double x1;
+    double y1;
+    double x2;
+    double y2;
+    AffineTransform t;
+    int index;
+    final Line2D this$0;
+
+    Line2D$Iterator(Line2D l, AffineTransform at)
+    {
+        this$0 = Line2D.this;
+        super();
+        x1 = l.getX1();
+        y1 = l.getY1();
+        x2 = l.getX2();
+        y2 = l.getY2();
+        t = at;
+    }
+}

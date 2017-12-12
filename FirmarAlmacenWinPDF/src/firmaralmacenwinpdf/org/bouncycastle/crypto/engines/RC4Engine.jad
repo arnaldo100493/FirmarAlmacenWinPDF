@@ -1,0 +1,102 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RC4Engine.java
+
+package org.bouncycastle.crypto.engines;
+
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.params.KeyParameter;
+
+public class RC4Engine
+    implements StreamCipher
+{
+
+    public RC4Engine()
+    {
+        engineState = null;
+        x = 0;
+        y = 0;
+        workingKey = null;
+    }
+
+    public void init(boolean forEncryption, CipherParameters params)
+    {
+        if(params instanceof KeyParameter)
+        {
+            workingKey = ((KeyParameter)params).getKey();
+            setKey(workingKey);
+            return;
+        } else
+        {
+            throw new IllegalArgumentException((new StringBuilder()).append("invalid parameter passed to RC4 init - ").append(params.getClass().getName()).toString());
+        }
+    }
+
+    public String getAlgorithmName()
+    {
+        return "RC4";
+    }
+
+    public byte returnByte(byte in)
+    {
+        x = x + 1 & 0xff;
+        y = engineState[x] + y & 0xff;
+        byte tmp = engineState[x];
+        engineState[x] = engineState[y];
+        engineState[y] = tmp;
+        return (byte)(in ^ engineState[engineState[x] + engineState[y] & 0xff]);
+    }
+
+    public void processBytes(byte in[], int inOff, int len, byte out[], int outOff)
+    {
+        if(inOff + len > in.length)
+            throw new DataLengthException("input buffer too short");
+        if(outOff + len > out.length)
+            throw new DataLengthException("output buffer too short");
+        for(int i = 0; i < len; i++)
+        {
+            x = x + 1 & 0xff;
+            y = engineState[x] + y & 0xff;
+            byte tmp = engineState[x];
+            engineState[x] = engineState[y];
+            engineState[y] = tmp;
+            out[i + outOff] = (byte)(in[i + inOff] ^ engineState[engineState[x] + engineState[y] & 0xff]);
+        }
+
+    }
+
+    public void reset()
+    {
+        setKey(workingKey);
+    }
+
+    private void setKey(byte keyBytes[])
+    {
+        workingKey = keyBytes;
+        x = 0;
+        y = 0;
+        if(engineState == null)
+            engineState = new byte[256];
+        for(int i = 0; i < 256; i++)
+            engineState[i] = (byte)i;
+
+        int i1 = 0;
+        int i2 = 0;
+        for(int i = 0; i < 256; i++)
+        {
+            i2 = (keyBytes[i1] & 0xff) + engineState[i] + i2 & 0xff;
+            byte tmp = engineState[i];
+            engineState[i] = engineState[i2];
+            engineState[i2] = tmp;
+            i1 = (i1 + 1) % keyBytes.length;
+        }
+
+    }
+
+    private static final int STATE_LENGTH = 256;
+    private byte engineState[];
+    private int x;
+    private int y;
+    private byte workingKey[];
+}

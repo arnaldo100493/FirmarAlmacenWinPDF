@@ -1,0 +1,129 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   KeyTransRecipientInformation.java
+
+package org.bouncycastle.cms;
+
+import java.security.*;
+import javax.crypto.*;
+import javax.crypto.spec.SecretKeySpec;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            RecipientInformation, KeyTransRecipientId, CMSException, KeyTransRecipient, 
+//            CMSSecureReadable, AuthAttributesProvider, CMSEnvelopedHelper, CMSUtils, 
+//            CMSTypedStream, Recipient, RecipientOperator
+
+public class KeyTransRecipientInformation extends RecipientInformation
+{
+
+    KeyTransRecipientInformation(KeyTransRecipientInfo info, AlgorithmIdentifier messageAlgorithm, CMSSecureReadable secureReadable, AuthAttributesProvider additionalData)
+    {
+        super(info.getKeyEncryptionAlgorithm(), messageAlgorithm, secureReadable, additionalData);
+        this.info = info;
+        RecipientIdentifier r = info.getRecipientIdentifier();
+        if(r.isTagged())
+        {
+            ASN1OctetString octs = ASN1OctetString.getInstance(r.getId());
+            rid = new KeyTransRecipientId(octs.getOctets());
+        } else
+        {
+            IssuerAndSerialNumber iAnds = IssuerAndSerialNumber.getInstance(r.getId());
+            rid = new KeyTransRecipientId(iAnds.getName(), iAnds.getSerialNumber().getValue());
+        }
+    }
+
+    private String getExchangeEncryptionAlgorithmName(DERObjectIdentifier oid)
+    {
+        if(PKCSObjectIdentifiers.rsaEncryption.equals(oid))
+            return "RSA/ECB/PKCS1Padding";
+        else
+            return oid.getId();
+    }
+
+    /**
+     * @deprecated Method getSessionKey is deprecated
+     */
+
+    protected Key getSessionKey(Key receiverPrivateKey, Provider prov)
+        throws CMSException
+    {
+        CMSEnvelopedHelper helper = CMSEnvelopedHelper.INSTANCE;
+        String keyExchangeAlgorithm = getExchangeEncryptionAlgorithmName(keyEncAlg.getObjectId());
+        try
+        {
+            Key sKey = null;
+            Cipher keyCipher = helper.createAsymmetricCipher(keyExchangeAlgorithm, prov);
+            byte encryptedKeyBytes[] = info.getEncryptedKey().getOctets();
+            String contentAlgorithmName = getContentAlgorithmName();
+            try
+            {
+                keyCipher.init(4, receiverPrivateKey);
+                sKey = keyCipher.unwrap(encryptedKeyBytes, contentAlgorithmName, 3);
+            }
+            catch(GeneralSecurityException e) { }
+            catch(IllegalStateException e) { }
+            catch(UnsupportedOperationException e) { }
+            catch(ProviderException e) { }
+            if(sKey == null)
+            {
+                keyCipher.init(2, receiverPrivateKey);
+                sKey = new SecretKeySpec(keyCipher.doFinal(encryptedKeyBytes), contentAlgorithmName);
+            }
+            return sKey;
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            throw new CMSException("can't find algorithm.", e);
+        }
+        catch(InvalidKeyException e)
+        {
+            throw new CMSException("key invalid in message.", e);
+        }
+        catch(NoSuchPaddingException e)
+        {
+            throw new CMSException("required padding not supported.", e);
+        }
+        catch(IllegalBlockSizeException e)
+        {
+            throw new CMSException("illegal blocksize in message.", e);
+        }
+        catch(BadPaddingException e)
+        {
+            throw new CMSException("bad padding in message.", e);
+        }
+    }
+
+    /**
+     * @deprecated Method getContentStream is deprecated
+     */
+
+    public CMSTypedStream getContentStream(Key key, String prov)
+        throws CMSException, NoSuchProviderException
+    {
+        return getContentStream(key, CMSUtils.getProvider(prov));
+    }
+
+    /**
+     * @deprecated Method getContentStream is deprecated
+     */
+
+    public CMSTypedStream getContentStream(Key key, Provider prov)
+        throws CMSException
+    {
+        Key sKey = getSessionKey(key, prov);
+        return getContentFromSessionKey(sKey, prov);
+    }
+
+    protected RecipientOperator getRecipientOperator(Recipient recipient)
+        throws CMSException
+    {
+        return ((KeyTransRecipient)recipient).getRecipientOperator(keyEncAlg, messageAlgorithm, info.getEncryptedKey().getOctets());
+    }
+
+    private KeyTransRecipientInfo info;
+}

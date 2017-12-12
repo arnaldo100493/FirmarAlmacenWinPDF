@@ -1,0 +1,93 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ErrorMsgContent.java
+
+package org.bouncycastle.asn1.cmp;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.cmp:
+//            PKIStatusInfo, PKIFreeText
+
+public class ErrorMsgContent extends ASN1Encodable
+{
+
+    private ErrorMsgContent(ASN1Sequence seq)
+    {
+        Enumeration en = seq.getObjects();
+        pkiStatusInfo = PKIStatusInfo.getInstance(en.nextElement());
+        while(en.hasMoreElements()) 
+        {
+            Object o = en.nextElement();
+            if(o instanceof DERInteger)
+                errorCode = DERInteger.getInstance(o);
+            else
+                errorDetails = PKIFreeText.getInstance(o);
+        }
+    }
+
+    public static ErrorMsgContent getInstance(Object o)
+    {
+        if(o instanceof ErrorMsgContent)
+            return (ErrorMsgContent)o;
+        if(o instanceof ASN1Sequence)
+            return new ErrorMsgContent((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid object: ").append(o.getClass().getName()).toString());
+    }
+
+    public ErrorMsgContent(PKIStatusInfo pkiStatusInfo)
+    {
+        this(pkiStatusInfo, null, null);
+    }
+
+    public ErrorMsgContent(PKIStatusInfo pkiStatusInfo, DERInteger errorCode, PKIFreeText errorDetails)
+    {
+        if(pkiStatusInfo == null)
+        {
+            throw new IllegalArgumentException("'pkiStatusInfo' cannot be null");
+        } else
+        {
+            this.pkiStatusInfo = pkiStatusInfo;
+            this.errorCode = errorCode;
+            this.errorDetails = errorDetails;
+            return;
+        }
+    }
+
+    public PKIStatusInfo getPKIStatusInfo()
+    {
+        return pkiStatusInfo;
+    }
+
+    public DERInteger getErrorCode()
+    {
+        return errorCode;
+    }
+
+    public PKIFreeText getErrorDetails()
+    {
+        return errorDetails;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(pkiStatusInfo);
+        addOptional(v, errorCode);
+        addOptional(v, errorDetails);
+        return new DERSequence(v);
+    }
+
+    private void addOptional(ASN1EncodableVector v, ASN1Encodable obj)
+    {
+        if(obj != null)
+            v.add(obj);
+    }
+
+    private PKIStatusInfo pkiStatusInfo;
+    private DERInteger errorCode;
+    private PKIFreeText errorDetails;
+}

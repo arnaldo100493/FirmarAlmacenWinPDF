@@ -1,0 +1,468 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Paragraph.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.api.Indentable;
+import co.com.pdf.text.api.Spaceable;
+import co.com.pdf.text.pdf.PdfName;
+import co.com.pdf.text.pdf.PdfObject;
+import co.com.pdf.text.pdf.PdfPTable;
+import co.com.pdf.text.pdf.interfaces.IAccessibleElement;
+import java.util.*;
+
+// Referenced classes of package co.com.pdf.text:
+//            Phrase, Element, List, Image, 
+//            AccessibleElementId, ListItem, Font, Chunk
+
+public class Paragraph extends Phrase
+    implements Indentable, Spaceable, IAccessibleElement
+{
+
+    public Paragraph()
+    {
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(float leading)
+    {
+        super(leading);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(Chunk chunk)
+    {
+        super(chunk);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(float leading, Chunk chunk)
+    {
+        super(leading, chunk);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(String string)
+    {
+        super(string);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(String string, Font font)
+    {
+        super(string, font);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(float leading, String string)
+    {
+        super(leading, string);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(float leading, String string, Font font)
+    {
+        super(leading, string, font);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+    }
+
+    public Paragraph(Phrase phrase)
+    {
+        super(phrase);
+        alignment = -1;
+        multipliedLeading = 0.0F;
+        firstLineIndent = 0.0F;
+        extraParagraphSpace = 0.0F;
+        keeptogether = false;
+        role = PdfName.P;
+        accessibleAttributes = null;
+        id = null;
+        if(phrase instanceof Paragraph)
+        {
+            Paragraph p = (Paragraph)phrase;
+            setAlignment(p.alignment);
+            setLeading(phrase.getLeading(), p.multipliedLeading);
+            setIndentationLeft(p.getIndentationLeft());
+            setIndentationRight(p.getIndentationRight());
+            setFirstLineIndent(p.getFirstLineIndent());
+            setSpacingAfter(p.getSpacingAfter());
+            setSpacingBefore(p.getSpacingBefore());
+            setExtraParagraphSpace(p.getExtraParagraphSpace());
+            setRole(p.role);
+            id = p.getId();
+            if(p.accessibleAttributes != null)
+                accessibleAttributes = new HashMap(p.accessibleAttributes);
+        }
+    }
+
+    public Paragraph cloneShallow(boolean spacingBefore)
+    {
+        Paragraph copy = new Paragraph();
+        copy.setFont(getFont());
+        copy.setAlignment(getAlignment());
+        copy.setLeading(getLeading(), multipliedLeading);
+        copy.setIndentationLeft(getIndentationLeft());
+        copy.setIndentationRight(getIndentationRight());
+        copy.setFirstLineIndent(getFirstLineIndent());
+        copy.setSpacingAfter(getSpacingAfter());
+        if(spacingBefore)
+            copy.setSpacingBefore(getSpacingBefore());
+        copy.setExtraParagraphSpace(getExtraParagraphSpace());
+        copy.setRole(role);
+        copy.id = getId();
+        if(accessibleAttributes != null)
+            copy.accessibleAttributes = new HashMap(accessibleAttributes);
+        copy.setTabSettings(getTabSettings());
+        return copy;
+    }
+
+    public List breakUp()
+    {
+        List list = new ArrayList();
+        Paragraph tmp = null;
+        for(Iterator i$ = iterator(); i$.hasNext();)
+        {
+            Element e = (Element)i$.next();
+            if(e.type() == 14 || e.type() == 23 || e.type() == 12)
+            {
+                if(tmp != null && tmp.size() > 0)
+                {
+                    tmp.setSpacingAfter(0.0F);
+                    list.add(tmp);
+                    tmp = cloneShallow(false);
+                }
+                if(list.size() == 0)
+                    switch(e.type())
+                    {
+                    default:
+                        break;
+
+                    case 23: // '\027'
+                        ((PdfPTable)e).setSpacingBefore(getSpacingBefore());
+                        break;
+
+                    case 12: // '\f'
+                        ((Paragraph)e).setSpacingBefore(getSpacingBefore());
+                        break;
+
+                    case 14: // '\016'
+                        ListItem firstItem = ((co.com.pdf.text.List)e).getFirstItem();
+                        if(firstItem != null)
+                            firstItem.setSpacingBefore(getSpacingBefore());
+                        break;
+                    }
+                list.add(e);
+            } else
+            {
+                if(tmp == null)
+                    tmp = cloneShallow(list.size() == 0);
+                tmp.add(e);
+            }
+        }
+
+        if(tmp != null && tmp.size() > 0)
+            list.add(tmp);
+        if(list.size() != 0)
+        {
+            Element lastElement = (Element)list.get(list.size() - 1);
+            switch(lastElement.type())
+            {
+            default:
+                break;
+
+            case 23: // '\027'
+                ((PdfPTable)lastElement).setSpacingAfter(getSpacingAfter());
+                break;
+
+            case 12: // '\f'
+                ((Paragraph)lastElement).setSpacingAfter(getSpacingAfter());
+                break;
+
+            case 14: // '\016'
+                ListItem lastItem = ((co.com.pdf.text.List)lastElement).getLastItem();
+                if(lastItem != null)
+                    lastItem.setSpacingAfter(getSpacingAfter());
+                break;
+            }
+        }
+        return list;
+    }
+
+    public int type()
+    {
+        return 12;
+    }
+
+    public boolean add(Element o)
+    {
+        if(o instanceof co.com.pdf.text.List)
+        {
+            co.com.pdf.text.List list = (co.com.pdf.text.List)o;
+            list.setIndentationLeft(list.getIndentationLeft() + indentationLeft);
+            list.setIndentationRight(indentationRight);
+            return super.add(list);
+        }
+        if(o instanceof Image)
+        {
+            super.addSpecial(o);
+            return true;
+        }
+        if(o instanceof Paragraph)
+        {
+            super.addSpecial(o);
+            return true;
+        } else
+        {
+            return super.add(o);
+        }
+    }
+
+    public void setAlignment(int alignment)
+    {
+        this.alignment = alignment;
+    }
+
+    public void setLeading(float fixedLeading)
+    {
+        leading = fixedLeading;
+        multipliedLeading = 0.0F;
+    }
+
+    public void setMultipliedLeading(float multipliedLeading)
+    {
+        leading = 0.0F;
+        this.multipliedLeading = multipliedLeading;
+    }
+
+    public void setLeading(float fixedLeading, float multipliedLeading)
+    {
+        leading = fixedLeading;
+        this.multipliedLeading = multipliedLeading;
+    }
+
+    public void setIndentationLeft(float indentation)
+    {
+        indentationLeft = indentation;
+    }
+
+    public void setIndentationRight(float indentation)
+    {
+        indentationRight = indentation;
+    }
+
+    public void setFirstLineIndent(float firstLineIndent)
+    {
+        this.firstLineIndent = firstLineIndent;
+    }
+
+    public void setSpacingBefore(float spacing)
+    {
+        spacingBefore = spacing;
+    }
+
+    public void setSpacingAfter(float spacing)
+    {
+        spacingAfter = spacing;
+    }
+
+    public void setKeepTogether(boolean keeptogether)
+    {
+        this.keeptogether = keeptogether;
+    }
+
+    public boolean getKeepTogether()
+    {
+        return keeptogether;
+    }
+
+    public int getAlignment()
+    {
+        return alignment;
+    }
+
+    public float getMultipliedLeading()
+    {
+        return multipliedLeading;
+    }
+
+    public float getTotalLeading()
+    {
+        float m = font != null ? font.getCalculatedLeading(multipliedLeading) : 12F * multipliedLeading;
+        if(m > 0.0F && !hasLeading())
+            return m;
+        else
+            return getLeading() + m;
+    }
+
+    public float getIndentationLeft()
+    {
+        return indentationLeft;
+    }
+
+    public float getIndentationRight()
+    {
+        return indentationRight;
+    }
+
+    public float getFirstLineIndent()
+    {
+        return firstLineIndent;
+    }
+
+    public float getSpacingBefore()
+    {
+        return spacingBefore;
+    }
+
+    public float getSpacingAfter()
+    {
+        return spacingAfter;
+    }
+
+    public float getExtraParagraphSpace()
+    {
+        return extraParagraphSpace;
+    }
+
+    public void setExtraParagraphSpace(float extraParagraphSpace)
+    {
+        this.extraParagraphSpace = extraParagraphSpace;
+    }
+
+    /**
+     * @deprecated Method spacingBefore is deprecated
+     */
+
+    public float spacingBefore()
+    {
+        return getSpacingBefore();
+    }
+
+    /**
+     * @deprecated Method spacingAfter is deprecated
+     */
+
+    public float spacingAfter()
+    {
+        return spacingAfter;
+    }
+
+    public PdfObject getAccessibleAttribute(PdfName key)
+    {
+        if(accessibleAttributes != null)
+            return (PdfObject)accessibleAttributes.get(key);
+        else
+            return null;
+    }
+
+    public void setAccessibleAttribute(PdfName key, PdfObject value)
+    {
+        if(accessibleAttributes == null)
+            accessibleAttributes = new HashMap();
+        accessibleAttributes.put(key, value);
+    }
+
+    public HashMap getAccessibleAttributes()
+    {
+        return accessibleAttributes;
+    }
+
+    public PdfName getRole()
+    {
+        return role;
+    }
+
+    public void setRole(PdfName role)
+    {
+        this.role = role;
+    }
+
+    public AccessibleElementId getId()
+    {
+        if(id == null)
+            id = new AccessibleElementId();
+        return id;
+    }
+
+    public void setId(AccessibleElementId id)
+    {
+        this.id = id;
+    }
+
+    public volatile boolean add(Object x0)
+    {
+        return add((Element)x0);
+    }
+
+    private static final long serialVersionUID = 0x6cf906dc9370a61aL;
+    protected int alignment;
+    protected float multipliedLeading;
+    protected float indentationLeft;
+    protected float indentationRight;
+    private float firstLineIndent;
+    protected float spacingBefore;
+    protected float spacingAfter;
+    private float extraParagraphSpace;
+    protected boolean keeptogether;
+    protected PdfName role;
+    protected HashMap accessibleAttributes;
+    private AccessibleElementId id;
+}

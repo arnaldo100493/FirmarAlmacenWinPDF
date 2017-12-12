@@ -1,0 +1,40 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CollectionStore.java
+
+package org.bouncycastle.util;
+
+import java.util.*;
+
+// Referenced classes of package org.bouncycastle.util:
+//            Store, Selector
+
+public class CollectionStore
+    implements Store
+{
+
+    public CollectionStore(Collection collection)
+    {
+        _local = new ArrayList(collection);
+    }
+
+    public Collection getMatches(Selector selector)
+    {
+        if(selector == null)
+            return new ArrayList(_local);
+        List col = new ArrayList();
+        Iterator iter = _local.iterator();
+        do
+        {
+            if(!iter.hasNext())
+                break;
+            Object obj = iter.next();
+            if(selector.match(obj))
+                col.add(obj);
+        } while(true);
+        return col;
+    }
+
+    private Collection _local;
+}

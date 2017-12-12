@@ -1,0 +1,42 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JceKeyTransEnvelopedRecipient.java
+
+package org.bouncycastle.cms.jcajce;
+
+import java.io.InputStream;
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.operator.InputDecryptor;
+
+// Referenced classes of package org.bouncycastle.cms.jcajce:
+//            JceKeyTransEnvelopedRecipient
+
+class JceKeyTransEnvelopedRecipient$1
+    implements InputDecryptor
+{
+
+    public AlgorithmIdentifier getAlgorithmIdentifier()
+    {
+        return val$contentEncryptionAlgorithm;
+    }
+
+    public InputStream getInputStream(InputStream dataIn)
+    {
+        return new CipherInputStream(dataIn, val$dataCipher);
+    }
+
+    final AlgorithmIdentifier val$contentEncryptionAlgorithm;
+    final Cipher val$dataCipher;
+    final JceKeyTransEnvelopedRecipient this$0;
+
+    JceKeyTransEnvelopedRecipient$1()
+    {
+        this$0 = final_jcekeytransenvelopedrecipient;
+        val$contentEncryptionAlgorithm = algorithmidentifier;
+        val$dataCipher = Cipher.this;
+        super();
+    }
+}

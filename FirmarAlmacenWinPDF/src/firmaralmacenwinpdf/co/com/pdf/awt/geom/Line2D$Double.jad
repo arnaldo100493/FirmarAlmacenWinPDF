@@ -1,0 +1,98 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Line2D.java
+
+package co.com.pdf.awt.geom;
+
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            Line2D, Point2D, Rectangle2D
+
+public static class Line2D$Double extends Line2D
+{
+
+    public double getX1()
+    {
+        return x1;
+    }
+
+    public double getY1()
+    {
+        return y1;
+    }
+
+    public double getX2()
+    {
+        return x2;
+    }
+
+    public double getY2()
+    {
+        return y2;
+    }
+
+    public Point2D getP1()
+    {
+        return new (x1, y1);
+    }
+
+    public Point2D getP2()
+    {
+        return new (x2, y2);
+    }
+
+    public void setLine(double x1, double y1, double x2, double y2)
+    {
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+    }
+
+    public Rectangle2D getBounds2D()
+    {
+        double rx;
+        double rw;
+        if(x1 < x2)
+        {
+            rx = x1;
+            rw = x2 - x1;
+        } else
+        {
+            rx = x2;
+            rw = x1 - x2;
+        }
+        double ry;
+        double rh;
+        if(y1 < y2)
+        {
+            ry = y1;
+            rh = y2 - y1;
+        } else
+        {
+            ry = y2;
+            rh = y1 - y2;
+        }
+        return new uble(rx, ry, rw, rh);
+    }
+
+    public double x1;
+    public double y1;
+    public double x2;
+    public double y2;
+
+    public Line2D$Double()
+    {
+    }
+
+    public Line2D$Double(double x1, double y1, double x2, double y2)
+    {
+        setLine(x1, y1, x2, y2);
+    }
+
+    public Line2D$Double(Point2D p1, Point2D p2)
+    {
+        setLine(p1, p2);
+    }
+}

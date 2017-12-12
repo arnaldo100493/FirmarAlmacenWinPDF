@@ -1,0 +1,126 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RSASSAPSSparams.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.asn1.pkcs:
+//            PKCSObjectIdentifiers
+
+public class RSASSAPSSparams extends ASN1Encodable
+{
+
+    public static RSASSAPSSparams getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof RSASSAPSSparams))
+            return (RSASSAPSSparams)obj;
+        if(obj instanceof ASN1Sequence)
+            return new RSASSAPSSparams((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public RSASSAPSSparams()
+    {
+        hashAlgorithm = DEFAULT_HASH_ALGORITHM;
+        maskGenAlgorithm = DEFAULT_MASK_GEN_FUNCTION;
+        saltLength = DEFAULT_SALT_LENGTH;
+        trailerField = DEFAULT_TRAILER_FIELD;
+    }
+
+    public RSASSAPSSparams(AlgorithmIdentifier hashAlgorithm, AlgorithmIdentifier maskGenAlgorithm, DERInteger saltLength, DERInteger trailerField)
+    {
+        this.hashAlgorithm = hashAlgorithm;
+        this.maskGenAlgorithm = maskGenAlgorithm;
+        this.saltLength = saltLength;
+        this.trailerField = trailerField;
+    }
+
+    public RSASSAPSSparams(ASN1Sequence seq)
+    {
+        hashAlgorithm = DEFAULT_HASH_ALGORITHM;
+        maskGenAlgorithm = DEFAULT_MASK_GEN_FUNCTION;
+        saltLength = DEFAULT_SALT_LENGTH;
+        trailerField = DEFAULT_TRAILER_FIELD;
+        for(int i = 0; i != seq.size(); i++)
+        {
+            ASN1TaggedObject o = (ASN1TaggedObject)seq.getObjectAt(i);
+            switch(o.getTagNo())
+            {
+            case 0: // '\0'
+                hashAlgorithm = AlgorithmIdentifier.getInstance(o, true);
+                break;
+
+            case 1: // '\001'
+                maskGenAlgorithm = AlgorithmIdentifier.getInstance(o, true);
+                break;
+
+            case 2: // '\002'
+                saltLength = DERInteger.getInstance(o, true);
+                break;
+
+            case 3: // '\003'
+                trailerField = DERInteger.getInstance(o, true);
+                break;
+
+            default:
+                throw new IllegalArgumentException("unknown tag");
+            }
+        }
+
+    }
+
+    public AlgorithmIdentifier getHashAlgorithm()
+    {
+        return hashAlgorithm;
+    }
+
+    public AlgorithmIdentifier getMaskGenAlgorithm()
+    {
+        return maskGenAlgorithm;
+    }
+
+    public DERInteger getSaltLength()
+    {
+        return saltLength;
+    }
+
+    public DERInteger getTrailerField()
+    {
+        return trailerField;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(!hashAlgorithm.equals(DEFAULT_HASH_ALGORITHM))
+            v.add(new DERTaggedObject(true, 0, hashAlgorithm));
+        if(!maskGenAlgorithm.equals(DEFAULT_MASK_GEN_FUNCTION))
+            v.add(new DERTaggedObject(true, 1, maskGenAlgorithm));
+        if(!saltLength.equals(DEFAULT_SALT_LENGTH))
+            v.add(new DERTaggedObject(true, 2, saltLength));
+        if(!trailerField.equals(DEFAULT_TRAILER_FIELD))
+            v.add(new DERTaggedObject(true, 3, trailerField));
+        return new DERSequence(v);
+    }
+
+    private AlgorithmIdentifier hashAlgorithm;
+    private AlgorithmIdentifier maskGenAlgorithm;
+    private DERInteger saltLength;
+    private DERInteger trailerField;
+    public static final AlgorithmIdentifier DEFAULT_HASH_ALGORITHM;
+    public static final AlgorithmIdentifier DEFAULT_MASK_GEN_FUNCTION;
+    public static final DERInteger DEFAULT_SALT_LENGTH = new DERInteger(20);
+    public static final DERInteger DEFAULT_TRAILER_FIELD = new DERInteger(1);
+
+    static 
+    {
+        DEFAULT_HASH_ALGORITHM = new AlgorithmIdentifier(OIWObjectIdentifiers.idSHA1, new DERNull());
+        DEFAULT_MASK_GEN_FUNCTION = new AlgorithmIdentifier(PKCSObjectIdentifiers.id_mgf1, DEFAULT_HASH_ALGORITHM);
+    }
+}

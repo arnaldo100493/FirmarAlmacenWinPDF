@@ -1,0 +1,28 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECKeySpec.java
+
+package co.org.bouncy.jce.spec;
+
+import java.security.spec.KeySpec;
+
+// Referenced classes of package co.org.bouncy.jce.spec:
+//            ECParameterSpec
+
+public class ECKeySpec
+    implements KeySpec
+{
+
+    protected ECKeySpec(ECParameterSpec spec)
+    {
+        this.spec = spec;
+    }
+
+    public ECParameterSpec getParams()
+    {
+        return spec;
+    }
+
+    private ECParameterSpec spec;
+}

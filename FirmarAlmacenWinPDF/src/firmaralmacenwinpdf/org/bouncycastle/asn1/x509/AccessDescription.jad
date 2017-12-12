@@ -1,0 +1,77 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   AccessDescription.java
+
+package org.bouncycastle.asn1.x509;
+
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            GeneralName
+
+public class AccessDescription extends ASN1Encodable
+{
+
+    public static AccessDescription getInstance(Object obj)
+    {
+        if(obj instanceof AccessDescription)
+            return (AccessDescription)obj;
+        if(obj instanceof ASN1Sequence)
+            return new AccessDescription((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public AccessDescription(ASN1Sequence seq)
+    {
+        accessMethod = null;
+        accessLocation = null;
+        if(seq.size() != 2)
+        {
+            throw new IllegalArgumentException("wrong number of elements in sequence");
+        } else
+        {
+            accessMethod = DERObjectIdentifier.getInstance(seq.getObjectAt(0));
+            accessLocation = GeneralName.getInstance(seq.getObjectAt(1));
+            return;
+        }
+    }
+
+    public AccessDescription(DERObjectIdentifier oid, GeneralName location)
+    {
+        accessMethod = null;
+        accessLocation = null;
+        accessMethod = oid;
+        accessLocation = location;
+    }
+
+    public DERObjectIdentifier getAccessMethod()
+    {
+        return accessMethod;
+    }
+
+    public GeneralName getAccessLocation()
+    {
+        return accessLocation;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector accessDescription = new ASN1EncodableVector();
+        accessDescription.add(accessMethod);
+        accessDescription.add(accessLocation);
+        return new DERSequence(accessDescription);
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append("AccessDescription: Oid(").append(accessMethod.getId()).append(")").toString();
+    }
+
+    public static final DERObjectIdentifier id_ad_caIssuers = new DERObjectIdentifier("1.3.6.1.5.5.7.48.2");
+    public static final DERObjectIdentifier id_ad_ocsp = new DERObjectIdentifier("1.3.6.1.5.5.7.48.1");
+    DERObjectIdentifier accessMethod;
+    GeneralName accessLocation;
+
+}

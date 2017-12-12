@@ -1,0 +1,71 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TempFile.java
+
+package com.sun.mail.pop3;
+
+import java.io.*;
+import javax.mail.util.SharedFileInputStream;
+
+// Referenced classes of package com.sun.mail.pop3:
+//            AppendStream
+
+class WritableSharedFile extends SharedFileInputStream
+{
+
+    public WritableSharedFile(File file)
+        throws IOException
+    {
+        super(file);
+        try
+        {
+            raf = new RandomAccessFile(file, "rw");
+        }
+        catch(IOException ex)
+        {
+            super.close();
+        }
+    }
+
+    public RandomAccessFile getWritableFile()
+    {
+        return raf;
+    }
+
+    public void close()
+        throws IOException
+    {
+        super.close();
+        raf.close();
+        break MISSING_BLOCK_LABEL_24;
+        Exception exception;
+        exception;
+        raf.close();
+        throw exception;
+    }
+
+    synchronized long updateLength()
+        throws IOException
+    {
+        datalen = in.length();
+        af = null;
+        return datalen;
+    }
+
+    public synchronized AppendStream getAppendStream()
+        throws IOException
+    {
+        if(af != null)
+        {
+            throw new IOException("POP3 file cache only supports single threaded access");
+        } else
+        {
+            af = new AppendStream(this);
+            return af;
+        }
+    }
+
+    private RandomAccessFile raf;
+    private AppendStream af;
+}

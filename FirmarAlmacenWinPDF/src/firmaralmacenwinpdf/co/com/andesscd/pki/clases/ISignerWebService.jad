@@ -1,0 +1,42 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   ISignerWebService.java
+
+package co.com.andesscd.pki.clases;
+
+
+public interface ISignerWebService
+{
+
+    public abstract String firmarConCertificadoCustodiado(String s, String s1, String s2)
+        throws Exception;
+
+    public abstract String firmarConCertificadoCustodiado(String s, String s1, String s2, String s3, String s4)
+        throws Exception;
+
+    public abstract String firmarConCertificadoCustodiado(String s, String s1, int i, String s2)
+        throws Exception;
+
+    public abstract String firmarConCertificadoCustodiado(String s, String s1, int i, String s2, String s3, String s4)
+        throws Exception;
+
+    public abstract String firmarEnPKCS7ConPKCS12(String s, String s1, String s2, String s3, String s4, long l, 
+            String s5)
+        throws Exception;
+
+    public abstract String firmarEnPKCS7ConPKCS11(String s, String s1, int i, String s2, String s3, String s4, String s5, 
+            long l, String s6)
+        throws Exception;
+
+    public abstract String firmarEnPKCS7ConPKCS11(int i, String s)
+        throws Exception;
+
+    public abstract String firmarEnPDFConPKCS12(String s, String s1, String s2, String s3, String s4, long l, 
+            String s5)
+        throws Exception;
+
+    public abstract String firmarEnPDFConPKCS11(String s, String s1, int i, String s2, String s3, String s4, String s5, 
+            long l, String s6)
+        throws Exception;
+}

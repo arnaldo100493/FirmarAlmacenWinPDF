@@ -1,0 +1,55 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   NullEngine.java
+
+package co.org.bouncy.crypto.engines;
+
+import co.org.bouncy.crypto.*;
+
+public class NullEngine
+    implements BlockCipher
+{
+
+    public NullEngine()
+    {
+    }
+
+    public void init(boolean forEncryption, CipherParameters params)
+        throws IllegalArgumentException
+    {
+        initialised = true;
+    }
+
+    public String getAlgorithmName()
+    {
+        return "Null";
+    }
+
+    public int getBlockSize()
+    {
+        return 1;
+    }
+
+    public int processBlock(byte in[], int inOff, byte out[], int outOff)
+        throws DataLengthException, IllegalStateException
+    {
+        if(!initialised)
+            throw new IllegalStateException("Null engine not initialised");
+        if(inOff + 1 > in.length)
+            throw new DataLengthException("input buffer too short");
+        if(outOff + 1 > out.length)
+            throw new OutputLengthException("output buffer too short");
+        for(int i = 0; i < 1; i++)
+            out[outOff + i] = in[inOff + i];
+
+        return 1;
+    }
+
+    public void reset()
+    {
+    }
+
+    private boolean initialised;
+    protected static final int BLOCK_SIZE = 1;
+}

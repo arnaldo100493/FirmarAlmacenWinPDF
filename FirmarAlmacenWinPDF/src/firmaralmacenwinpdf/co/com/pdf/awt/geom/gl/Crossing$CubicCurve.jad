@@ -1,0 +1,130 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Crossing.java
+
+package co.com.pdf.awt.geom.gl;
+
+
+// Referenced classes of package co.com.pdf.awt.geom.gl:
+//            Crossing
+
+public static class Crossing$CubicCurve
+{
+
+    int cross(double res[], int rc, double py1, double py2)
+    {
+        int cross = 0;
+        for(int i = 0; i < rc; i++)
+        {
+            double t = res[i];
+            if(t < -1.0000000000000001E-005D || t > 1.0000100000000001D)
+                continue;
+            if(t < 1.0000000000000001E-005D)
+            {
+                if(py1 < 0.0D && (bx == 0.0D ? cx == bx ? ax - cx : cx - bx : bx) < 0.0D)
+                    cross--;
+                continue;
+            }
+            if(t > 0.99999000000000005D)
+            {
+                if(py1 < ay && (ax == cx ? cx == bx ? bx : cx - bx : ax - cx) > 0.0D)
+                    cross++;
+                continue;
+            }
+            double ry = t * (t * (t * Ay + By) + Cy);
+            if(ry <= py2)
+                continue;
+            double rxt = t * (t * Ax3 + Bx2) + Cx;
+            if(rxt > -1.0000000000000001E-005D && rxt < 1.0000000000000001E-005D)
+            {
+                rxt = t * (Ax3 + Ax3) + Bx2;
+                if(rxt < -1.0000000000000001E-005D || rxt > 1.0000000000000001E-005D)
+                    continue;
+                rxt = ax;
+            }
+            cross += rxt <= 0.0D ? -1 : 1;
+        }
+
+        return cross;
+    }
+
+    int solvePoint(double res[], double px)
+    {
+        double eqn[] = {
+            -px, Cx, Bx, Ax
+        };
+        return Crossing.solveCubic(eqn, res);
+    }
+
+    int solveExtremX(double res[])
+    {
+        double eqn[] = {
+            Cx, Bx2, Ax3
+        };
+        return Crossing.solveQuad(eqn, res);
+    }
+
+    int solveExtremY(double res[])
+    {
+        double eqn[] = {
+            Cy, By + By, Ay + Ay + Ay
+        };
+        return Crossing.solveQuad(eqn, res);
+    }
+
+    int addBound(double bound[], int bc, double res[], int rc, double minX, double maxX, boolean changeId, int id)
+    {
+        for(int i = 0; i < rc; i++)
+        {
+            double t = res[i];
+            if(t <= -1.0000000000000001E-005D || t >= 1.0000100000000001D)
+                continue;
+            double rx = t * (t * (t * Ax + Bx) + Cx);
+            if(minX > rx || rx > maxX)
+                continue;
+            bound[bc++] = t;
+            bound[bc++] = rx;
+            bound[bc++] = t * (t * (t * Ay + By) + Cy);
+            bound[bc++] = id;
+            if(changeId)
+                id++;
+        }
+
+        return bc;
+    }
+
+    double ax;
+    double ay;
+    double bx;
+    double by;
+    double cx;
+    double cy;
+    double Ax;
+    double Ay;
+    double Bx;
+    double By;
+    double Cx;
+    double Cy;
+    double Ax3;
+    double Bx2;
+
+    public Crossing$CubicCurve(double x1, double y1, double cx1, double cy1, double cx2, double cy2, double x2, 
+            double y2)
+    {
+        ax = x2 - x1;
+        ay = y2 - y1;
+        bx = cx1 - x1;
+        by = cy1 - y1;
+        cx = cx2 - x1;
+        cy = cy2 - y1;
+        Cx = bx + bx + bx;
+        Bx = (cx + cx + cx) - Cx - Cx;
+        Ax = ax - Bx - Cx;
+        Cy = by + by + by;
+        By = (cy + cy + cy) - Cy - Cy;
+        Ay = ay - By - Cy;
+        Ax3 = Ax + Ax + Ax;
+        Bx2 = Bx + Bx;
+    }
+}

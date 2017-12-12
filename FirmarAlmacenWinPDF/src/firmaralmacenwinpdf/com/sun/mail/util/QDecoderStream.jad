@@ -1,0 +1,45 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   QDecoderStream.java
+
+package com.sun.mail.util;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+// Referenced classes of package com.sun.mail.util:
+//            QPDecoderStream, DecodingException, ASCIIUtility
+
+public class QDecoderStream extends QPDecoderStream
+{
+
+    public QDecoderStream(InputStream in)
+    {
+        super(in);
+    }
+
+    public int read()
+        throws IOException
+    {
+        int c = in.read();
+        if(c == 95)
+            return 32;
+        if(c == 61)
+        {
+            ba[0] = (byte)in.read();
+            ba[1] = (byte)in.read();
+            try
+            {
+                return ASCIIUtility.parseInt(ba, 0, 2, 16);
+            }
+            catch(NumberFormatException nex)
+            {
+                throw new DecodingException((new StringBuilder()).append("QDecoder: Error in QP stream ").append(nex.getMessage()).toString());
+            }
+        } else
+        {
+            return c;
+        }
+    }
+}

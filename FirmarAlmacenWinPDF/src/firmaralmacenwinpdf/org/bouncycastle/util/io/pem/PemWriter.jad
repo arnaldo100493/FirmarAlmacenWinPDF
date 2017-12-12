@@ -1,0 +1,102 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PemWriter.java
+
+package org.bouncycastle.util.io.pem;
+
+import java.io.*;
+import java.util.Iterator;
+import java.util.List;
+import org.bouncycastle.util.encoders.Base64;
+
+// Referenced classes of package org.bouncycastle.util.io.pem:
+//            PemHeader, PemObject, PemObjectGenerator
+
+public class PemWriter extends BufferedWriter
+{
+
+    public PemWriter(Writer out)
+    {
+        super(out);
+        buf = new char[64];
+        String nl = System.getProperty("line.separator");
+        if(nl != null)
+            nlLength = nl.length();
+        else
+            nlLength = 2;
+    }
+
+    public int getOutputSize(PemObject obj)
+    {
+        int size = 2 * (obj.getType().length() + 10 + nlLength) + 6 + 4;
+        if(!obj.getHeaders().isEmpty())
+        {
+            for(Iterator it = obj.getHeaders().iterator(); it.hasNext();)
+            {
+                PemHeader hdr = (PemHeader)it.next();
+                size += hdr.getName().length() + ": ".length() + hdr.getValue().length() + nlLength;
+            }
+
+            size += nlLength;
+        }
+        int dataLen = ((obj.getContent().length + 2) / 3) * 4;
+        size += dataLen + (((dataLen + 64) - 1) / 64) * nlLength;
+        return size;
+    }
+
+    public void writeObject(PemObjectGenerator objGen)
+        throws IOException
+    {
+        PemObject obj = objGen.generate();
+        writePreEncapsulationBoundary(obj.getType());
+        if(!obj.getHeaders().isEmpty())
+        {
+            for(Iterator it = obj.getHeaders().iterator(); it.hasNext(); newLine())
+            {
+                PemHeader hdr = (PemHeader)it.next();
+                write(hdr.getName());
+                write(": ");
+                write(hdr.getValue());
+            }
+
+            newLine();
+        }
+        writeEncoded(obj.getContent());
+        writePostEncapsulationBoundary(obj.getType());
+    }
+
+    private void writeEncoded(byte bytes[])
+        throws IOException
+    {
+        bytes = Base64.encode(bytes);
+        for(int i = 0; i < bytes.length; i += buf.length)
+        {
+            int index;
+            for(index = 0; index != buf.length && i + index < bytes.length; index++)
+                buf[index] = (char)bytes[i + index];
+
+            write(buf, 0, index);
+            newLine();
+        }
+
+    }
+
+    private void writePreEncapsulationBoundary(String type)
+        throws IOException
+    {
+        write((new StringBuilder()).append("-----BEGIN ").append(type).append("-----").toString());
+        newLine();
+    }
+
+    private void writePostEncapsulationBoundary(String type)
+        throws IOException
+    {
+        write((new StringBuilder()).append("-----END ").append(type).append("-----").toString());
+        newLine();
+    }
+
+    private static final int LINE_LENGTH = 64;
+    private final int nlLength;
+    private char buf[];
+}

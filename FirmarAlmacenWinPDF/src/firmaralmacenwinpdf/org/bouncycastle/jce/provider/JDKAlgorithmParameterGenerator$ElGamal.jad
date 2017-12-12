@@ -1,0 +1,64 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKAlgorithmParameterGenerator.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import javax.crypto.spec.DHGenParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import org.bouncycastle.crypto.generators.ElGamalParametersGenerator;
+import org.bouncycastle.crypto.params.ElGamalParameters;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKAlgorithmParameterGenerator, BouncyCastleProvider
+
+public static class JDKAlgorithmParameterGenerator$ElGamal extends JDKAlgorithmParameterGenerator
+{
+
+    protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+        throws InvalidAlgorithmParameterException
+    {
+        if(!(genParamSpec instanceof DHGenParameterSpec))
+        {
+            throw new InvalidAlgorithmParameterException("DH parameter generator requires a DHGenParameterSpec for initialisation");
+        } else
+        {
+            DHGenParameterSpec spec = (DHGenParameterSpec)genParamSpec;
+            strength = spec.getPrimeSize();
+            l = spec.getExponentSize();
+            this.random = random;
+            return;
+        }
+    }
+
+    protected AlgorithmParameters engineGenerateParameters()
+    {
+        ElGamalParametersGenerator pGen = new ElGamalParametersGenerator();
+        if(random != null)
+            pGen.init(strength, 20, random);
+        else
+            pGen.init(strength, 20, new SecureRandom());
+        ElGamalParameters p = pGen.generateParameters();
+        AlgorithmParameters params;
+        try
+        {
+            params = AlgorithmParameters.getInstance("ElGamal", BouncyCastleProvider.PROVIDER_NAME);
+            params.init(new DHParameterSpec(p.getP(), p.getG(), l));
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e.getMessage());
+        }
+        return params;
+    }
+
+    private int l;
+
+    public JDKAlgorithmParameterGenerator$ElGamal()
+    {
+        l = 0;
+    }
+}

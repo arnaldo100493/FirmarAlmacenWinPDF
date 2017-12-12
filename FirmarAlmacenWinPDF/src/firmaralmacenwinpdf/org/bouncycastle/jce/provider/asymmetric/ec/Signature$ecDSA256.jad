@@ -1,0 +1,21 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Signature.java
+
+package org.bouncycastle.jce.provider.asymmetric.ec;
+
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.signers.ECDSASigner;
+
+// Referenced classes of package org.bouncycastle.jce.provider.asymmetric.ec:
+//            Signature
+
+public static class Signature$ecDSA256 extends Signature
+{
+
+    public Signature$ecDSA256()
+    {
+        super(new SHA256Digest(), new ECDSASigner(), new oder(null));
+    }
+}

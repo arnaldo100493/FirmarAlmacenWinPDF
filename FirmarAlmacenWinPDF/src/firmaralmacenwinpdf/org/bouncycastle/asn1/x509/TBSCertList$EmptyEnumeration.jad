@@ -1,0 +1,39 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TBSCertList.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            TBSCertList
+
+private class TBSCertList$EmptyEnumeration
+    implements Enumeration
+{
+
+    public boolean hasMoreElements()
+    {
+        return false;
+    }
+
+    public Object nextElement()
+    {
+        return null;
+    }
+
+    final TBSCertList this$0;
+
+    private TBSCertList$EmptyEnumeration()
+    {
+        this$0 = TBSCertList.this;
+        super();
+    }
+
+    TBSCertList$EmptyEnumeration(TBSCertList._cls1 x1)
+    {
+        this();
+    }
+}

@@ -1,0 +1,74 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MarkedObject.java
+
+package co.com.pdf.text;
+
+import java.util.List;
+import java.util.Properties;
+
+// Referenced classes of package co.com.pdf.text:
+//            DocumentException, Element, ElementListener
+
+public class MarkedObject
+    implements Element
+{
+
+    protected MarkedObject()
+    {
+        markupAttributes = new Properties();
+        element = null;
+    }
+
+    public MarkedObject(Element element)
+    {
+        markupAttributes = new Properties();
+        this.element = element;
+    }
+
+    public List getChunks()
+    {
+        return element.getChunks();
+    }
+
+    public boolean process(ElementListener listener)
+    {
+        try
+        {
+            return listener.add(element);
+        }
+        catch(DocumentException de)
+        {
+            return false;
+        }
+    }
+
+    public int type()
+    {
+        return 50;
+    }
+
+    public boolean isContent()
+    {
+        return true;
+    }
+
+    public boolean isNestable()
+    {
+        return true;
+    }
+
+    public Properties getMarkupAttributes()
+    {
+        return markupAttributes;
+    }
+
+    public void setMarkupAttribute(String key, String value)
+    {
+        markupAttributes.setProperty(key, value);
+    }
+
+    protected Element element;
+    protected Properties markupAttributes;
+}

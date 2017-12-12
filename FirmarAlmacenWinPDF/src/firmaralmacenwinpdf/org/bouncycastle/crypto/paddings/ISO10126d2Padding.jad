@@ -1,0 +1,57 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ISO10126d2Padding.java
+
+package org.bouncycastle.crypto.paddings;
+
+import java.security.SecureRandom;
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
+// Referenced classes of package org.bouncycastle.crypto.paddings:
+//            BlockCipherPadding
+
+public class ISO10126d2Padding
+    implements BlockCipherPadding
+{
+
+    public ISO10126d2Padding()
+    {
+    }
+
+    public void init(SecureRandom random)
+        throws IllegalArgumentException
+    {
+        if(random != null)
+            this.random = random;
+        else
+            this.random = new SecureRandom();
+    }
+
+    public String getPaddingName()
+    {
+        return "ISO10126-2";
+    }
+
+    public int addPadding(byte in[], int inOff)
+    {
+        byte code = (byte)(in.length - inOff);
+        for(; inOff < in.length - 1; inOff++)
+            in[inOff] = (byte)random.nextInt();
+
+        in[inOff] = code;
+        return code;
+    }
+
+    public int padCount(byte in[])
+        throws InvalidCipherTextException
+    {
+        int count = in[in.length - 1] & 0xff;
+        if(count > in.length)
+            throw new InvalidCipherTextException("pad block corrupted");
+        else
+            return count;
+    }
+
+    SecureRandom random;
+}

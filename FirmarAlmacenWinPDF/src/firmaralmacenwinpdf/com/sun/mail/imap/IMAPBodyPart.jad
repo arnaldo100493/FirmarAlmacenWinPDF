@@ -1,0 +1,422 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPBodyPart.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.ConnectionException;
+import com.sun.mail.iap.ProtocolException;
+import com.sun.mail.imap.protocol.BODY;
+import com.sun.mail.imap.protocol.BODYSTRUCTURE;
+import com.sun.mail.imap.protocol.IMAPProtocol;
+import com.sun.mail.util.*;
+import java.io.*;
+import java.util.Enumeration;
+import javax.activation.DataHandler;
+import javax.mail.*;
+import javax.mail.internet.*;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPInputStream, IMAPMultipartDataSource, IMAPNestedMessage, IMAPMessage
+
+public class IMAPBodyPart extends MimeBodyPart
+    implements ReadableMime
+{
+
+    protected IMAPBodyPart(BODYSTRUCTURE bs, String sid, IMAPMessage message)
+    {
+        headersLoaded = false;
+        this.bs = bs;
+        sectionId = sid;
+        this.message = message;
+        ContentType ct = new ContentType(bs.type, bs.subtype, bs.cParams);
+        type = ct.toString();
+    }
+
+    protected void updateHeaders()
+    {
+    }
+
+    public int getSize()
+        throws MessagingException
+    {
+        return bs.size;
+    }
+
+    public int getLineCount()
+        throws MessagingException
+    {
+        return bs.lines;
+    }
+
+    public String getContentType()
+        throws MessagingException
+    {
+        return type;
+    }
+
+    public String getDisposition()
+        throws MessagingException
+    {
+        return bs.disposition;
+    }
+
+    public void setDisposition(String disposition)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public String getEncoding()
+        throws MessagingException
+    {
+        return bs.encoding;
+    }
+
+    public String getContentID()
+        throws MessagingException
+    {
+        return bs.id;
+    }
+
+    public String getContentMD5()
+        throws MessagingException
+    {
+        return bs.md5;
+    }
+
+    public void setContentMD5(String md5)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public String getDescription()
+        throws MessagingException
+    {
+        if(description != null)
+            return description;
+        if(bs.description == null)
+            return null;
+        try
+        {
+            description = MimeUtility.decodeText(bs.description);
+        }
+        catch(UnsupportedEncodingException ex)
+        {
+            description = bs.description;
+        }
+        return description;
+    }
+
+    public void setDescription(String description, String charset)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public String getFileName()
+        throws MessagingException
+    {
+        String filename = null;
+        if(bs.dParams != null)
+            filename = bs.dParams.get("filename");
+        if(filename == null && bs.cParams != null)
+            filename = bs.cParams.get("name");
+        if(decodeFileName && filename != null)
+            try
+            {
+                filename = MimeUtility.decodeText(filename);
+            }
+            catch(UnsupportedEncodingException ex)
+            {
+                throw new MessagingException("Can't decode filename", ex);
+            }
+        return filename;
+    }
+
+    public void setFileName(String filename)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    protected InputStream getContentStream()
+        throws MessagingException
+    {
+        InputStream is = null;
+        boolean pk = message.getPeek();
+        Object obj = message.getMessageCacheLock();
+        JVM INSTR monitorenter ;
+        IMAPProtocol p;
+        p = message.getProtocol();
+        message.checkExpunged();
+        if(p.isREV1() && message.getFetchBlockSize() != -1)
+            return new IMAPInputStream(message, sectionId, message.ignoreBodyStructureSize() ? -1 : bs.size, pk);
+        try
+        {
+            int seqnum = message.getSequenceNumber();
+            BODY b;
+            if(pk)
+                b = p.peekBody(seqnum, sectionId);
+            else
+                b = p.fetchBody(seqnum, sectionId);
+            if(b != null)
+                is = b.getByteArrayInputStream();
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(message.getFolder(), cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        obj;
+        JVM INSTR monitorexit ;
+          goto _L1
+        Exception exception;
+        exception;
+        throw exception;
+_L1:
+        if(is == null)
+            throw new MessagingException("No content");
+        else
+            return is;
+    }
+
+    private InputStream getHeaderStream()
+        throws MessagingException
+    {
+        if(!message.isREV1())
+            loadHeaders();
+        Object obj = message.getMessageCacheLock();
+        JVM INSTR monitorenter ;
+        ByteArrayInputStream bis;
+        IMAPProtocol p = message.getProtocol();
+        message.checkExpunged();
+        if(!p.isREV1())
+            break MISSING_BLOCK_LABEL_125;
+        int seqnum = message.getSequenceNumber();
+        BODY b = p.peekBody(seqnum, (new StringBuilder()).append(sectionId).append(".MIME").toString());
+        if(b == null)
+            throw new MessagingException("Failed to fetch headers");
+        bis = b.getByteArrayInputStream();
+        if(bis == null)
+            throw new MessagingException("Failed to fetch headers");
+        return bis;
+        SharedByteArrayOutputStream bos;
+        LineOutputStream los;
+        bos = new SharedByteArrayOutputStream(0);
+        los = new LineOutputStream(bos);
+        try
+        {
+            for(Enumeration hdrLines = super.getAllHeaderLines(); hdrLines.hasMoreElements(); los.writeln((String)hdrLines.nextElement()));
+            los.writeln();
+        }
+        catch(IOException ioex)
+        {
+            try
+            {
+                los.close();
+                break MISSING_BLOCK_LABEL_226;
+            }
+            catch(IOException cex) { }
+            break MISSING_BLOCK_LABEL_226;
+        }
+        try
+        {
+            los.close();
+            break MISSING_BLOCK_LABEL_226;
+        }
+        catch(IOException cex) { }
+        break MISSING_BLOCK_LABEL_226;
+        Exception exception;
+        exception;
+        try
+        {
+            los.close();
+        }
+        catch(IOException cex) { }
+        throw exception;
+        bos.toStream();
+        obj;
+        JVM INSTR monitorexit ;
+        return;
+        ConnectionException cex;
+        cex;
+        throw new FolderClosedException(message.getFolder(), cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception1;
+        exception1;
+        throw exception1;
+    }
+
+    public InputStream getMimeStream()
+        throws MessagingException
+    {
+        return new SequenceInputStream(getHeaderStream(), getContentStream());
+    }
+
+    public synchronized DataHandler getDataHandler()
+        throws MessagingException
+    {
+        if(dh == null)
+            if(bs.isMulti())
+                dh = new DataHandler(new IMAPMultipartDataSource(this, bs.bodies, sectionId, message));
+            else
+            if(bs.isNested() && message.isREV1() && bs.envelope != null)
+                dh = new DataHandler(new IMAPNestedMessage(message, bs.bodies[0], bs.envelope, sectionId), type);
+        return super.getDataHandler();
+    }
+
+    public void setDataHandler(DataHandler content)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public void setContent(Object o, String type)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public void setContent(Multipart mp)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public String[] getHeader(String name)
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getHeader(name);
+    }
+
+    public void setHeader(String name, String value)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public void addHeader(String name, String value)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public void removeHeader(String name)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public Enumeration getAllHeaders()
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getAllHeaders();
+    }
+
+    public Enumeration getMatchingHeaders(String names[])
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getMatchingHeaders(names);
+    }
+
+    public Enumeration getNonMatchingHeaders(String names[])
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getNonMatchingHeaders(names);
+    }
+
+    public void addHeaderLine(String line)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPBodyPart is read-only");
+    }
+
+    public Enumeration getAllHeaderLines()
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getAllHeaderLines();
+    }
+
+    public Enumeration getMatchingHeaderLines(String names[])
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getMatchingHeaderLines(names);
+    }
+
+    public Enumeration getNonMatchingHeaderLines(String names[])
+        throws MessagingException
+    {
+        loadHeaders();
+        return super.getNonMatchingHeaderLines(names);
+    }
+
+    private synchronized void loadHeaders()
+        throws MessagingException
+    {
+        if(headersLoaded)
+            return;
+        if(headers == null)
+            headers = new InternetHeaders();
+        synchronized(message.getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = message.getProtocol();
+                message.checkExpunged();
+                if(p.isREV1())
+                {
+                    int seqnum = message.getSequenceNumber();
+                    BODY b = p.peekBody(seqnum, (new StringBuilder()).append(sectionId).append(".MIME").toString());
+                    if(b == null)
+                        throw new MessagingException("Failed to fetch headers");
+                    ByteArrayInputStream bis = b.getByteArrayInputStream();
+                    if(bis == null)
+                        throw new MessagingException("Failed to fetch headers");
+                    headers.load(bis);
+                } else
+                {
+                    headers.addHeader("Content-Type", type);
+                    headers.addHeader("Content-Transfer-Encoding", bs.encoding);
+                    if(bs.description != null)
+                        headers.addHeader("Content-Description", bs.description);
+                    if(bs.id != null)
+                        headers.addHeader("Content-ID", bs.id);
+                    if(bs.md5 != null)
+                        headers.addHeader("Content-MD5", bs.md5);
+                }
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(message.getFolder(), cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        headersLoaded = true;
+    }
+
+    private IMAPMessage message;
+    private BODYSTRUCTURE bs;
+    private String sectionId;
+    private String type;
+    private String description;
+    private boolean headersLoaded;
+    private static final boolean decodeFileName = PropUtil.getBooleanSystemProperty("mail.mime.decodefilename", false);
+
+}

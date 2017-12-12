@@ -1,0 +1,36 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPSendFailedException.java
+
+package com.sun.mail.smtp;
+
+import javax.mail.Address;
+import javax.mail.SendFailedException;
+import javax.mail.internet.InternetAddress;
+
+public class SMTPSendFailedException extends SendFailedException
+{
+
+    public SMTPSendFailedException(String cmd, int rc, String err, Exception ex, Address vs[], Address vus[], Address inv[])
+    {
+        super(err, ex, vs, vus, inv);
+        this.cmd = cmd;
+        this.rc = rc;
+    }
+
+    public String getCommand()
+    {
+        return cmd;
+    }
+
+    public int getReturnCode()
+    {
+        return rc;
+    }
+
+    protected InternetAddress addr;
+    protected String cmd;
+    protected int rc;
+    private static final long serialVersionUID = 0x6fb43a627ef24a1eL;
+}

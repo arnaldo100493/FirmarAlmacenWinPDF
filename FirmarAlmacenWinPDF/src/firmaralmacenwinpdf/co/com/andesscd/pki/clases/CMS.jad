@@ -1,0 +1,649 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CMS.java
+
+package co.com.andesscd.pki.clases;
+
+import co.com.andesscd.Auxiliar;
+import co.com.andesscd.OSValidador;
+import co.com.pdf.text.DocumentException;
+import co.com.pdf.text.Rectangle;
+import co.com.pdf.text.pdf.*;
+import co.com.pdf.text.pdf.security.CertificateInfo;
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.cms.*;
+import co.org.bouncy.cert.jcajce.JcaCertStore;
+import co.org.bouncy.cert.jcajce.JcaCertStoreBuilder;
+import co.org.bouncy.cms.*;
+import co.org.bouncy.cms.jcajce.JcaSignerInfoGeneratorBuilder;
+import co.org.bouncy.jce.provider.BouncyCastleProvider;
+import co.org.bouncy.operator.ContentSigner;
+import co.org.bouncy.operator.OperatorCreationException;
+import co.org.bouncy.operator.jcajce.JcaContentSignerBuilder;
+import co.org.bouncy.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import co.org.bouncy.tsp.TSPException;
+import co.org.bouncy.util.Store;
+import java.io.*;
+import java.net.*;
+import java.security.*;
+import java.security.cert.*;
+import java.util.*;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            SNTPClient, TimeStamped, TSAClient
+
+public class CMS
+{
+    private static final class TipoDocumento extends Enum
+    {
+
+        public static TipoDocumento[] values()
+        {
+            return (TipoDocumento[])$VALUES.clone();
+        }
+
+        public static TipoDocumento valueOf(String name)
+        {
+            return (TipoDocumento)Enum.valueOf(co/com/andesscd/pki/clases/CMS$TipoDocumento, name);
+        }
+
+        public static final TipoDocumento NO_ANALIZADO;
+        public static final TipoDocumento DESCONOCIDO;
+        public static final TipoDocumento PKCS7;
+        public static final TipoDocumento PDF;
+        public static final TipoDocumento PDF_FIRMADO;
+        private static final TipoDocumento $VALUES[];
+
+        static 
+        {
+            NO_ANALIZADO = new TipoDocumento("NO_ANALIZADO", 0);
+            DESCONOCIDO = new TipoDocumento("DESCONOCIDO", 1);
+            PKCS7 = new TipoDocumento("PKCS7", 2);
+            PDF = new TipoDocumento("PDF", 3);
+            PDF_FIRMADO = new TipoDocumento("PDF_FIRMADO", 4);
+            $VALUES = (new TipoDocumento[] {
+                NO_ANALIZADO, DESCONOCIDO, PKCS7, PDF, PDF_FIRMADO
+            });
+        }
+
+        private TipoDocumento(String s, int i)
+        {
+            super(s, i);
+        }
+    }
+
+    public static final class FuenteHoraria extends Enum
+    {
+
+        public static FuenteHoraria[] values()
+        {
+            return (FuenteHoraria[])$VALUES.clone();
+        }
+
+        public static FuenteHoraria valueOf(String name)
+        {
+            return (FuenteHoraria)Enum.valueOf(co/com/andesscd/pki/clases/CMS$FuenteHoraria, name);
+        }
+
+        public static final FuenteHoraria LOCAL;
+        public static final FuenteHoraria SNTP;
+        public static final FuenteHoraria TSA;
+        private static final FuenteHoraria $VALUES[];
+
+        static 
+        {
+            LOCAL = new FuenteHoraria("LOCAL", 0);
+            SNTP = new FuenteHoraria("SNTP", 1);
+            TSA = new FuenteHoraria("TSA", 2);
+            $VALUES = (new FuenteHoraria[] {
+                LOCAL, SNTP, TSA
+            });
+        }
+
+        private FuenteHoraria(String s, int i)
+        {
+            super(s, i);
+        }
+    }
+
+
+    public static void iniciarComponente()
+    {
+        Provider provider = Security.getProvider("BC");
+        if(provider == null)
+        {
+            Security.addProvider(new BouncyCastleProvider());
+            bcAgregado = true;
+        }
+    }
+
+    private static void iniciarComponente(String xmlLicencia)
+    {
+        iniciarComponente();
+        if(secureBlackboxIniciado);
+    }
+
+    private static void iniciarComponente(String xmlLicencia, String JNIPath)
+    {
+        iniciarComponente(xmlLicencia);
+    }
+
+    public static void setToleranciaTemporal(int toleranciaTemporal)
+    {
+        toleranciaTemporal = toleranciaTemporal;
+    }
+
+    public static int getToleranciaTemporal()
+    {
+        return toleranciaTemporal;
+    }
+
+    public static void setFirmaPdfVisible(boolean visible)
+    {
+        firmaPdfVisible = visible;
+    }
+
+    public static void setProxy(Proxy miProxy)
+    {
+        miProxy = miProxy;
+    }
+
+    public static void setProxy(String proxyUrl, int proxyPort, java.net.Proxy.Type type)
+    {
+        if(type == null)
+            type = java.net.Proxy.Type.HTTP;
+        if(proxyUrl != null && !"".equals(proxyUrl.trim()))
+            miProxy = new Proxy(type, new InetSocketAddress(proxyUrl, proxyPort));
+    }
+
+    public static Proxy getProxy()
+    {
+        return miProxy;
+    }
+
+    public static FuenteHoraria getFuenteHoraria()
+    {
+        return fuenteHoraria;
+    }
+
+    public static void setFuenteHorariaLocal()
+    {
+        urlFuenteHoraria = "";
+        loginFuenteHoraria = "";
+        passwordFuenteHoraria = "";
+        fuenteHoraria = FuenteHoraria.LOCAL;
+    }
+
+    public static void setFuenteHorariaSNTP(String urlFuenteHoraria)
+    {
+        urlFuenteHoraria = urlFuenteHoraria;
+        loginFuenteHoraria = "";
+        passwordFuenteHoraria = "";
+        fuenteHoraria = FuenteHoraria.SNTP;
+    }
+
+    public static void setFuenteHorariaTSA(String urlFuenteHoraria, String loginFuenteHoraria, String passwordFuenteHoraria)
+    {
+        urlFuenteHoraria = urlFuenteHoraria;
+        loginFuenteHoraria = loginFuenteHoraria;
+        passwordFuenteHoraria = passwordFuenteHoraria;
+        fuenteHoraria = FuenteHoraria.TSA;
+    }
+
+    public static GregorianCalendar getFechaActual()
+        throws IOException, NoSuchAlgorithmException, TSPException, CertificateException, Exception
+    {
+        GregorianCalendar fechaActual = null;
+        static class _cls1
+        {
+
+            static final int $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[];
+
+            static 
+            {
+                $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria = new int[FuenteHoraria.values().length];
+                try
+                {
+                    $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[FuenteHoraria.LOCAL.ordinal()] = 1;
+                }
+                catch(NoSuchFieldError ex) { }
+                try
+                {
+                    $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[FuenteHoraria.SNTP.ordinal()] = 2;
+                }
+                catch(NoSuchFieldError ex) { }
+                try
+                {
+                    $SwitchMap$co$com$andesscd$pki$clases$CMS$FuenteHoraria[FuenteHoraria.TSA.ordinal()] = 3;
+                }
+                catch(NoSuchFieldError ex) { }
+            }
+        }
+
+        switch(_cls1..SwitchMap.co.com.andesscd.pki.clases.CMS.FuenteHoraria[fuenteHoraria.ordinal()])
+        {
+        case 1: // '\001'
+            fechaActual = new GregorianCalendar(new SimpleTimeZone(0, "America/Bogota"));
+            fechaActual.setTime(new Date());
+            break;
+
+        case 2: // '\002'
+            SNTPClient sntpClient = new SNTPClient();
+            sntpClient.requestTime(urlFuenteHoraria, 10000);
+            fechaActual = sntpClient.getFecha();
+            break;
+
+        case 3: // '\003'
+            Random r = new Random();
+            byte datosAleatorios[] = new byte[8];
+            r.nextBytes(datosAleatorios);
+            ByteArrayOutputStream tokenStream = new ByteArrayOutputStream();
+            TSAClient.getTimestampToken(new ByteArrayInputStream(datosAleatorios), urlFuenteHoraria, loginFuenteHoraria, passwordFuenteHoraria, tokenStream);
+            TimeStamped timeStamped = new TimeStamped(tokenStream.toByteArray());
+            fechaActual = timeStamped.getFechaEstampado();
+            break;
+        }
+        return fechaActual;
+    }
+
+    private void iniciarCMS(InputStream streamEntrada)
+        throws Exception
+    {
+        iniciarComponente();
+        if(streamEntrada == null)
+        {
+            throw new Exception("No se proporcionaron datos de entrada");
+        } else
+        {
+            contenido = Auxiliar.inputStream2ByteArray(streamEntrada);
+            hashParaTimeStamp = new HashMap();
+            return;
+        }
+    }
+
+    public CMS(String archivoEntrada)
+        throws FileNotFoundException, Exception
+    {
+        contenido = null;
+        nombreDocumento = "";
+        descripcion = "";
+        tipoDocumento = TipoDocumento.NO_ANALIZADO;
+        signedData = null;
+        pdfReader = null;
+        firmasPdf = null;
+        urlOCSP = null;
+        urlCRL = null;
+        File archivo = new File(archivoEntrada);
+        nombreDocumento = archivo.getName();
+        descripcion = "";
+        iniciarCMS(new FileInputStream(archivoEntrada));
+    }
+
+    public CMS(InputStream streamEntrada)
+        throws Exception
+    {
+        contenido = null;
+        nombreDocumento = "";
+        descripcion = "";
+        tipoDocumento = TipoDocumento.NO_ANALIZADO;
+        signedData = null;
+        pdfReader = null;
+        firmasPdf = null;
+        urlOCSP = null;
+        urlCRL = null;
+        nombreDocumento = "";
+        descripcion = "";
+        iniciarCMS(streamEntrada);
+    }
+
+    public CMS(URL url)
+        throws IOException, Exception
+    {
+        contenido = null;
+        nombreDocumento = "";
+        descripcion = "";
+        tipoDocumento = TipoDocumento.NO_ANALIZADO;
+        signedData = null;
+        pdfReader = null;
+        firmasPdf = null;
+        urlOCSP = null;
+        urlCRL = null;
+        HttpURLConnection conexion;
+        if(getProxy() != null)
+            conexion = (HttpURLConnection)url.openConnection(getProxy());
+        else
+            conexion = (HttpURLConnection)url.openConnection();
+        nombreDocumento = "";
+        descripcion = "";
+        iniciarCMS(conexion.getInputStream());
+    }
+
+    protected void decode(OutputStream streamSalida)
+        throws IOException, CMSException, NoSuchAlgorithmException, NoSuchProviderException, GeneralSecurityException
+    {
+        if(signedData == null)
+        {
+            signedData = new CMSSignedData(contenido);
+            firmantes = signedData.getSignerInfos();
+            JcaCertStoreBuilder sb = new JcaCertStoreBuilder();
+            sb.addCertificates(signedData.getCertificates());
+            certificados = sb.build();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            signedData.getSignedContent().write(byteArrayOutputStream);
+            salida = byteArrayOutputStream.toByteArray();
+        }
+        if(streamSalida != null)
+            streamSalida.write(salida);
+        if(streamSalida != null)
+            streamSalida.close();
+        break MISSING_BLOCK_LABEL_126;
+        Exception exception;
+        exception;
+        if(streamSalida != null)
+            streamSalida.close();
+        throw exception;
+    }
+
+    public PdfSignatureAppearance iniciarFirmaPdf(X509Certificate x509Certificate, OutputStream streamSalida)
+        throws NoSuchAlgorithmException, TSPException, CertificateException, IOException, DocumentException, Exception
+    {
+        Calendar signDate = getFechaActual();
+        PdfReader reader = new PdfReader(contenido);
+        PdfStamper stamper = PdfStamper.createSignature(reader, streamSalida, '\0', null, true);
+        if(pdfMetaData != null)
+        {
+            HashMap hMap = reader.getInfo();
+            hMap.putAll(pdfMetaData);
+            stamper.setMoreInfo(hMap);
+        }
+        PdfSignature pdfSignature = new PdfSignature(PdfName.ADOBE_PPKMS, PdfName.ADBE_PKCS7_SHA1);
+        pdfSignature.setDate(new PdfDate(signDate));
+        if(x509Certificate != null)
+            pdfSignature.setName(CertificateInfo.getSubjectFields(x509Certificate).getField("CN"));
+        PdfSignatureAppearance signatureAppearance = stamper.getSignatureAppearance();
+        if(firmaPdfVisible)
+            signatureAppearance.setVisibleSignature(new Rectangle(0.0F, 0.0F, 300F, 300F), reader.getNumberOfPages(), null);
+        signatureAppearance.setSignDate(signDate);
+        if(x509Certificate != null)
+            signatureAppearance.setCertificate(x509Certificate);
+        signatureAppearance.setCryptoDictionary(pdfSignature);
+        HashMap exc = new HashMap();
+        exc.put(PdfName.CONTENTS, Integer.valueOf(24002));
+        if(x509Certificate != null);
+        signatureAppearance.preClose(exc);
+        return signatureAppearance;
+    }
+
+    public void finalizarFirmaPdf(X509Certificate x509Certificate, PdfSignatureAppearance signatureAppearance, byte firmaPlana[], OutputStream streamSalida)
+        throws IOException, DocumentException, CMSException, CertStoreException, NoSuchProviderException, GeneralSecurityException, Exception
+    {
+        PdfDictionary pdfDictionary = new PdfDictionary();
+        if(x509Certificate == null)
+        {
+            CMS cmdHashFirmado = new CMS(new ByteArrayInputStream(firmaPlana));
+            cmdHashFirmado.decode(null);
+            Collection certificadosUsados = cmdHashFirmado.certificados.getCertificates(null);
+            Certificate certificado;
+            for(Iterator i$ = certificadosUsados.iterator(); i$.hasNext(); signatureAppearance.setCertificate(certificado))
+                certificado = (Certificate)i$.next();
+
+        }
+        byte outc[] = new byte[12000];
+        System.arraycopy(firmaPlana, 0, outc, 0, firmaPlana.length);
+        pdfDictionary.put(PdfName.CONTENTS, (new PdfString(outc)).setHexWriting(true));
+        signatureAppearance.close(pdfDictionary);
+        streamSalida.flush();
+        streamSalida.close();
+    }
+
+    public void firmarPdf(X509Certificate x509Certificate, PrivateKey llavePrivada, Provider provedor, OutputStream streamSalida)
+        throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, IOException, DocumentException, CertStoreException, CMSException, Exception
+    {
+        PdfSignatureAppearance signatureAppearance = iniciarFirmaPdf(x509Certificate, streamSalida);
+        CMS cmdHash = new CMS(new ByteArrayInputStream(getSha1(signatureAppearance.getRangeStream())));
+        ByteArrayOutputStream streamHashFirmado = new ByteArrayOutputStream();
+        cmdHash.firmar(x509Certificate, llavePrivada, provedor, streamHashFirmado);
+        finalizarFirmaPdf(x509Certificate, signatureAppearance, streamHashFirmado.toByteArray(), streamSalida);
+    }
+
+    protected ArrayList getFirmasPdf()
+        throws IllegalArgumentException, IOException, Exception
+    {
+        if(firmasPdf != null)
+            return firmasPdf;
+        firmasPdf = new ArrayList();
+        try
+        {
+            if(pdfReader == null)
+                pdfReader = new PdfReader(contenido);
+        }
+        catch(IOException ex)
+        {
+            throw new IllegalArgumentException("Los datos de entrada no describen un documento pdf valido");
+        }
+        AcroFields af = pdfReader.getAcroFields();
+        ASN1Primitive pkcs;
+        for(Iterator i$ = af.getSignatureNames().iterator(); i$.hasNext(); firmasPdf.add(new CMS(new ByteArrayInputStream(((ASN1Sequence)pkcs).getEncoded()))))
+        {
+            Object obj = i$.next();
+            String name = (String)obj;
+            af.getSignatureDictionary(name);
+            PdfDictionary dict = af.getSignatureDictionary(name);
+            PdfString contents = dict.getAsString(PdfName.CONTENTS);
+            ASN1InputStream din = new ASN1InputStream(new ByteArrayInputStream(contents.getOriginalBytes()));
+            try
+            {
+                pkcs = din.readObject();
+            }
+            catch(IOException e)
+            {
+                throw new IllegalArgumentException("No se puede decodificar la seccion del documento pdf que contiene la firma");
+            }
+            if(!(pkcs instanceof ASN1Sequence))
+                throw new IllegalArgumentException("El formato de la firma en el documento pdf parace no ser valido");
+        }
+
+        return firmasPdf;
+    }
+
+    protected TipoDocumento getTipoDocumento()
+    {
+        if(tipoDocumento == TipoDocumento.NO_ANALIZADO)
+        {
+            try
+            {
+                if(signedData == null)
+                    decode(null);
+                return tipoDocumento = TipoDocumento.PKCS7;
+            }
+            catch(Exception ex) { }
+            try
+            {
+                if(pdfReader == null)
+                    pdfReader = new PdfReader(contenido);
+                tipoDocumento = TipoDocumento.PDF;
+                if(!getFirmasPdf().isEmpty())
+                    tipoDocumento = TipoDocumento.PDF_FIRMADO;
+            }
+            catch(Exception ex) { }
+            if(tipoDocumento == TipoDocumento.NO_ANALIZADO)
+                tipoDocumento = TipoDocumento.DESCONOCIDO;
+        }
+        return tipoDocumento;
+    }
+
+    protected void firmar(X509Certificate certificado, PrivateKey llavePrivada, Provider provedor, OutputStream streamSalida)
+        throws NoSuchAlgorithmException, IOException, CMSException, CertStoreException, InvalidAlgorithmParameterException, CertificateEncodingException, OperatorCreationException, TSPException, Exception
+    {
+        CMSSignedDataGenerator generadorDeFirma;
+        ArrayList listaDeCertificados;
+        generadorDeFirma = new CMSSignedDataGenerator();
+        listaDeCertificados = new ArrayList();
+        listaDeCertificados.add(certificado);
+        Store almacenDeCertificados = new JcaCertStore(listaDeCertificados);
+        generadorDeFirma.addCertificates(almacenDeCertificados);
+        JcaSignerInfoGeneratorBuilder jcaSignerInfoGeneratorBuilder = new JcaSignerInfoGeneratorBuilder((new JcaDigestCalculatorProviderBuilder()).setProvider("BC").build());
+        ASN1EncodableVector signedAttributes = new ASN1EncodableVector();
+        Date fechaActual = null;
+        if(fuenteHoraria == FuenteHoraria.LOCAL || fuenteHoraria == FuenteHoraria.SNTP)
+        {
+            fechaActual = getFechaActual().getTime();
+        } else
+        {
+            MessageDigest sha = MessageDigest.getInstance("SHA1");
+            byte timeStampToken[] = TSAClient.getTimestampToken(sha.digest(contenido), urlFuenteHoraria, loginFuenteHoraria, passwordFuenteHoraria);
+            fechaActual = (new TimeStamped(timeStampToken)).getFechaEstampado().getTime();
+            ASN1EncodableVector unSignedAttributes = new ASN1EncodableVector();
+            unSignedAttributes.add(new Attribute(new ASN1ObjectIdentifier(ID_TIME_STAMP_TOKEN), new DERSet((new ASN1InputStream(timeStampToken)).readObject())));
+            AttributeTable unSignedAttributesTable = new AttributeTable(unSignedAttributes);
+            SimpleAttributeTableGenerator unSignedAttributeGenerator = new SimpleAttributeTableGenerator(unSignedAttributesTable);
+            jcaSignerInfoGeneratorBuilder.setUnsignedAttributeGenerator(unSignedAttributeGenerator);
+        }
+        signedAttributes.add(new Attribute(CMSAttributes.signingTime, new DERSet(new DERUTCTime(fechaActual))));
+        AttributeTable signedAttributesTable = new AttributeTable(signedAttributes);
+        DefaultSignedAttributeTableGenerator signedAttributeGenerator = new DefaultSignedAttributeTableGenerator(signedAttributesTable);
+        jcaSignerInfoGeneratorBuilder.setSignedAttributeGenerator(signedAttributeGenerator);
+        ContentSigner firmante = (new JcaContentSignerBuilder("SHA1withRSA")).setProvider(provedor).build(llavePrivada);
+        SignerInfoGenerator signerInfoGenerator = jcaSignerInfoGeneratorBuilder.build(firmante, certificado);
+        generadorDeFirma.addSignerInfoGenerator(signerInfoGenerator);
+        ArrayList nuevosFirmantes = new ArrayList();
+        CMSTypedData contenidoFirmable;
+        Collection firmantesLocal;
+        if(getTipoDocumento() == TipoDocumento.PKCS7)
+        {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            decode(out);
+            contenidoFirmable = new CMSProcessableByteArray(out.toByteArray());
+            firmantesLocal = firmantes.getSigners();
+            SignerInformation si;
+            for(Iterator i$ = firmantesLocal.iterator(); i$.hasNext(); nuevosFirmantes.add(si))
+                si = (SignerInformation)i$.next();
+
+        } else
+        {
+            contenidoFirmable = new CMSProcessableByteArray(contenido);
+        }
+        CMSSignedData datosFirmados = generadorDeFirma.generate(contenidoFirmable, true);
+        firmantesLocal = datosFirmados.getSignerInfos().getSigners();
+        SignerInformation si;
+        for(Iterator i$ = firmantesLocal.iterator(); i$.hasNext(); nuevosFirmantes.add(si))
+            si = (SignerInformation)i$.next();
+
+        SignerInformationStore newSignerInformationStore = new SignerInformationStore(nuevosFirmantes);
+        CMSSignedData newSd = CMSSignedData.replaceSigners(datosFirmados, newSignerInformationStore);
+        salida = newSd.getEncoded();
+        streamSalida.write(salida);
+        if(streamSalida != null)
+            streamSalida.close();
+        break MISSING_BLOCK_LABEL_575;
+        Exception exception;
+        exception;
+        if(streamSalida != null)
+            streamSalida.close();
+        throw exception;
+    }
+
+    public void firmarPdf(KeyStore keyStore, String alias, String contraseF1a, Provider provedor, OutputStream streamSalida)
+        throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, IOException, DocumentException, CertStoreException, CMSException, Exception
+    {
+        if(!keyStore.containsAlias(alias))
+            throw new Exception((new StringBuilder()).append("El almacen no contiene el alias: ").append(alias).toString());
+        if(!keyStore.isKeyEntry(alias))
+            throw new Exception((new StringBuilder()).append("El almacen no contiene una llave con alias: ").append(alias).toString());
+        X509Certificate certificado = (X509Certificate)keyStore.getCertificate(alias);
+        if(certificado == null)
+            throw new Exception((new StringBuilder()).append("El almacen no contiene un certificado con alias: ").append(alias).toString());
+        PrivateKey llavePrivada = (PrivateKey)keyStore.getKey(alias, contraseF1a == null ? null : contraseF1a.toCharArray());
+        if(llavePrivada == null)
+        {
+            throw new Exception((new StringBuilder()).append("No se pudo recuperar la llave con alias: ").append(alias).toString());
+        } else
+        {
+            firmarPdf(certificado, llavePrivada, provedor, streamSalida);
+            return;
+        }
+    }
+
+    public void firmarPdf(KeyStore keyStore, String alias, String contraseF1a, OutputStream streamSalida)
+        throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, IOException, DocumentException, CertStoreException, CMSException, Exception
+    {
+        if(keyStore == null)
+            if(OSValidador.getOS() == co.com.andesscd.OSValidador.OSTYPE.WINDOWS)
+            {
+                keyStore = KeyStore.getInstance("Windows-MY", "SunMSCAPI");
+                keyStore.load(null, null);
+            } else
+            {
+                if(contraseF1a == null || contraseF1a.isEmpty())
+                    contraseF1a = "changeit";
+                keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                keyStore.load(new FileInputStream((new StringBuilder()).append(System.getProperty("java.home")).append("/lib/security/cacerts".replace('/', File.separatorChar)).toString()), contraseF1a.toCharArray());
+            }
+        firmarPdf(keyStore, alias, contraseF1a, keyStore.getProvider(), streamSalida);
+    }
+
+    public void firmarPdf(KeyStore keyStore, String contraseF1a, OutputStream streamSalida)
+        throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, IOException, DocumentException, CertStoreException, CMSException, Exception
+    {
+        String alias = null;
+        Enumeration aliases = keyStore.aliases();
+        do
+        {
+            if(!aliases.hasMoreElements())
+                break;
+            alias = (String)aliases.nextElement();
+        } while(!keyStore.isKeyEntry(alias));
+        if(alias == null || alias.isEmpty())
+        {
+            throw new Exception("No se enocntro una llave util para firma dentro del contenedor");
+        } else
+        {
+            firmarPdf(keyStore, alias, contraseF1a, streamSalida);
+            return;
+        }
+    }
+
+    public static byte[] getSha1(InputStream s)
+        throws NoSuchAlgorithmException, IOException
+    {
+        MessageDigest messageDigest = MessageDigest.getInstance("SHA1");
+        int read = 0;
+        byte buff[] = new byte[0x100000];
+        while((read = s.read(buff, 0, 0x100000)) > 0) 
+            messageDigest.update(buff, 0, read);
+        return messageDigest.digest();
+    }
+
+    private static int toleranciaTemporal = 0;
+    private static final int PDF_CONTENTS_SIZE = 12000;
+    private static String ID_TIME_STAMP_TOKEN = "1.2.840.113549.1.9.16.2.14";
+    private static String ID_TIME = "1.2.840.113549.1.9.5";
+    private static FuenteHoraria fuenteHoraria;
+    private static String urlFuenteHoraria = "";
+    private static String loginFuenteHoraria = "";
+    private static String passwordFuenteHoraria = "";
+    private static boolean bcAgregado = false;
+    private static boolean secureBlackboxIniciado = false;
+    private static Proxy miProxy = null;
+    private static boolean firmaPdfVisible = false;
+    private byte contenido[];
+    private String nombreDocumento;
+    private String descripcion;
+    private TipoDocumento tipoDocumento;
+    private CMSSignedData signedData;
+    private SignerInformationStore firmantes;
+    private CertStore certificados;
+    private PdfReader pdfReader;
+    private ArrayList firmasPdf;
+    private byte salida[];
+    private HashMap hashParaTimeStamp;
+    private HashMap pdfMetaData;
+    protected String urlOCSP;
+    protected String urlCRL;
+
+    static 
+    {
+        fuenteHoraria = FuenteHoraria.LOCAL;
+    }
+}

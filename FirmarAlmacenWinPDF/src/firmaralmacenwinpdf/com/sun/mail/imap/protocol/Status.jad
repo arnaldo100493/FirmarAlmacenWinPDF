@@ -1,0 +1,83 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Status.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.ParsingException;
+import com.sun.mail.iap.Response;
+
+public class Status
+{
+
+    public Status(Response r)
+        throws ParsingException
+    {
+        mbox = null;
+        total = -1;
+        recent = -1;
+        uidnext = -1L;
+        uidvalidity = -1L;
+        unseen = -1;
+        mbox = r.readAtomString();
+        StringBuffer buffer = new StringBuffer();
+        boolean onlySpaces = true;
+        do
+        {
+            if(r.peekByte() == 40 || r.peekByte() == 0)
+                break;
+            char next = (char)r.readByte();
+            buffer.append(next);
+            if(next != ' ')
+                onlySpaces = false;
+        } while(true);
+        if(!onlySpaces)
+            mbox = (new StringBuilder()).append(mbox).append(buffer).toString().trim();
+        if(r.readByte() != 40)
+            throw new ParsingException("parse error in STATUS");
+        do
+        {
+            String attr = r.readAtom();
+            if(attr.equalsIgnoreCase("MESSAGES"))
+                total = r.readNumber();
+            else
+            if(attr.equalsIgnoreCase("RECENT"))
+                recent = r.readNumber();
+            else
+            if(attr.equalsIgnoreCase("UIDNEXT"))
+                uidnext = r.readLong();
+            else
+            if(attr.equalsIgnoreCase("UIDVALIDITY"))
+                uidvalidity = r.readLong();
+            else
+            if(attr.equalsIgnoreCase("UNSEEN"))
+                unseen = r.readNumber();
+        } while(r.readByte() != 41);
+    }
+
+    public static void add(Status s1, Status s2)
+    {
+        if(s2.total != -1)
+            s1.total = s2.total;
+        if(s2.recent != -1)
+            s1.recent = s2.recent;
+        if(s2.uidnext != -1L)
+            s1.uidnext = s2.uidnext;
+        if(s2.uidvalidity != -1L)
+            s1.uidvalidity = s2.uidvalidity;
+        if(s2.unseen != -1)
+            s1.unseen = s2.unseen;
+    }
+
+    public String mbox;
+    public int total;
+    public int recent;
+    public long uidnext;
+    public long uidvalidity;
+    public int unseen;
+    static final String standardItems[] = {
+        "MESSAGES", "RECENT", "UNSEEN", "UIDNEXT", "UIDVALIDITY"
+    };
+
+}

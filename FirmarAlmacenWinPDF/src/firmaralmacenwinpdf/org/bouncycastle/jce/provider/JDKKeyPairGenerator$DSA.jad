@@ -1,0 +1,83 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKKeyPairGenerator.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.DSAParameterSpec;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.DSAKeyPairGenerator;
+import org.bouncycastle.crypto.generators.DSAParametersGenerator;
+import org.bouncycastle.crypto.params.*;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKKeyPairGenerator, JDKDSAPublicKey, JDKDSAPrivateKey
+
+public static class JDKKeyPairGenerator$DSA extends JDKKeyPairGenerator
+{
+
+    public void initialize(int strength, SecureRandom random)
+    {
+        if(strength < 512 || strength > 1024 || strength % 64 != 0)
+        {
+            throw new InvalidParameterException("strength must be from 512 - 1024 and a multiple of 64");
+        } else
+        {
+            this.strength = strength;
+            this.random = random;
+            return;
+        }
+    }
+
+    public void initialize(AlgorithmParameterSpec params, SecureRandom random)
+        throws InvalidAlgorithmParameterException
+    {
+        if(!(params instanceof DSAParameterSpec))
+        {
+            throw new InvalidAlgorithmParameterException("parameter object not a DSAParameterSpec");
+        } else
+        {
+            DSAParameterSpec dsaParams = (DSAParameterSpec)params;
+            param = new DSAKeyGenerationParameters(random, new DSAParameters(dsaParams.getP(), dsaParams.getQ(), dsaParams.getG()));
+            engine.init(param);
+            initialised = true;
+            return;
+        }
+    }
+
+    public KeyPair generateKeyPair()
+    {
+        if(!initialised)
+        {
+            DSAParametersGenerator pGen = new DSAParametersGenerator();
+            pGen.init(strength, certainty, random);
+            param = new DSAKeyGenerationParameters(random, pGen.generateParameters());
+            engine.init(param);
+            initialised = true;
+        }
+        AsymmetricCipherKeyPair pair = engine.generateKeyPair();
+        DSAPublicKeyParameters pub = (DSAPublicKeyParameters)pair.getPublic();
+        DSAPrivateKeyParameters priv = (DSAPrivateKeyParameters)pair.getPrivate();
+        return new KeyPair(new JDKDSAPublicKey(pub), new JDKDSAPrivateKey(priv));
+    }
+
+    DSAKeyGenerationParameters param;
+    DSAKeyPairGenerator engine;
+    int strength;
+    int certainty;
+    SecureRandom random;
+    boolean initialised;
+
+    public JDKKeyPairGenerator$DSA()
+    {
+        super("DSA");
+        engine = new DSAKeyPairGenerator();
+        strength = 1024;
+        certainty = 20;
+        random = new SecureRandom();
+        initialised = false;
+    }
+}

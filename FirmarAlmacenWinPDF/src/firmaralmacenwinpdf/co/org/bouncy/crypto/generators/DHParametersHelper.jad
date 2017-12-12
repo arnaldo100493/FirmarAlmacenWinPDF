@@ -1,0 +1,49 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DHParametersHelper.java
+
+package co.org.bouncy.crypto.generators;
+
+import co.org.bouncy.util.BigIntegers;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+class DHParametersHelper
+{
+
+    DHParametersHelper()
+    {
+    }
+
+    static BigInteger[] generateSafePrimes(int size, int certainty, SecureRandom random)
+    {
+        int qLength = size - 1;
+        BigInteger p;
+        BigInteger q;
+        do
+        {
+            q = new BigInteger(qLength, 2, random);
+            p = q.shiftLeft(1).add(ONE);
+        } while(!p.isProbablePrime(certainty) || certainty > 2 && !q.isProbablePrime(certainty));
+        return (new BigInteger[] {
+            p, q
+        });
+    }
+
+    static BigInteger selectGenerator(BigInteger p, BigInteger q, SecureRandom random)
+    {
+        BigInteger pMinusTwo = p.subtract(TWO);
+        BigInteger g;
+        do
+        {
+            BigInteger h = BigIntegers.createRandomInRange(TWO, pMinusTwo, random);
+            g = h.modPow(TWO, p);
+        } while(g.equals(ONE));
+        return g;
+    }
+
+    private static final BigInteger ONE = BigInteger.valueOf(1L);
+    private static final BigInteger TWO = BigInteger.valueOf(2L);
+
+}

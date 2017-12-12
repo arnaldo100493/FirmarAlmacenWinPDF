@@ -1,0 +1,112 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertificatePolicies.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+import java.util.Vector;
+import org.bouncycastle.asn1.*;
+
+public class CertificatePolicies extends ASN1Encodable
+{
+
+    /**
+     * @deprecated Method getInstance is deprecated
+     */
+
+    public static CertificatePolicies getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    /**
+     * @deprecated Method getInstance is deprecated
+     */
+
+    public static CertificatePolicies getInstance(Object obj)
+    {
+        if(obj instanceof CertificatePolicies)
+            return (CertificatePolicies)obj;
+        if(obj instanceof ASN1Sequence)
+            return new CertificatePolicies((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    /**
+     * @deprecated Method CertificatePolicies is deprecated
+     */
+
+    public CertificatePolicies(ASN1Sequence seq)
+    {
+        policies = new Vector();
+        ASN1Sequence s;
+        for(Enumeration e = seq.getObjects(); e.hasMoreElements(); policies.addElement(s.getObjectAt(0)))
+            s = ASN1Sequence.getInstance(e.nextElement());
+
+    }
+
+    /**
+     * @deprecated Method CertificatePolicies is deprecated
+     */
+
+    public CertificatePolicies(DERObjectIdentifier p)
+    {
+        policies = new Vector();
+        policies.addElement(p);
+    }
+
+    /**
+     * @deprecated Method CertificatePolicies is deprecated
+     */
+
+    public CertificatePolicies(String p)
+    {
+        this(new DERObjectIdentifier(p));
+    }
+
+    public void addPolicy(String p)
+    {
+        policies.addElement(new DERObjectIdentifier(p));
+    }
+
+    public String getPolicy(int nr)
+    {
+        if(policies.size() > nr)
+            return ((DERObjectIdentifier)policies.elementAt(nr)).getId();
+        else
+            return null;
+    }
+
+    /**
+     * @deprecated Method toASN1Object is deprecated
+     */
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        for(int i = 0; i < policies.size(); i++)
+            v.add(new DERSequence((DERObjectIdentifier)policies.elementAt(i)));
+
+        return new DERSequence(v);
+    }
+
+    public String toString()
+    {
+        String p = null;
+        for(int i = 0; i < policies.size(); i++)
+        {
+            if(p != null)
+                p = (new StringBuilder()).append(p).append(", ").toString();
+            p = (new StringBuilder()).append(p).append(((DERObjectIdentifier)policies.elementAt(i)).getId()).toString();
+        }
+
+        return (new StringBuilder()).append("CertificatePolicies: ").append(p).toString();
+    }
+
+    static final DERObjectIdentifier anyPolicy = new DERObjectIdentifier("2.5.29.32.0");
+    Vector policies;
+
+}

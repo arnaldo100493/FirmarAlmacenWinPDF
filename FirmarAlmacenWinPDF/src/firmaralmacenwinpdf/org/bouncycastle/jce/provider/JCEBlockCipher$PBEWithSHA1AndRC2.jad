@@ -1,0 +1,21 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JCEBlockCipher.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.crypto.engines.RC2Engine;
+import org.bouncycastle.crypto.modes.CBCBlockCipher;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JCEBlockCipher
+
+public static class JCEBlockCipher$PBEWithSHA1AndRC2 extends JCEBlockCipher
+{
+
+    public JCEBlockCipher$PBEWithSHA1AndRC2()
+    {
+        super(new CBCBlockCipher(new RC2Engine()));
+    }
+}

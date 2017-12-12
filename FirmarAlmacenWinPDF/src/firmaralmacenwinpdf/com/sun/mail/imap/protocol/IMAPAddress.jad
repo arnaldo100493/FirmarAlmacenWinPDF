@@ -1,0 +1,88 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ENVELOPE.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.ParsingException;
+import com.sun.mail.iap.Response;
+import java.util.Vector;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
+
+class IMAPAddress extends InternetAddress
+{
+
+    IMAPAddress(Response r)
+        throws ParsingException
+    {
+        group = false;
+        r.skipSpaces();
+        if(r.readByte() != 40)
+            throw new ParsingException("ADDRESS parse error");
+        encodedPersonal = r.readString();
+        r.readString();
+        String mb = r.readString();
+        String host = r.readString();
+        r.skipSpaces();
+        if(r.readByte() != 41)
+            throw new ParsingException("ADDRESS parse error");
+        if(host == null)
+        {
+            group = true;
+            groupname = mb;
+            if(groupname == null)
+                return;
+            StringBuffer sb = new StringBuffer();
+            sb.append(groupname).append(':');
+            Vector v = new Vector();
+            IMAPAddress a;
+            for(; r.peekByte() != 41; v.addElement(a))
+            {
+                a = new IMAPAddress(r);
+                if(a.isEndOfGroup())
+                    break;
+                if(v.size() != 0)
+                    sb.append(',');
+                sb.append(a.toString());
+            }
+
+            sb.append(';');
+            address = sb.toString();
+            grouplist = new IMAPAddress[v.size()];
+            v.copyInto(grouplist);
+        } else
+        if(mb == null || mb.length() == 0)
+            address = host;
+        else
+        if(host.length() == 0)
+            address = mb;
+        else
+            address = (new StringBuilder()).append(mb).append("@").append(host).toString();
+    }
+
+    boolean isEndOfGroup()
+    {
+        return group && groupname == null;
+    }
+
+    public boolean isGroup()
+    {
+        return group;
+    }
+
+    public InternetAddress[] getGroup(boolean strict)
+        throws AddressException
+    {
+        if(grouplist == null)
+            return null;
+        else
+            return (InternetAddress[])(InternetAddress[])grouplist.clone();
+    }
+
+    private boolean group;
+    private InternetAddress grouplist[];
+    private String groupname;
+    private static final long serialVersionUID = 0xcac46c2fef0a61c8L;
+}

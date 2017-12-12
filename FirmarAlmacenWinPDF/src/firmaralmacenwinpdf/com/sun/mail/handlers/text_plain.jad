@@ -1,0 +1,148 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   text_plain.java
+
+package com.sun.mail.handlers;
+
+import java.awt.datatransfer.DataFlavor;
+import java.io.*;
+import javax.activation.*;
+import javax.mail.internet.ContentType;
+import javax.mail.internet.MimeUtility;
+
+public class text_plain
+    implements DataContentHandler
+{
+    private static class NoCloseOutputStream extends FilterOutputStream
+    {
+
+        public void close()
+        {
+        }
+
+        public NoCloseOutputStream(OutputStream os)
+        {
+            super(os);
+        }
+    }
+
+
+    public text_plain()
+    {
+    }
+
+    protected ActivationDataFlavor getDF()
+    {
+        return myDF;
+    }
+
+    public DataFlavor[] getTransferDataFlavors()
+    {
+        return (new DataFlavor[] {
+            getDF()
+        });
+    }
+
+    public Object getTransferData(DataFlavor df, DataSource ds)
+        throws IOException
+    {
+        if(getDF().equals(df))
+            return getContent(ds);
+        else
+            return null;
+    }
+
+    public Object getContent(DataSource ds)
+        throws IOException
+    {
+        InputStreamReader is;
+        String enc = null;
+        is = null;
+        try
+        {
+            enc = getCharset(ds.getContentType());
+            is = new InputStreamReader(ds.getInputStream(), enc);
+        }
+        catch(IllegalArgumentException iex)
+        {
+            throw new UnsupportedEncodingException(enc);
+        }
+        String s;
+        int pos = 0;
+        char buf[] = new char[1024];
+        do
+        {
+            int count;
+            if((count = is.read(buf, pos, buf.length - pos)) == -1)
+                break;
+            pos += count;
+            if(pos >= buf.length)
+            {
+                int size = buf.length;
+                if(size < 0x40000)
+                    size += size;
+                else
+                    size += 0x40000;
+                char tbuf[] = new char[size];
+                System.arraycopy(buf, 0, tbuf, 0, pos);
+                buf = tbuf;
+            }
+        } while(true);
+        s = new String(buf, 0, pos);
+        try
+        {
+            is.close();
+        }
+        catch(IOException ex) { }
+        return s;
+        Exception exception;
+        exception;
+        try
+        {
+            is.close();
+        }
+        catch(IOException ex) { }
+        throw exception;
+    }
+
+    public void writeTo(Object obj, String type, OutputStream os)
+        throws IOException
+    {
+        if(!(obj instanceof String))
+            throw new IOException((new StringBuilder()).append("\"").append(getDF().getMimeType()).append("\" DataContentHandler requires String object, ").append("was given object of type ").append(obj.getClass().toString()).toString());
+        String enc = null;
+        OutputStreamWriter osw = null;
+        try
+        {
+            enc = getCharset(type);
+            osw = new OutputStreamWriter(new NoCloseOutputStream(os), enc);
+        }
+        catch(IllegalArgumentException iex)
+        {
+            throw new UnsupportedEncodingException(enc);
+        }
+        String s = (String)obj;
+        osw.write(s, 0, s.length());
+        osw.close();
+    }
+
+    private String getCharset(String type)
+    {
+        try
+        {
+            ContentType ct = new ContentType(type);
+            String charset = ct.getParameter("charset");
+            if(charset == null)
+                charset = "us-ascii";
+            return MimeUtility.javaCharset(charset);
+        }
+        catch(Exception ex)
+        {
+            return null;
+        }
+    }
+
+    private static ActivationDataFlavor myDF = new ActivationDataFlavor(java/lang/String, "text/plain", "Text String");
+
+}

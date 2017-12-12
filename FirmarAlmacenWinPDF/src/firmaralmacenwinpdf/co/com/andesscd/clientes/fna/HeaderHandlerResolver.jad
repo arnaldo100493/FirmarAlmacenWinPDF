@@ -1,0 +1,36 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:44 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   HeaderHandlerResolver.java
+
+package co.com.andesscd.clientes.fna;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.xml.ws.handler.HandlerResolver;
+import javax.xml.ws.handler.PortInfo;
+
+// Referenced classes of package co.com.andesscd.clientes.fna:
+//            UserNameTokenHandler
+
+public class HeaderHandlerResolver
+    implements HandlerResolver
+{
+
+    public HeaderHandlerResolver(String user, String pass)
+    {
+        this.user = user;
+        this.pass = pass;
+    }
+
+    public List getHandlerChain(PortInfo portInfo)
+    {
+        List handlerChain = new ArrayList();
+        UserNameTokenHandler unth = new UserNameTokenHandler(user, pass);
+        handlerChain.add(unth);
+        return handlerChain;
+    }
+
+    public String user;
+    public String pass;
+}

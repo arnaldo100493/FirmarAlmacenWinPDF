@@ -1,0 +1,55 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERSequence.java
+
+package org.bouncycastle.asn1;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Enumeration;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Sequence, DEROutputStream, ASN1EncodableVector, DEREncodable, 
+//            ASN1Encodable
+
+public class DERSequence extends ASN1Sequence
+{
+
+    public DERSequence()
+    {
+    }
+
+    public DERSequence(DEREncodable obj)
+    {
+        addObject(obj);
+    }
+
+    public DERSequence(ASN1EncodableVector v)
+    {
+        for(int i = 0; i != v.size(); i++)
+            addObject(v.get(i));
+
+    }
+
+    public DERSequence(ASN1Encodable a[])
+    {
+        for(int i = 0; i != a.length; i++)
+            addObject(a[i]);
+
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        DEROutputStream dOut = new DEROutputStream(bOut);
+        Object obj;
+        for(Enumeration e = getObjects(); e.hasMoreElements(); dOut.writeObject(obj))
+            obj = e.nextElement();
+
+        dOut.close();
+        byte bytes[] = bOut.toByteArray();
+        out.writeEncoded(48, bytes);
+    }
+}

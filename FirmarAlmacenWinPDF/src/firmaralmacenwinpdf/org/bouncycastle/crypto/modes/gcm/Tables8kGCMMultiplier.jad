@@ -1,0 +1,104 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Tables8kGCMMultiplier.java
+
+package org.bouncycastle.crypto.modes.gcm;
+
+import org.bouncycastle.crypto.util.Pack;
+
+// Referenced classes of package org.bouncycastle.crypto.modes.gcm:
+//            GCMMultiplier, GCMUtil
+
+public class Tables8kGCMMultiplier
+    implements GCMMultiplier
+{
+
+    public Tables8kGCMMultiplier()
+    {
+    }
+
+    public void init(byte H[])
+    {
+        M[0][0] = new int[4];
+        M[1][0] = new int[4];
+        M[1][8] = GCMUtil.asInts(H);
+        for(int j = 4; j >= 1; j >>= 1)
+        {
+            int tmp[] = new int[4];
+            System.arraycopy(M[1][j + j], 0, tmp, 0, 4);
+            GCMUtil.multiplyP(tmp);
+            M[1][j] = tmp;
+        }
+
+        int tmp[] = new int[4];
+        System.arraycopy(M[1][1], 0, tmp, 0, 4);
+        GCMUtil.multiplyP(tmp);
+        M[0][8] = tmp;
+        for(int j = 4; j >= 1; j >>= 1)
+        {
+            int tmp[] = new int[4];
+            System.arraycopy(M[0][j + j], 0, tmp, 0, 4);
+            GCMUtil.multiplyP(tmp);
+            M[0][j] = tmp;
+        }
+
+        int i = 0;
+        do
+        {
+            int j;
+            do
+            {
+                for(j = 2; j < 16; j += j)
+                {
+                    for(int k = 1; k < j; k++)
+                    {
+                        int tmp[] = new int[4];
+                        System.arraycopy(M[i][j], 0, tmp, 0, 4);
+                        GCMUtil.xor(tmp, M[i][k]);
+                        M[i][j + k] = tmp;
+                    }
+
+                }
+
+                if(++i == 32)
+                    return;
+            } while(i <= 1);
+            M[i][0] = new int[4];
+            j = 8;
+            while(j > 0) 
+            {
+                int tmp[] = new int[4];
+                System.arraycopy(M[i - 2][j], 0, tmp, 0, 4);
+                GCMUtil.multiplyP8(tmp);
+                M[i][j] = tmp;
+                j >>= 1;
+            }
+        } while(true);
+    }
+
+    public void multiplyH(byte x[])
+    {
+        int z[] = new int[4];
+        for(int i = 15; i >= 0; i--)
+        {
+            int m[] = M[i + i][x[i] & 0xf];
+            z[0] ^= m[0];
+            z[1] ^= m[1];
+            z[2] ^= m[2];
+            z[3] ^= m[3];
+            m = M[i + i + 1][(x[i] & 0xf0) >>> 4];
+            z[0] ^= m[0];
+            z[1] ^= m[1];
+            z[2] ^= m[2];
+            z[3] ^= m[3];
+        }
+
+        Pack.intToBigEndian(z[0], x, 0);
+        Pack.intToBigEndian(z[1], x, 4);
+        Pack.intToBigEndian(z[2], x, 8);
+        Pack.intToBigEndian(z[3], x, 12);
+    }
+
+    private final int M[][][] = new int[32][16][];
+}

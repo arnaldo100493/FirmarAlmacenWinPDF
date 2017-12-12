@@ -1,0 +1,65 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EnvelopedDataHelper.java
+
+package co.org.bouncy.cms.jcajce;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.x509.AlgorithmIdentifier;
+import co.org.bouncy.cms.CMSException;
+import java.io.IOException;
+import java.security.*;
+import java.security.spec.InvalidParameterSpecException;
+import javax.crypto.Mac;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+
+// Referenced classes of package co.org.bouncy.cms.jcajce:
+//            EnvelopedDataHelper
+
+class EnvelopedDataHelper$2
+    implements ECallback
+{
+
+    public Object doInJCE()
+        throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException
+    {
+        Mac mac = createMac(val$macAlgId.getAlgorithm());
+        ASN1Encodable sParams = val$macAlgId.getParameters();
+        String macAlg = val$macAlgId.getAlgorithm().getId();
+        if(sParams != null && !(sParams instanceof ASN1Null))
+            try
+            {
+                AlgorithmParameters params = createAlgorithmParameters(val$macAlgId.getAlgorithm());
+                try
+                {
+                    params.init(sParams.toASN1Primitive().getEncoded(), "ASN.1");
+                }
+                catch(IOException e)
+                {
+                    throw new CMSException("error decoding algorithm parameters.", e);
+                }
+                mac.init(val$sKey, params.getParameterSpec(javax/crypto/spec/IvParameterSpec));
+            }
+            catch(NoSuchAlgorithmException e)
+            {
+                throw e;
+            }
+        else
+            mac.init(val$sKey);
+        return mac;
+    }
+
+    final AlgorithmIdentifier val$macAlgId;
+    final Key val$sKey;
+    final EnvelopedDataHelper this$0;
+
+    EnvelopedDataHelper$2()
+    {
+        this$0 = final_envelopeddatahelper;
+        val$macAlgId = algorithmidentifier;
+        val$sKey = Key.this;
+        super();
+    }
+}

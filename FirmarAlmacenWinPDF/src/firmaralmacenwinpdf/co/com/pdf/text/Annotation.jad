@@ -1,0 +1,273 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Annotation.java
+
+package co.com.pdf.text;
+
+import java.net.URL;
+import java.util.*;
+
+// Referenced classes of package co.com.pdf.text:
+//            DocumentException, Element, ElementListener
+
+public class Annotation
+    implements Element
+{
+
+    private Annotation(float llx, float lly, float urx, float ury)
+    {
+        annotationAttributes = new HashMap();
+        this.llx = (0.0F / 0.0F);
+        this.lly = (0.0F / 0.0F);
+        this.urx = (0.0F / 0.0F);
+        this.ury = (0.0F / 0.0F);
+        this.llx = llx;
+        this.lly = lly;
+        this.urx = urx;
+        this.ury = ury;
+    }
+
+    public Annotation(Annotation an)
+    {
+        annotationAttributes = new HashMap();
+        llx = (0.0F / 0.0F);
+        lly = (0.0F / 0.0F);
+        urx = (0.0F / 0.0F);
+        ury = (0.0F / 0.0F);
+        annotationtype = an.annotationtype;
+        annotationAttributes = an.annotationAttributes;
+        llx = an.llx;
+        lly = an.lly;
+        urx = an.urx;
+        ury = an.ury;
+    }
+
+    public Annotation(String title, String text)
+    {
+        annotationAttributes = new HashMap();
+        llx = (0.0F / 0.0F);
+        lly = (0.0F / 0.0F);
+        urx = (0.0F / 0.0F);
+        ury = (0.0F / 0.0F);
+        annotationtype = 0;
+        annotationAttributes.put("title", title);
+        annotationAttributes.put("content", text);
+    }
+
+    public Annotation(String title, String text, float llx, float lly, float urx, float ury)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 0;
+        annotationAttributes.put("title", title);
+        annotationAttributes.put("content", text);
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, URL url)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 1;
+        annotationAttributes.put("url", url);
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, String url)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 2;
+        annotationAttributes.put("file", url);
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, String file, String dest)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 3;
+        annotationAttributes.put("file", file);
+        annotationAttributes.put("destination", dest);
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, String moviePath, String mimeType, boolean showOnDisplay)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 7;
+        annotationAttributes.put("file", moviePath);
+        annotationAttributes.put("mime", mimeType);
+        annotationAttributes.put("parameters", new boolean[] {
+            false, showOnDisplay
+        });
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, String file, int page)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 4;
+        annotationAttributes.put("file", file);
+        annotationAttributes.put("page", Integer.valueOf(page));
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, int named)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 5;
+        annotationAttributes.put("named", Integer.valueOf(named));
+    }
+
+    public Annotation(float llx, float lly, float urx, float ury, String application, String parameters, String operation, 
+            String defaultdir)
+    {
+        this(llx, lly, urx, ury);
+        annotationtype = 6;
+        annotationAttributes.put("application", application);
+        annotationAttributes.put("parameters", parameters);
+        annotationAttributes.put("operation", operation);
+        annotationAttributes.put("defaultdir", defaultdir);
+    }
+
+    public int type()
+    {
+        return 29;
+    }
+
+    public boolean process(ElementListener listener)
+    {
+        try
+        {
+            return listener.add(this);
+        }
+        catch(DocumentException de)
+        {
+            return false;
+        }
+    }
+
+    public List getChunks()
+    {
+        return new ArrayList();
+    }
+
+    public void setDimensions(float llx, float lly, float urx, float ury)
+    {
+        this.llx = llx;
+        this.lly = lly;
+        this.urx = urx;
+        this.ury = ury;
+    }
+
+    public float llx()
+    {
+        return llx;
+    }
+
+    public float lly()
+    {
+        return lly;
+    }
+
+    public float urx()
+    {
+        return urx;
+    }
+
+    public float ury()
+    {
+        return ury;
+    }
+
+    public float llx(float def)
+    {
+        if(Float.isNaN(llx))
+            return def;
+        else
+            return llx;
+    }
+
+    public float lly(float def)
+    {
+        if(Float.isNaN(lly))
+            return def;
+        else
+            return lly;
+    }
+
+    public float urx(float def)
+    {
+        if(Float.isNaN(urx))
+            return def;
+        else
+            return urx;
+    }
+
+    public float ury(float def)
+    {
+        if(Float.isNaN(ury))
+            return def;
+        else
+            return ury;
+    }
+
+    public int annotationType()
+    {
+        return annotationtype;
+    }
+
+    public String title()
+    {
+        String s = (String)annotationAttributes.get("title");
+        if(s == null)
+            s = "";
+        return s;
+    }
+
+    public String content()
+    {
+        String s = (String)annotationAttributes.get("content");
+        if(s == null)
+            s = "";
+        return s;
+    }
+
+    public HashMap attributes()
+    {
+        return annotationAttributes;
+    }
+
+    public boolean isContent()
+    {
+        return true;
+    }
+
+    public boolean isNestable()
+    {
+        return true;
+    }
+
+    public static final int TEXT = 0;
+    public static final int URL_NET = 1;
+    public static final int URL_AS_STRING = 2;
+    public static final int FILE_DEST = 3;
+    public static final int FILE_PAGE = 4;
+    public static final int NAMED_DEST = 5;
+    public static final int LAUNCH = 6;
+    public static final int SCREEN = 7;
+    public static final String TITLE = "title";
+    public static final String CONTENT = "content";
+    public static final String URL = "url";
+    public static final String FILE = "file";
+    public static final String DESTINATION = "destination";
+    public static final String PAGE = "page";
+    public static final String NAMED = "named";
+    public static final String APPLICATION = "application";
+    public static final String PARAMETERS = "parameters";
+    public static final String OPERATION = "operation";
+    public static final String DEFAULTDIR = "defaultdir";
+    public static final String LLX = "llx";
+    public static final String LLY = "lly";
+    public static final String URX = "urx";
+    public static final String URY = "ury";
+    public static final String MIMETYPE = "mime";
+    protected int annotationtype;
+    protected HashMap annotationAttributes;
+    protected float llx;
+    protected float lly;
+    protected float urx;
+    protected float ury;
+}

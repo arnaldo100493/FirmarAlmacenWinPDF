@@ -1,0 +1,116 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PageSize.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.error_messages.MessageLocalization;
+import java.lang.reflect.Field;
+
+// Referenced classes of package co.com.pdf.text:
+//            Rectangle, RectangleReadOnly
+
+public class PageSize
+{
+
+    public PageSize()
+    {
+    }
+
+    public static Rectangle getRectangle(String name)
+    {
+        name = name.trim().toUpperCase();
+        int pos = name.indexOf(' ');
+        if(pos == -1)
+            try
+            {
+                Field field = co/com/pdf/text/PageSize.getDeclaredField(name.toUpperCase());
+                return (Rectangle)field.get(null);
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(MessageLocalization.getComposedMessage("can.t.find.page.size.1", new Object[] {
+                    name
+                }));
+            }
+        try
+        {
+            String width = name.substring(0, pos);
+            String height = name.substring(pos + 1);
+            return new Rectangle(Float.parseFloat(width), Float.parseFloat(height));
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(MessageLocalization.getComposedMessage("1.is.not.a.valid.page.size.format.2", new Object[] {
+                name, e.getMessage()
+            }));
+        }
+    }
+
+    public static final Rectangle LETTER = new RectangleReadOnly(612F, 792F);
+    public static final Rectangle NOTE = new RectangleReadOnly(540F, 720F);
+    public static final Rectangle LEGAL = new RectangleReadOnly(612F, 1008F);
+    public static final Rectangle TABLOID = new RectangleReadOnly(792F, 1224F);
+    public static final Rectangle EXECUTIVE = new RectangleReadOnly(522F, 756F);
+    public static final Rectangle POSTCARD = new RectangleReadOnly(283F, 416F);
+    public static final Rectangle A0 = new RectangleReadOnly(2384F, 3370F);
+    public static final Rectangle A1 = new RectangleReadOnly(1684F, 2384F);
+    public static final Rectangle A2 = new RectangleReadOnly(1191F, 1684F);
+    public static final Rectangle A3 = new RectangleReadOnly(842F, 1191F);
+    public static final Rectangle A4 = new RectangleReadOnly(595F, 842F);
+    public static final Rectangle A5 = new RectangleReadOnly(420F, 595F);
+    public static final Rectangle A6 = new RectangleReadOnly(297F, 420F);
+    public static final Rectangle A7 = new RectangleReadOnly(210F, 297F);
+    public static final Rectangle A8 = new RectangleReadOnly(148F, 210F);
+    public static final Rectangle A9 = new RectangleReadOnly(105F, 148F);
+    public static final Rectangle A10 = new RectangleReadOnly(73F, 105F);
+    public static final Rectangle B0 = new RectangleReadOnly(2834F, 4008F);
+    public static final Rectangle B1 = new RectangleReadOnly(2004F, 2834F);
+    public static final Rectangle B2 = new RectangleReadOnly(1417F, 2004F);
+    public static final Rectangle B3 = new RectangleReadOnly(1000F, 1417F);
+    public static final Rectangle B4 = new RectangleReadOnly(708F, 1000F);
+    public static final Rectangle B5 = new RectangleReadOnly(498F, 708F);
+    public static final Rectangle B6 = new RectangleReadOnly(354F, 498F);
+    public static final Rectangle B7 = new RectangleReadOnly(249F, 354F);
+    public static final Rectangle B8 = new RectangleReadOnly(175F, 249F);
+    public static final Rectangle B9 = new RectangleReadOnly(124F, 175F);
+    public static final Rectangle B10 = new RectangleReadOnly(87F, 124F);
+    public static final Rectangle ARCH_E = new RectangleReadOnly(2592F, 3456F);
+    public static final Rectangle ARCH_D = new RectangleReadOnly(1728F, 2592F);
+    public static final Rectangle ARCH_C = new RectangleReadOnly(1296F, 1728F);
+    public static final Rectangle ARCH_B = new RectangleReadOnly(864F, 1296F);
+    public static final Rectangle ARCH_A = new RectangleReadOnly(648F, 864F);
+    public static final Rectangle FLSA = new RectangleReadOnly(612F, 936F);
+    public static final Rectangle FLSE = new RectangleReadOnly(648F, 936F);
+    public static final Rectangle HALFLETTER = new RectangleReadOnly(396F, 612F);
+    public static final Rectangle _11X17 = new RectangleReadOnly(792F, 1224F);
+    public static final Rectangle ID_1 = new RectangleReadOnly(242.65F, 153F);
+    public static final Rectangle ID_2 = new RectangleReadOnly(297F, 210F);
+    public static final Rectangle ID_3 = new RectangleReadOnly(354F, 249F);
+    public static final Rectangle LEDGER = new RectangleReadOnly(1224F, 792F);
+    public static final Rectangle CROWN_QUARTO = new RectangleReadOnly(535F, 697F);
+    public static final Rectangle LARGE_CROWN_QUARTO = new RectangleReadOnly(569F, 731F);
+    public static final Rectangle DEMY_QUARTO = new RectangleReadOnly(620F, 782F);
+    public static final Rectangle ROYAL_QUARTO = new RectangleReadOnly(671F, 884F);
+    public static final Rectangle CROWN_OCTAVO = new RectangleReadOnly(348F, 527F);
+    public static final Rectangle LARGE_CROWN_OCTAVO = new RectangleReadOnly(365F, 561F);
+    public static final Rectangle DEMY_OCTAVO = new RectangleReadOnly(391F, 612F);
+    public static final Rectangle ROYAL_OCTAVO = new RectangleReadOnly(442F, 663F);
+    public static final Rectangle SMALL_PAPERBACK = new RectangleReadOnly(314F, 504F);
+    public static final Rectangle PENGUIN_SMALL_PAPERBACK = new RectangleReadOnly(314F, 513F);
+    public static final Rectangle PENGUIN_LARGE_PAPERBACK = new RectangleReadOnly(365F, 561F);
+    /**
+     * @deprecated Field LETTER_LANDSCAPE is deprecated
+     */
+    public static final Rectangle LETTER_LANDSCAPE = new RectangleReadOnly(612F, 792F, 90);
+    /**
+     * @deprecated Field LEGAL_LANDSCAPE is deprecated
+     */
+    public static final Rectangle LEGAL_LANDSCAPE = new RectangleReadOnly(612F, 1008F, 90);
+    /**
+     * @deprecated Field A4_LANDSCAPE is deprecated
+     */
+    public static final Rectangle A4_LANDSCAPE = new RectangleReadOnly(595F, 842F, 90);
+
+}

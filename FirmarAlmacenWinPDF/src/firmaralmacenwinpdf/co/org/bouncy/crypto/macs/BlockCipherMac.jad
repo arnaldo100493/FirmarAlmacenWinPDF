@@ -1,0 +1,119 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BlockCipherMac.java
+
+package co.org.bouncy.crypto.macs;
+
+import co.org.bouncy.crypto.*;
+import co.org.bouncy.crypto.modes.CBCBlockCipher;
+
+public class BlockCipherMac
+    implements Mac
+{
+
+    /**
+     * @deprecated Method BlockCipherMac is deprecated
+     */
+
+    public BlockCipherMac(BlockCipher cipher)
+    {
+        this(cipher, (cipher.getBlockSize() * 8) / 2);
+    }
+
+    /**
+     * @deprecated Method BlockCipherMac is deprecated
+     */
+
+    public BlockCipherMac(BlockCipher cipher, int macSizeInBits)
+    {
+        if(macSizeInBits % 8 != 0)
+        {
+            throw new IllegalArgumentException("MAC size must be multiple of 8");
+        } else
+        {
+            this.cipher = new CBCBlockCipher(cipher);
+            macSize = macSizeInBits / 8;
+            mac = new byte[cipher.getBlockSize()];
+            buf = new byte[cipher.getBlockSize()];
+            bufOff = 0;
+            return;
+        }
+    }
+
+    public String getAlgorithmName()
+    {
+        return cipher.getAlgorithmName();
+    }
+
+    public void init(CipherParameters params)
+    {
+        reset();
+        cipher.init(true, params);
+    }
+
+    public int getMacSize()
+    {
+        return macSize;
+    }
+
+    public void update(byte in)
+    {
+        if(bufOff == buf.length)
+        {
+            cipher.processBlock(buf, 0, mac, 0);
+            bufOff = 0;
+        }
+        buf[bufOff++] = in;
+    }
+
+    public void update(byte in[], int inOff, int len)
+    {
+        if(len < 0)
+            throw new IllegalArgumentException("Can't have a negative input length!");
+        int blockSize = cipher.getBlockSize();
+        int resultLen = 0;
+        int gapLen = blockSize - bufOff;
+        if(len > gapLen)
+        {
+            System.arraycopy(in, inOff, buf, bufOff, gapLen);
+            resultLen += cipher.processBlock(buf, 0, mac, 0);
+            bufOff = 0;
+            len -= gapLen;
+            for(inOff += gapLen; len > blockSize; inOff += blockSize)
+            {
+                resultLen += cipher.processBlock(in, inOff, mac, 0);
+                len -= blockSize;
+            }
+
+        }
+        System.arraycopy(in, inOff, buf, bufOff, len);
+        bufOff += len;
+    }
+
+    public int doFinal(byte out[], int outOff)
+    {
+        for(int blockSize = cipher.getBlockSize(); bufOff < blockSize; bufOff++)
+            buf[bufOff] = 0;
+
+        cipher.processBlock(buf, 0, mac, 0);
+        System.arraycopy(mac, 0, out, outOff, macSize);
+        reset();
+        return macSize;
+    }
+
+    public void reset()
+    {
+        for(int i = 0; i < buf.length; i++)
+            buf[i] = 0;
+
+        bufOff = 0;
+        cipher.reset();
+    }
+
+    private byte mac[];
+    private byte buf[];
+    private int bufOff;
+    private BlockCipher cipher;
+    private int macSize;
+}

@@ -1,0 +1,72 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JcaDigestCalculatorProviderBuilder.java
+
+package org.bouncycastle.operator.jcajce;
+
+import java.io.OutputStream;
+import java.security.GeneralSecurityException;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.operator.*;
+
+// Referenced classes of package org.bouncycastle.operator.jcajce:
+//            JcaDigestCalculatorProviderBuilder, OperatorHelper
+
+class JcaDigestCalculatorProviderBuilder$1
+    implements DigestCalculatorProvider
+{
+
+    public DigestCalculator get(final AlgorithmIdentifier algorithm)
+        throws OperatorCreationException
+    {
+        final gestOutputStream stream;
+        try
+        {
+            java.security.MessageDigest dig = JcaDigestCalculatorProviderBuilder.access$000(JcaDigestCalculatorProviderBuilder.this).createDigest(algorithm);
+            stream = new gestOutputStream(JcaDigestCalculatorProviderBuilder.this, dig);
+        }
+        catch(GeneralSecurityException e)
+        {
+            throw new OperatorCreationException((new StringBuilder()).append("exception on setup: ").append(e).toString(), e);
+        }
+        return new DigestCalculator() {
+
+            public AlgorithmIdentifier getAlgorithmIdentifier()
+            {
+                return algorithm;
+            }
+
+            public OutputStream getOutputStream()
+            {
+                return stream;
+            }
+
+            public byte[] getDigest()
+            {
+                return stream.getDigest();
+            }
+
+            final AlgorithmIdentifier val$algorithm;
+            final JcaDigestCalculatorProviderBuilder.DigestOutputStream val$stream;
+            final JcaDigestCalculatorProviderBuilder._cls1 this$1;
+
+            
+            {
+                this$1 = JcaDigestCalculatorProviderBuilder._cls1.this;
+                algorithm = algorithmidentifier;
+                stream = digestoutputstream;
+                super();
+            }
+        }
+;
+    }
+
+    final JcaDigestCalculatorProviderBuilder this$0;
+
+    JcaDigestCalculatorProviderBuilder$1()
+    {
+        this$0 = JcaDigestCalculatorProviderBuilder.this;
+        super();
+    }
+}

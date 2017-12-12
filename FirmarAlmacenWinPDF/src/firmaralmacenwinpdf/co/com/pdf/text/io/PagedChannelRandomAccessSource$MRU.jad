@@ -1,0 +1,47 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PagedChannelRandomAccessSource.java
+
+package co.com.pdf.text.io;
+
+import java.util.Iterator;
+import java.util.LinkedList;
+
+// Referenced classes of package co.com.pdf.text.io:
+//            PagedChannelRandomAccessSource
+
+private static class PagedChannelRandomAccessSource$MRU
+{
+
+    public Object enqueue(Object newElement)
+    {
+        if(queue.size() > 0 && queue.getFirst() == newElement)
+            return null;
+        for(Iterator it = queue.iterator(); it.hasNext();)
+        {
+            Object element = it.next();
+            if(newElement == element)
+            {
+                it.remove();
+                queue.addFirst(newElement);
+                return null;
+            }
+        }
+
+        queue.addFirst(newElement);
+        if(queue.size() > limit)
+            return queue.removeLast();
+        else
+            return null;
+    }
+
+    private final int limit;
+    private LinkedList queue;
+
+    public PagedChannelRandomAccessSource$MRU(int limit)
+    {
+        queue = new LinkedList();
+        this.limit = limit;
+    }
+}

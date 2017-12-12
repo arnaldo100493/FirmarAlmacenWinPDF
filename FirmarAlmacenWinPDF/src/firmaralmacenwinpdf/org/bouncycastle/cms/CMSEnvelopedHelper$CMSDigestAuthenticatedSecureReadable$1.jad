@@ -1,0 +1,42 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSEnvelopedHelper.java
+
+package org.bouncycastle.cms;
+
+import java.io.*;
+import org.bouncycastle.operator.DigestCalculator;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSEnvelopedHelper
+
+class CMSEnvelopedHelper$CMSDigestAuthenticatedSecureReadable$1 extends FilterInputStream
+{
+
+    public int read()
+        throws IOException
+    {
+        int b = in.read();
+        if(b >= 0)
+            CMSEnvelopedHelper.CMSDigestAuthenticatedSecureReadable.access$000(CMSEnvelopedHelper.CMSDigestAuthenticatedSecureReadable.this).getOutputStream().write(b);
+        return b;
+    }
+
+    public int read(byte inBuf[], int inOff, int inLen)
+        throws IOException
+    {
+        int n = in.read(inBuf, inOff, inLen);
+        if(n >= 0)
+            CMSEnvelopedHelper.CMSDigestAuthenticatedSecureReadable.access$000(CMSEnvelopedHelper.CMSDigestAuthenticatedSecureReadable.this).getOutputStream().write(inBuf, inOff, n);
+        return n;
+    }
+
+    final CMSEnvelopedHelper.CMSDigestAuthenticatedSecureReadable this$0;
+
+    CMSEnvelopedHelper$CMSDigestAuthenticatedSecureReadable$1(InputStream x0)
+    {
+        this$0 = CMSEnvelopedHelper.CMSDigestAuthenticatedSecureReadable.this;
+        super(x0);
+    }
+}

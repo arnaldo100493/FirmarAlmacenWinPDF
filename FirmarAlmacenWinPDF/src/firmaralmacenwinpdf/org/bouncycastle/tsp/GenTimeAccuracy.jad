@@ -1,0 +1,51 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GenTimeAccuracy.java
+
+package org.bouncycastle.tsp;
+
+import java.math.BigInteger;
+import java.text.DecimalFormat;
+import org.bouncycastle.asn1.DERInteger;
+import org.bouncycastle.asn1.tsp.Accuracy;
+
+public class GenTimeAccuracy
+{
+
+    public GenTimeAccuracy(Accuracy accuracy)
+    {
+        this.accuracy = accuracy;
+    }
+
+    public int getSeconds()
+    {
+        return getTimeComponent(accuracy.getSeconds());
+    }
+
+    public int getMillis()
+    {
+        return getTimeComponent(accuracy.getMillis());
+    }
+
+    public int getMicros()
+    {
+        return getTimeComponent(accuracy.getMicros());
+    }
+
+    private int getTimeComponent(DERInteger time)
+    {
+        if(time != null)
+            return time.getValue().intValue();
+        else
+            return 0;
+    }
+
+    public String toString()
+    {
+        DecimalFormat formatter = new DecimalFormat("000");
+        return (new StringBuilder()).append(getSeconds()).append(".").append(formatter.format(getMillis())).append(formatter.format(getMicros())).toString();
+    }
+
+    private Accuracy accuracy;
+}

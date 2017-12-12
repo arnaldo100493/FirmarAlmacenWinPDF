@@ -1,0 +1,44 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:47 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   Prueba.java
+
+package co.com.andesscd.test;
+
+import co.com.andesscd.pki.clases.CMS;
+import co.org.bouncy.tsp.TSPException;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
+import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class Prueba
+{
+
+    public Prueba()
+    {
+    }
+
+    public static void main(String args[])
+        throws FileNotFoundException, NoSuchAlgorithmException, TSPException, Exception
+    {
+        int contador = 0;
+        int i = 1;
+        do
+        {
+            if(i % 2 != 0 && i % 3 == 0)
+                contador++;
+            i++;
+        } while(contador < 5);
+        CMS.iniciarComponente();
+        try
+        {
+            System.out.println("Fin de la prueba");
+        }
+        catch(Exception ex)
+        {
+            Logger.getLogger(co/com/andesscd/test/Prueba.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+}

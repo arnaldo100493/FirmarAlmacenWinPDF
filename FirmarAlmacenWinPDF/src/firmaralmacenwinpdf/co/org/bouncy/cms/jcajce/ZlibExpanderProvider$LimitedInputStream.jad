@@ -1,0 +1,53 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ZlibExpanderProvider.java
+
+package co.org.bouncy.cms.jcajce;
+
+import co.org.bouncy.util.io.StreamOverflowException;
+import java.io.*;
+
+// Referenced classes of package co.org.bouncy.cms.jcajce:
+//            ZlibExpanderProvider
+
+private static class ZlibExpanderProvider$LimitedInputStream extends FilterInputStream
+{
+
+    public int read()
+        throws IOException
+    {
+        if(remaining >= 0L)
+        {
+            int b = super.in.read();
+            if(b < 0 || --remaining >= 0L)
+                return b;
+        }
+        throw new StreamOverflowException("expanded byte limit exceeded");
+    }
+
+    public int read(byte buf[], int off, int len)
+        throws IOException
+    {
+        if(len < 1)
+            return super.read(buf, off, len);
+        if(remaining < 1L)
+        {
+            read();
+            return -1;
+        }
+        int actualLen = remaining <= (long)len ? (int)remaining : len;
+        int numRead = super.in.read(buf, off, actualLen);
+        if(numRead > 0)
+            remaining -= numRead;
+        return numRead;
+    }
+
+    private long remaining;
+
+    public ZlibExpanderProvider$LimitedInputStream(InputStream input, long limit)
+    {
+        super(input);
+        remaining = limit;
+    }
+}

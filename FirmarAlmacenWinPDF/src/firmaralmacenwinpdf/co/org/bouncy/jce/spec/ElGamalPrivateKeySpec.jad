@@ -1,0 +1,28 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ElGamalPrivateKeySpec.java
+
+package co.org.bouncy.jce.spec;
+
+import java.math.BigInteger;
+
+// Referenced classes of package co.org.bouncy.jce.spec:
+//            ElGamalKeySpec, ElGamalParameterSpec
+
+public class ElGamalPrivateKeySpec extends ElGamalKeySpec
+{
+
+    public ElGamalPrivateKeySpec(BigInteger x, ElGamalParameterSpec spec)
+    {
+        super(spec);
+        this.x = x;
+    }
+
+    public BigInteger getX()
+    {
+        return x;
+    }
+
+    private BigInteger x;
+}

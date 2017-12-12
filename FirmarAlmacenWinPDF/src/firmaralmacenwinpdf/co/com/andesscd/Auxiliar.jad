@@ -1,0 +1,183 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:42 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   Auxiliar.java
+
+package co.com.andesscd;
+
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.swing.JOptionPane;
+import javax.xml.bind.annotation.adapters.HexBinaryAdapter;
+
+public class Auxiliar
+{
+
+    public Auxiliar()
+    {
+    }
+
+    public static void descargarRecurso(Object clase, String recurso, String ruta)
+        throws IOException
+    {
+        if(ruta == null || ruta.isEmpty())
+            ruta = (new StringBuilder()).append(System.getProperty("user.home")).append(System.getProperty("file.separator")).toString();
+        ruta = (new StringBuilder()).append(ruta).append(recurso).toString();
+        System.out.println((new StringBuilder()).append("descarga en: ").append(ruta).toString());
+        File archivo = new File(ruta);
+        if(!archivo.exists())
+        {
+            JOptionPane.showMessageDialog(null, (new StringBuilder()).append("El sistema descargara el archivo ").append(recurso).append(", por favor haga click en aceptar ").append("y espere hasta que el mensaje de confirmacion ").append("le notifique la finalizacion de la descarga").toString(), "Alerta", 1);
+            int bytesLeidos = 0;
+            int bytesOffset = 0;
+            byte bytes[] = new byte[0x200000];
+            InputStream input = clase.getClass().getResourceAsStream(recurso);
+            do
+            {
+                bytesLeidos = input.read(bytes, bytesOffset, 0x186a0);
+                if(bytesLeidos > 0)
+                    bytesOffset += bytesLeidos;
+            } while(bytesLeidos != -1);
+            input.close();
+            FileOutputStream output = new FileOutputStream(ruta);
+            output.write(bytes, 0, bytesOffset);
+            output.close();
+            JOptionPane.showMessageDialog(null, (new StringBuilder()).append("El sistema ha descargado el archivo ").append(recurso).append(", por favor haga click en aceptar ").append("para continuar").toString(), "Alerta", 1);
+        }
+    }
+
+    public static void mostrarError(String mensaje)
+    {
+        JOptionPane.showMessageDialog(null, mensaje, "Error", 0);
+    }
+
+    public static void mostrarAdvertencia(String mensaje)
+    {
+        JOptionPane.showMessageDialog(null, mensaje, "Advertencia", 2);
+    }
+
+    public static void mostrarInformacion(String mensaje)
+    {
+        JOptionPane.showMessageDialog(null, mensaje, "Informacion", 1);
+    }
+
+    public static boolean esEntero(String cadena)
+    {
+        try
+        {
+            Integer.parseInt(cadena);
+            return true;
+        }
+        catch(NumberFormatException nfe)
+        {
+            return false;
+        }
+    }
+
+    public static boolean esDecimal(String cadena)
+    {
+        try
+        {
+            Double.parseDouble(cadena);
+            return true;
+        }
+        catch(NumberFormatException nfe)
+        {
+            return false;
+        }
+    }
+
+    public static boolean esNombre(String cadena)
+    {
+        for(int i = 0; i < cadena.length(); i++)
+        {
+            char digito = cadena.charAt(i);
+            if(!Character.isLetterOrDigit(digito) && digito != '\'' && digito != ' ')
+                return false;
+        }
+
+        return true;
+    }
+
+    public static boolean esEmail(String cadena)
+    {
+        String expression = "^[\\w\\-]([\\.\\w])+[\\w]+@([\\w\\-]+\\.)+[A-Z]{2,4}$";
+        CharSequence inputStr = cadena;
+        Pattern pattern = Pattern.compile(expression, 2);
+        Matcher matcher = pattern.matcher(inputStr);
+        return matcher.matches();
+    }
+
+    public static boolean esIP(String cadena)
+    {
+        String expression = "^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])$";
+        CharSequence inputStr = cadena;
+        Pattern pattern = Pattern.compile(expression, 2);
+        Matcher matcher = pattern.matcher(inputStr);
+        return matcher.matches();
+    }
+
+    public static byte[] HexToByte(String cadena)
+    {
+        HexBinaryAdapter adapter = new HexBinaryAdapter();
+        byte bytes[] = adapter.unmarshal(cadena);
+        return bytes;
+    }
+
+    public static String ByteToHex(byte b[])
+        throws Exception
+    {
+        String result = "";
+        for(int i = 0; i < b.length; i++)
+            result = (new StringBuilder()).append(result).append(Integer.toString((b[i] & 0xff) + 256, 16).substring(1)).toString();
+
+        return result;
+    }
+
+    public static String sha1(String input)
+        throws NoSuchAlgorithmException, Exception
+    {
+        MessageDigest mDigest = MessageDigest.getInstance("SHA1");
+        byte result[] = mDigest.digest(input.getBytes());
+        return ByteToHex(result);
+    }
+
+    public static boolean esHexadecimal(String cadena)
+    {
+        char hexDigitArray[] = cadena.toCharArray();
+        int hexDigitLength = hexDigitArray.length;
+        for(int i = 0; i < hexDigitLength; i++)
+        {
+            boolean isNotHex = Character.digit(hexDigitArray[i], 16) == -1;
+            if(isNotHex)
+                return false;
+        }
+
+        return true;
+    }
+
+    public static byte[] inputStream2ByteArray(InputStream stream)
+        throws IOException
+    {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte data[] = new byte[16384];
+        int nRead;
+        while((nRead = stream.read(data, 0, data.length)) != -1) 
+            buffer.write(data, 0, nRead);
+        buffer.flush();
+        return buffer.toByteArray();
+    }
+
+    public static String getFechaHoraActualLocal()
+    {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        Calendar cal = Calendar.getInstance();
+        return dateFormat.format(cal.getTime());
+    }
+}

@@ -1,0 +1,24 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509StoreSpi.java
+
+package org.bouncycastle.x509;
+
+import java.util.Collection;
+import org.bouncycastle.util.Selector;
+
+// Referenced classes of package org.bouncycastle.x509:
+//            X509StoreParameters
+
+public abstract class X509StoreSpi
+{
+
+    public X509StoreSpi()
+    {
+    }
+
+    public abstract void engineInit(X509StoreParameters x509storeparameters);
+
+    public abstract Collection engineGetMatches(Selector selector);
+}

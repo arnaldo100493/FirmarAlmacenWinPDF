@@ -1,0 +1,78 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSTypedStream.java
+
+package co.org.bouncy.cms;
+
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+import co.org.bouncy.asn1.pkcs.PKCSObjectIdentifiers;
+import co.org.bouncy.util.io.Streams;
+import java.io.*;
+
+public class CMSTypedStream
+{
+    private static class FullReaderStream extends FilterInputStream
+    {
+
+        public int read(byte buf[], int off, int len)
+            throws IOException
+        {
+            int totalRead = Streams.readFully(super.in, buf, off, len);
+            return totalRead <= 0 ? -1 : totalRead;
+        }
+
+        FullReaderStream(InputStream in)
+        {
+            super(in);
+        }
+    }
+
+
+    public CMSTypedStream(InputStream in)
+    {
+        this(PKCSObjectIdentifiers.data.getId(), in, 32768);
+    }
+
+    public CMSTypedStream(String oid, InputStream in)
+    {
+        this(new ASN1ObjectIdentifier(oid), in, 32768);
+    }
+
+    public CMSTypedStream(String oid, InputStream in, int bufSize)
+    {
+        this(new ASN1ObjectIdentifier(oid), in, bufSize);
+    }
+
+    public CMSTypedStream(ASN1ObjectIdentifier oid, InputStream in)
+    {
+        this(oid, in, 32768);
+    }
+
+    public CMSTypedStream(ASN1ObjectIdentifier oid, InputStream in, int bufSize)
+    {
+        _oid = oid;
+        _in = new FullReaderStream(new BufferedInputStream(in, bufSize));
+    }
+
+    public ASN1ObjectIdentifier getContentType()
+    {
+        return _oid;
+    }
+
+    public InputStream getContentStream()
+    {
+        return _in;
+    }
+
+    public void drain()
+        throws IOException
+    {
+        Streams.drain(_in);
+        _in.close();
+    }
+
+    private static final int BUF_SIZ = 32768;
+    private final ASN1ObjectIdentifier _oid;
+    private final InputStream _in;
+}

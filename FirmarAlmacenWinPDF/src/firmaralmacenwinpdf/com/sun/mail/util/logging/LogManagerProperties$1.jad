@@ -1,0 +1,47 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   LogManagerProperties.java
+
+package com.sun.mail.util.logging;
+
+import java.security.PrivilegedAction;
+
+// Referenced classes of package com.sun.mail.util.logging:
+//            LogManagerProperties
+
+static class LogManagerProperties$1
+    implements PrivilegedAction
+{
+
+    public ClassLoader[] run()
+    {
+        ClassLoader loaders[] = new ClassLoader[2];
+        try
+        {
+            loaders[0] = ClassLoader.getSystemClassLoader();
+        }
+        catch(SecurityException ignore)
+        {
+            loaders[0] = null;
+        }
+        try
+        {
+            loaders[1] = Thread.currentThread().getContextClassLoader();
+        }
+        catch(SecurityException ignore)
+        {
+            loaders[1] = null;
+        }
+        return loaders;
+    }
+
+    public volatile Object run()
+    {
+        return run();
+    }
+
+    LogManagerProperties$1()
+    {
+    }
+}

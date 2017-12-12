@@ -1,0 +1,189 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   AttributeTable.java
+
+package co.org.bouncy.asn1.cms;
+
+import co.org.bouncy.asn1.*;
+import java.util.*;
+
+// Referenced classes of package co.org.bouncy.asn1.cms:
+//            Attribute, Attributes
+
+public class AttributeTable
+{
+
+    public AttributeTable(Hashtable attrs)
+    {
+        attributes = new Hashtable();
+        attributes = copyTable(attrs);
+    }
+
+    public AttributeTable(ASN1EncodableVector v)
+    {
+        attributes = new Hashtable();
+        for(int i = 0; i != v.size(); i++)
+        {
+            Attribute a = Attribute.getInstance(v.get(i));
+            addAttribute(a.getAttrType(), a);
+        }
+
+    }
+
+    public AttributeTable(ASN1Set s)
+    {
+        attributes = new Hashtable();
+        for(int i = 0; i != s.size(); i++)
+        {
+            Attribute a = Attribute.getInstance(s.getObjectAt(i));
+            addAttribute(a.getAttrType(), a);
+        }
+
+    }
+
+    public AttributeTable(Attribute attr)
+    {
+        attributes = new Hashtable();
+        addAttribute(attr.getAttrType(), attr);
+    }
+
+    public AttributeTable(Attributes attrs)
+    {
+        this(ASN1Set.getInstance(attrs.toASN1Primitive()));
+    }
+
+    private void addAttribute(ASN1ObjectIdentifier oid, Attribute a)
+    {
+        Object value = attributes.get(oid);
+        if(value == null)
+        {
+            attributes.put(oid, a);
+        } else
+        {
+            Vector v;
+            if(value instanceof Attribute)
+            {
+                v = new Vector();
+                v.addElement(value);
+                v.addElement(a);
+            } else
+            {
+                v = (Vector)value;
+                v.addElement(a);
+            }
+            attributes.put(oid, v);
+        }
+    }
+
+    /**
+     * @deprecated Method get is deprecated
+     */
+
+    public Attribute get(DERObjectIdentifier oid)
+    {
+        return get(new ASN1ObjectIdentifier(oid.getId()));
+    }
+
+    public Attribute get(ASN1ObjectIdentifier oid)
+    {
+        Object value = attributes.get(oid);
+        if(value instanceof Vector)
+            return (Attribute)((Vector)value).elementAt(0);
+        else
+            return (Attribute)value;
+    }
+
+    /**
+     * @deprecated Method getAll is deprecated
+     */
+
+    public ASN1EncodableVector getAll(DERObjectIdentifier oid)
+    {
+        return getAll(new ASN1ObjectIdentifier(oid.getId()));
+    }
+
+    public ASN1EncodableVector getAll(ASN1ObjectIdentifier oid)
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        Object value = attributes.get(oid);
+        if(value instanceof Vector)
+        {
+            for(Enumeration e = ((Vector)value).elements(); e.hasMoreElements(); v.add((Attribute)e.nextElement()));
+        } else
+        if(value != null)
+            v.add((Attribute)value);
+        return v;
+    }
+
+    public int size()
+    {
+        int size = 0;
+        for(Enumeration en = attributes.elements(); en.hasMoreElements();)
+        {
+            Object o = en.nextElement();
+            if(o instanceof Vector)
+                size += ((Vector)o).size();
+            else
+                size++;
+        }
+
+        return size;
+    }
+
+    public Hashtable toHashtable()
+    {
+        return copyTable(attributes);
+    }
+
+    public ASN1EncodableVector toASN1EncodableVector()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        for(Enumeration e = attributes.elements(); e.hasMoreElements();)
+        {
+            Object value = e.nextElement();
+            if(value instanceof Vector)
+            {
+                Enumeration en = ((Vector)value).elements();
+                while(en.hasMoreElements()) 
+                    v.add(Attribute.getInstance(en.nextElement()));
+            } else
+            {
+                v.add(Attribute.getInstance(value));
+            }
+        }
+
+        return v;
+    }
+
+    public Attributes toASN1Structure()
+    {
+        return new Attributes(toASN1EncodableVector());
+    }
+
+    private Hashtable copyTable(Hashtable in)
+    {
+        Hashtable out = new Hashtable();
+        Object key;
+        for(Enumeration e = in.keys(); e.hasMoreElements(); out.put(key, in.get(key)))
+            key = e.nextElement();
+
+        return out;
+    }
+
+    public AttributeTable add(ASN1ObjectIdentifier attrType, ASN1Encodable attrValue)
+    {
+        AttributeTable newTable = new AttributeTable(attributes);
+        newTable.addAttribute(attrType, new Attribute(attrType, new DERSet(attrValue)));
+        return newTable;
+    }
+
+    public AttributeTable remove(ASN1ObjectIdentifier attrType)
+    {
+        AttributeTable newTable = new AttributeTable(attributes);
+        newTable.attributes.remove(attrType);
+        return newTable;
+    }
+
+    private Hashtable attributes;
+}

@@ -1,0 +1,29 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X9ECParametersHolder.java
+
+package co.org.bouncy.asn1.x9;
+
+
+// Referenced classes of package co.org.bouncy.asn1.x9:
+//            X9ECParameters
+
+public abstract class X9ECParametersHolder
+{
+
+    public X9ECParametersHolder()
+    {
+    }
+
+    public X9ECParameters getParameters()
+    {
+        if(params == null)
+            params = createParameters();
+        return params;
+    }
+
+    protected abstract X9ECParameters createParameters();
+
+    private X9ECParameters params;
+}

@@ -1,0 +1,29 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SimpleAttributeTableGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.util.Map;
+import org.bouncycastle.asn1.cms.AttributeTable;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSAttributeTableGenerator
+
+public class SimpleAttributeTableGenerator
+    implements CMSAttributeTableGenerator
+{
+
+    public SimpleAttributeTableGenerator(AttributeTable attributes)
+    {
+        this.attributes = attributes;
+    }
+
+    public AttributeTable getAttributes(Map parameters)
+    {
+        return attributes;
+    }
+
+    private final AttributeTable attributes;
+}

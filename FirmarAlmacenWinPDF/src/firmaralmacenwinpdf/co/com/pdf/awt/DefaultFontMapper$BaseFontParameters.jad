@@ -1,0 +1,29 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:47 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   DefaultFontMapper.java
+
+package co.com.pdf.awt;
+
+
+// Referenced classes of package co.com.pdf.awt:
+//            DefaultFontMapper
+
+public static class DefaultFontMapper$BaseFontParameters
+{
+
+    public String fontName;
+    public String encoding;
+    public boolean embedded;
+    public boolean cached;
+    public byte ttfAfm[];
+    public byte pfb[];
+
+    public DefaultFontMapper$BaseFontParameters(String fontName)
+    {
+        this.fontName = fontName;
+        encoding = "Cp1252";
+        embedded = true;
+        cached = true;
+    }
+}

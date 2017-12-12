@@ -1,0 +1,75 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JceKEKRecipient.java
+
+package org.bouncycastle.cms.jcajce;
+
+import java.security.Key;
+import java.security.Provider;
+import javax.crypto.SecretKey;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.cms.CMSException;
+import org.bouncycastle.cms.KEKRecipient;
+import org.bouncycastle.jcajce.*;
+import org.bouncycastle.operator.OperatorException;
+import org.bouncycastle.operator.SymmetricKeyUnwrapper;
+
+// Referenced classes of package org.bouncycastle.cms.jcajce:
+//            EnvelopedDataHelper, CMSUtils
+
+public abstract class JceKEKRecipient
+    implements KEKRecipient
+{
+
+    public JceKEKRecipient(SecretKey recipientKey)
+    {
+        helper = new EnvelopedDataHelper(new DefaultJcaJceHelper());
+        contentHelper = helper;
+        this.recipientKey = recipientKey;
+    }
+
+    public JceKEKRecipient setProvider(Provider provider)
+    {
+        helper = new EnvelopedDataHelper(new ProviderJcaJceHelper(provider));
+        contentHelper = helper;
+        return this;
+    }
+
+    public JceKEKRecipient setProvider(String providerName)
+    {
+        helper = new EnvelopedDataHelper(new NamedJcaJceHelper(providerName));
+        contentHelper = helper;
+        return this;
+    }
+
+    public JceKEKRecipient setContentProvider(Provider provider)
+    {
+        contentHelper = new EnvelopedDataHelper(new ProviderJcaJceHelper(provider));
+        return this;
+    }
+
+    public JceKEKRecipient setContentProvider(String providerName)
+    {
+        contentHelper = new EnvelopedDataHelper(new NamedJcaJceHelper(providerName));
+        return this;
+    }
+
+    protected Key extractSecretKey(AlgorithmIdentifier keyEncryptionAlgorithm, AlgorithmIdentifier contentEncryptionAlgorithm, byte encryptedContentEncryptionKey[])
+        throws CMSException
+    {
+        SymmetricKeyUnwrapper unwrapper = helper.createSymmetricUnwrapper(keyEncryptionAlgorithm, recipientKey);
+        try
+        {
+            return CMSUtils.getJceKey(unwrapper.generateUnwrappedKey(contentEncryptionAlgorithm, encryptedContentEncryptionKey));
+        }
+        catch(OperatorException e)
+        {
+            throw new CMSException((new StringBuilder()).append("exception unwrapping key: ").append(e.getMessage()).toString(), e);
+        }
+    }
+
+    private SecretKey recipientKey;
+    protected EnvelopedDataHelper helper;
+    protected EnvelopedDataHelper contentHelper;
+}

@@ -1,0 +1,102 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TimeStampRequestGenerator.java
+
+package org.bouncycastle.tsp;
+
+import java.io.IOException;
+import java.math.BigInteger;
+import java.util.Hashtable;
+import java.util.Vector;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.tsp.MessageImprint;
+import org.bouncycastle.asn1.tsp.TimeStampReq;
+import org.bouncycastle.asn1.x509.*;
+
+// Referenced classes of package org.bouncycastle.tsp:
+//            TimeStampRequest
+
+public class TimeStampRequestGenerator
+{
+
+    public TimeStampRequestGenerator()
+    {
+        extensions = new Hashtable();
+        extOrdering = new Vector();
+    }
+
+    public void setReqPolicy(String reqPolicy)
+    {
+        this.reqPolicy = new DERObjectIdentifier(reqPolicy);
+    }
+
+    public void setCertReq(boolean certReq)
+    {
+        this.certReq = new DERBoolean(certReq);
+    }
+
+    /**
+     * @deprecated Method addExtension is deprecated
+     */
+
+    public void addExtension(String OID, boolean critical, ASN1Encodable value)
+        throws IOException
+    {
+        addExtension(OID, critical, value.getEncoded());
+    }
+
+    /**
+     * @deprecated Method addExtension is deprecated
+     */
+
+    public void addExtension(String OID, boolean critical, byte value[])
+    {
+        DERObjectIdentifier oid = new DERObjectIdentifier(OID);
+        extensions.put(oid, new X509Extension(critical, new DEROctetString(value)));
+        extOrdering.addElement(oid);
+    }
+
+    public void addExtension(ASN1ObjectIdentifier oid, boolean critical, ASN1Encodable value)
+        throws IOException
+    {
+        addExtension(oid, critical, value.getEncoded());
+    }
+
+    public void addExtension(ASN1ObjectIdentifier oid, boolean critical, byte value[])
+    {
+        extensions.put(oid, new X509Extension(critical, new DEROctetString(value)));
+        extOrdering.addElement(oid);
+    }
+
+    public TimeStampRequest generate(String digestAlgorithm, byte digest[])
+    {
+        return generate(digestAlgorithm, digest, null);
+    }
+
+    public TimeStampRequest generate(String digestAlgorithmOID, byte digest[], BigInteger nonce)
+    {
+        if(digestAlgorithmOID == null)
+            throw new IllegalArgumentException("No digest algorithm specified");
+        DERObjectIdentifier digestAlgOID = new DERObjectIdentifier(digestAlgorithmOID);
+        AlgorithmIdentifier algID = new AlgorithmIdentifier(digestAlgOID, new DERNull());
+        MessageImprint messageImprint = new MessageImprint(algID, digest);
+        X509Extensions ext = null;
+        if(extOrdering.size() != 0)
+            ext = new X509Extensions(extOrdering, extensions);
+        if(nonce != null)
+            return new TimeStampRequest(new TimeStampReq(messageImprint, reqPolicy, new DERInteger(nonce), certReq, ext));
+        else
+            return new TimeStampRequest(new TimeStampReq(messageImprint, reqPolicy, null, certReq, ext));
+    }
+
+    public TimeStampRequest generate(ASN1ObjectIdentifier digestAlgorithm, byte digest[], BigInteger nonce)
+    {
+        return generate(digestAlgorithm.getId(), digest, nonce);
+    }
+
+    private DERObjectIdentifier reqPolicy;
+    private DERBoolean certReq;
+    private Hashtable extensions;
+    private Vector extOrdering;
+}

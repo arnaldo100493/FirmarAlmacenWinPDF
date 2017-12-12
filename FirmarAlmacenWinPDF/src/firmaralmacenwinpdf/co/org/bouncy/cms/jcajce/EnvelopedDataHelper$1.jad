@@ -1,0 +1,71 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EnvelopedDataHelper.java
+
+package co.org.bouncy.cms.jcajce;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.x509.AlgorithmIdentifier;
+import co.org.bouncy.cms.*;
+import java.io.IOException;
+import java.security.*;
+import java.security.spec.InvalidParameterSpecException;
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+
+// Referenced classes of package co.org.bouncy.cms.jcajce:
+//            EnvelopedDataHelper
+
+class EnvelopedDataHelper$1
+    implements ECallback
+{
+
+    public Object doInJCE()
+        throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException
+    {
+        Cipher cipher = createCipher(val$encryptionAlgID.getAlgorithm());
+        ASN1Encodable sParams = val$encryptionAlgID.getParameters();
+        String encAlg = val$encryptionAlgID.getAlgorithm().getId();
+        if(sParams != null && !(sParams instanceof ASN1Null))
+            try
+            {
+                AlgorithmParameters params = createAlgorithmParameters(val$encryptionAlgID.getAlgorithm());
+                try
+                {
+                    params.init(sParams.toASN1Primitive().getEncoded(), "ASN.1");
+                }
+                catch(IOException e)
+                {
+                    throw new CMSException("error decoding algorithm parameters.", e);
+                }
+                cipher.init(2, val$sKey, params);
+            }
+            catch(NoSuchAlgorithmException e)
+            {
+                if(encAlg.equals(CMSAlgorithm.DES_CBC.getId()) || encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || encAlg.equals(CMSEnvelopedDataGenerator.AES128_CBC) || encAlg.equals(CMSEnvelopedDataGenerator.AES192_CBC) || encAlg.equals(CMSEnvelopedDataGenerator.AES256_CBC))
+                    cipher.init(2, val$sKey, new IvParameterSpec(ASN1OctetString.getInstance(sParams).getOctets()));
+                else
+                    throw e;
+            }
+        else
+        if(encAlg.equals(CMSAlgorithm.DES_CBC.getId()) || encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || encAlg.equals("1.2.840.113533.7.66.10"))
+            cipher.init(2, val$sKey, new IvParameterSpec(new byte[8]));
+        else
+            cipher.init(2, val$sKey);
+        return cipher;
+    }
+
+    final AlgorithmIdentifier val$encryptionAlgID;
+    final Key val$sKey;
+    final EnvelopedDataHelper this$0;
+
+    EnvelopedDataHelper$1()
+    {
+        this$0 = final_envelopeddatahelper;
+        val$encryptionAlgID = algorithmidentifier;
+        val$sKey = Key.this;
+        super();
+    }
+}

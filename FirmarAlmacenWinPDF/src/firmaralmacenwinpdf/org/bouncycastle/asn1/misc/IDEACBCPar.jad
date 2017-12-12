@@ -1,0 +1,53 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IDEACBCPar.java
+
+package org.bouncycastle.asn1.misc;
+
+import org.bouncycastle.asn1.*;
+
+public class IDEACBCPar extends ASN1Encodable
+{
+
+    public static IDEACBCPar getInstance(Object o)
+    {
+        if(o instanceof IDEACBCPar)
+            return (IDEACBCPar)o;
+        if(o instanceof ASN1Sequence)
+            return new IDEACBCPar((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException("unknown object in IDEACBCPar factory");
+    }
+
+    public IDEACBCPar(byte iv[])
+    {
+        this.iv = new DEROctetString(iv);
+    }
+
+    public IDEACBCPar(ASN1Sequence seq)
+    {
+        if(seq.size() == 1)
+            iv = (ASN1OctetString)seq.getObjectAt(0);
+        else
+            iv = null;
+    }
+
+    public byte[] getIV()
+    {
+        if(iv != null)
+            return iv.getOctets();
+        else
+            return null;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(iv != null)
+            v.add(iv);
+        return new DERSequence(v);
+    }
+
+    ASN1OctetString iv;
+}

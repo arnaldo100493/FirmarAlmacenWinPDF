@@ -1,0 +1,37 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSSignedDataStreamGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.security.MessageDigest;
+import org.bouncycastle.asn1.DERNull;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSSignedDataStreamGenerator, SignerIntInfoGenerator
+
+private class CMSSignedDataStreamGenerator$DigestAndSignerInfoGeneratorHolder
+{
+
+    AlgorithmIdentifier getDigestAlgorithm()
+    {
+        return new AlgorithmIdentifier(new DERObjectIdentifier(digestOID), DERNull.INSTANCE);
+    }
+
+    SignerIntInfoGenerator signerInf;
+    MessageDigest digest;
+    String digestOID;
+    final CMSSignedDataStreamGenerator this$0;
+
+    CMSSignedDataStreamGenerator$DigestAndSignerInfoGeneratorHolder(SignerIntInfoGenerator signerInf, MessageDigest digest, String digestOID)
+    {
+        this$0 = CMSSignedDataStreamGenerator.this;
+        super();
+        this.signerInf = signerInf;
+        this.digest = digest;
+        this.digestOID = digestOID;
+    }
+}

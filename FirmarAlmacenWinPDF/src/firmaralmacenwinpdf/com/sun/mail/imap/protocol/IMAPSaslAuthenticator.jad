@@ -1,0 +1,252 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPSaslAuthenticator.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.*;
+import com.sun.mail.util.*;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.util.Properties;
+import java.util.Vector;
+import java.util.logging.Level;
+import javax.security.auth.callback.*;
+import javax.security.sasl.*;
+
+// Referenced classes of package com.sun.mail.imap.protocol:
+//            SaslAuthenticator, IMAPProtocol
+
+public class IMAPSaslAuthenticator
+    implements SaslAuthenticator
+{
+
+    public IMAPSaslAuthenticator(IMAPProtocol pr, String name, Properties props, MailLogger logger, String host)
+    {
+        this.pr = pr;
+        this.name = name;
+        this.props = props;
+        this.logger = logger;
+        this.host = host;
+    }
+
+    public boolean authenticate(String mechs[], final String realm, String authzid, final String u, final String p)
+        throws ProtocolException
+    {
+        IMAPProtocol imapprotocol = pr;
+        JVM INSTR monitorenter ;
+        Vector v;
+        String tag;
+        Response r;
+        boolean done;
+        SaslClient sc;
+        v = new Vector();
+        tag = null;
+        r = null;
+        done = false;
+        if(logger.isLoggable(Level.FINE))
+        {
+            logger.fine("SASL Mechanisms:");
+            for(int i = 0; i < mechs.length; i++)
+                logger.fine((new StringBuilder()).append(" ").append(mechs[i]).toString());
+
+            logger.fine("");
+        }
+        CallbackHandler cbh = new CallbackHandler() {
+
+            public void handle(Callback callbacks[])
+            {
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("SASL callback length: ").append(callbacks.length).toString());
+label0:
+                for(int i = 0; i < callbacks.length; i++)
+                {
+                    if(logger.isLoggable(Level.FINE))
+                        logger.fine((new StringBuilder()).append("SASL callback ").append(i).append(": ").append(callbacks[i]).toString());
+                    if(callbacks[i] instanceof NameCallback)
+                    {
+                        NameCallback ncb = (NameCallback)callbacks[i];
+                        ncb.setName(u);
+                        continue;
+                    }
+                    if(callbacks[i] instanceof PasswordCallback)
+                    {
+                        PasswordCallback pcb = (PasswordCallback)callbacks[i];
+                        pcb.setPassword(p.toCharArray());
+                        continue;
+                    }
+                    RealmChoiceCallback rcb;
+                    if(callbacks[i] instanceof RealmCallback)
+                    {
+                        rcb = (RealmCallback)callbacks[i];
+                        rcb.setText(realm == null ? rcb.getDefaultText() : realm);
+                        continue;
+                    }
+                    if(!(callbacks[i] instanceof RealmChoiceCallback))
+                        continue;
+                    rcb = (RealmChoiceCallback)callbacks[i];
+                    if(realm == null)
+                    {
+                        rcb.setSelectedIndex(rcb.getDefaultChoice());
+                        continue;
+                    }
+                    String choices[] = rcb.getChoices();
+                    int k = 0;
+                    do
+                    {
+                        if(k >= choices.length)
+                            continue label0;
+                        if(choices[k].equals(realm))
+                        {
+                            rcb.setSelectedIndex(k);
+                            continue label0;
+                        }
+                        k++;
+                    } while(true);
+                }
+
+            }
+
+            final String val$u;
+            final String val$p;
+            final String val$realm;
+            final IMAPSaslAuthenticator this$0;
+
+            
+            {
+                this$0 = IMAPSaslAuthenticator.this;
+                u = s;
+                p = s1;
+                realm = s2;
+                super();
+            }
+        }
+;
+        try
+        {
+            sc = Sasl.createSaslClient(mechs, authzid, name, host, props, cbh);
+        }
+        catch(SaslException sex)
+        {
+            logger.log(Level.FINE, "Failed to create SASL client", sex);
+            return false;
+        }
+        if(sc != null) goto _L2; else goto _L1
+_L1:
+        logger.fine("No SASL support");
+        false;
+        imapprotocol;
+        JVM INSTR monitorexit ;
+        return;
+_L2:
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("SASL client ").append(sc.getMechanismName()).toString());
+        tag = pr.writeCommand((new StringBuilder()).append("AUTHENTICATE ").append(sc.getMechanismName()).toString(), null);
+          goto _L3
+        Exception ex;
+        ex;
+        logger.log(Level.FINE, "SASL AUTHENTICATE Exception", ex);
+        false;
+        imapprotocol;
+        JVM INSTR monitorexit ;
+        return;
+_L3:
+        boolean isXGWTRUSTEDAPP;
+        OutputStream os = pr.getIMAPOutputStream();
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte CRLF[] = {
+            13, 10
+        };
+        isXGWTRUSTEDAPP = sc.getMechanismName().equals("XGWTRUSTEDAPP") && PropUtil.getBooleanProperty(props, (new StringBuilder()).append("mail.").append(name).append(".sasl.xgwtrustedapphack.enable").toString(), true);
+        while(!done) 
+            try
+            {
+                r = pr.readResponse();
+                if(r.isContinuation())
+                {
+                    byte ba[] = null;
+                    if(!sc.isComplete())
+                    {
+                        ba = r.readByteArray().getNewBytes();
+                        if(ba.length > 0)
+                            ba = BASE64DecoderStream.decode(ba);
+                        if(logger.isLoggable(Level.FINE))
+                            logger.fine((new StringBuilder()).append("SASL challenge: ").append(ASCIIUtility.toString(ba, 0, ba.length)).append(" :").toString());
+                        ba = sc.evaluateChallenge(ba);
+                    }
+                    if(ba == null)
+                    {
+                        logger.fine("SASL no response");
+                        os.write(CRLF);
+                        os.flush();
+                        bos.reset();
+                    } else
+                    {
+                        if(logger.isLoggable(Level.FINE))
+                            logger.fine((new StringBuilder()).append("SASL response: ").append(ASCIIUtility.toString(ba, 0, ba.length)).append(" :").toString());
+                        ba = BASE64EncoderStream.encode(ba);
+                        if(isXGWTRUSTEDAPP)
+                            bos.write(ASCIIUtility.getBytes("XGWTRUSTEDAPP "));
+                        bos.write(ba);
+                        bos.write(CRLF);
+                        os.write(bos.toByteArray());
+                        os.flush();
+                        bos.reset();
+                    }
+                } else
+                if(r.isTagged() && r.getTag().equals(tag))
+                    done = true;
+                else
+                if(r.isBYE())
+                    done = true;
+                else
+                    v.addElement(r);
+            }
+            catch(Exception ioex)
+            {
+                logger.log(Level.FINE, "SASL Exception", ioex);
+                r = Response.byeResponse(ioex);
+                done = true;
+            }
+        if(!sc.isComplete()) goto _L5; else goto _L4
+_L4:
+        String qop = (String)sc.getNegotiatedProperty("javax.security.sasl.qop");
+        if(qop == null || !qop.equalsIgnoreCase("auth-int") && !qop.equalsIgnoreCase("auth-conf")) goto _L5; else goto _L6
+_L6:
+        logger.fine("SASL Mechanism requires integrity or confidentiality");
+        false;
+        imapprotocol;
+        JVM INSTR monitorexit ;
+        return;
+_L5:
+        Response responses[] = new Response[v.size()];
+        v.copyInto(responses);
+        pr.notifyResponseHandlers(responses);
+        pr.handleResult(r);
+        pr.setCapabilities(r);
+        if(isXGWTRUSTEDAPP)
+        {
+            Argument args = new Argument();
+            args.writeString(authzid == null ? u : authzid);
+            responses = pr.command("LOGIN", args);
+            pr.notifyResponseHandlers(responses);
+            pr.handleResult(responses[responses.length - 1]);
+            pr.setCapabilities(responses[responses.length - 1]);
+        }
+        true;
+        imapprotocol;
+        JVM INSTR monitorexit ;
+        return;
+        Exception exception;
+        exception;
+        throw exception;
+    }
+
+    private IMAPProtocol pr;
+    private String name;
+    private Properties props;
+    private MailLogger logger;
+    private String host;
+
+}

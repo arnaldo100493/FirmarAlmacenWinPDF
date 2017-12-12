@@ -1,0 +1,401 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Response.java
+
+package com.sun.mail.iap;
+
+import com.sun.mail.util.ASCIIUtility;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.Vector;
+
+// Referenced classes of package com.sun.mail.iap:
+//            ByteArray, ProtocolException, Protocol, ResponseInputStream
+
+public class Response
+{
+
+    public Response(String s)
+    {
+        buffer = null;
+        type = 0;
+        tag = null;
+        buffer = ASCIIUtility.getBytes(s);
+        size = buffer.length;
+        parse();
+    }
+
+    public Response(Protocol p)
+        throws IOException, ProtocolException
+    {
+        buffer = null;
+        type = 0;
+        tag = null;
+        ByteArray ba = p.getResponseBuffer();
+        ByteArray response = p.getInputStream().readResponse(ba);
+        buffer = response.getBytes();
+        size = response.getCount() - 2;
+        parse();
+    }
+
+    public Response(Response r)
+    {
+        buffer = null;
+        type = 0;
+        tag = null;
+        index = r.index;
+        size = r.size;
+        buffer = r.buffer;
+        type = r.type;
+        tag = r.tag;
+    }
+
+    public static Response byeResponse(Exception ex)
+    {
+        String err = (new StringBuilder()).append("* BYE JavaMail Exception: ").append(ex.toString()).toString();
+        err = err.replace('\r', ' ').replace('\n', ' ');
+        Response r = new Response(err);
+        r.type |= 0x20;
+        return r;
+    }
+
+    private void parse()
+    {
+        index = 0;
+        if(size == 0)
+            return;
+        if(buffer[index] == 43)
+        {
+            type |= 1;
+            index++;
+            return;
+        }
+        if(buffer[index] == 42)
+        {
+            type |= 3;
+            index++;
+        } else
+        {
+            type |= 2;
+            tag = readAtom();
+            if(tag == null)
+                tag = "";
+        }
+        int mark = index;
+        String s = readAtom();
+        if(s == null)
+            s = "";
+        if(s.equalsIgnoreCase("OK"))
+            type |= 4;
+        else
+        if(s.equalsIgnoreCase("NO"))
+            type |= 8;
+        else
+        if(s.equalsIgnoreCase("BAD"))
+            type |= 0xc;
+        else
+        if(s.equalsIgnoreCase("BYE"))
+            type |= 0x10;
+        else
+            index = mark;
+        pindex = index;
+    }
+
+    public void skipSpaces()
+    {
+        for(; index < size && buffer[index] == 32; index++);
+    }
+
+    public void skipToken()
+    {
+        for(; index < size && buffer[index] != 32; index++);
+    }
+
+    public void skip(int count)
+    {
+        index += count;
+    }
+
+    public byte peekByte()
+    {
+        if(index < size)
+            return buffer[index];
+        else
+            return 0;
+    }
+
+    public byte readByte()
+    {
+        if(index < size)
+            return buffer[index++];
+        else
+            return 0;
+    }
+
+    public String readAtom()
+    {
+        return readAtom('\0');
+    }
+
+    public String readAtom(char delim)
+    {
+        skipSpaces();
+        if(index >= size)
+            return null;
+        int start = index;
+        byte b;
+        for(; index < size && (b = buffer[index]) > 32 && b != 40 && b != 41 && b != 37 && b != 42 && b != 34 && b != 92 && b != 127 && (delim == 0 || b != delim); index++);
+        return ASCIIUtility.toString(buffer, start, index);
+    }
+
+    public String readString(char delim)
+    {
+        skipSpaces();
+        if(index >= size)
+            return null;
+        int start = index;
+        for(; index < size && buffer[index] != delim; index++);
+        return ASCIIUtility.toString(buffer, start, index);
+    }
+
+    public String[] readStringList()
+    {
+        return readStringList(false);
+    }
+
+    public String[] readAtomStringList()
+    {
+        return readStringList(true);
+    }
+
+    private String[] readStringList(boolean atom)
+    {
+        skipSpaces();
+        if(buffer[index] != 40)
+            return null;
+        index++;
+        Vector v = new Vector();
+        do
+            v.addElement(atom ? ((Object) (readAtomString())) : ((Object) (readString())));
+        while(buffer[index++] != 41);
+        int size = v.size();
+        if(size > 0)
+        {
+            String s[] = new String[size];
+            v.copyInto(s);
+            return s;
+        } else
+        {
+            return null;
+        }
+    }
+
+    public int readNumber()
+    {
+        skipSpaces();
+        int start = index;
+        for(; index < size && Character.isDigit((char)buffer[index]); index++);
+        if(index > start)
+            try
+            {
+                return ASCIIUtility.parseInt(buffer, start, index);
+            }
+            catch(NumberFormatException nex) { }
+        return -1;
+    }
+
+    public long readLong()
+    {
+        skipSpaces();
+        int start = index;
+        for(; index < size && Character.isDigit((char)buffer[index]); index++);
+        if(index > start)
+            try
+            {
+                return ASCIIUtility.parseLong(buffer, start, index);
+            }
+            catch(NumberFormatException nex) { }
+        return -1L;
+    }
+
+    public String readString()
+    {
+        return (String)parseString(false, true);
+    }
+
+    public ByteArrayInputStream readBytes()
+    {
+        ByteArray ba = readByteArray();
+        if(ba != null)
+            return ba.toByteArrayInputStream();
+        else
+            return null;
+    }
+
+    public ByteArray readByteArray()
+    {
+        if(isContinuation())
+        {
+            skipSpaces();
+            return new ByteArray(buffer, index, size - index);
+        } else
+        {
+            return (ByteArray)parseString(false, false);
+        }
+    }
+
+    public String readAtomString()
+    {
+        return (String)parseString(true, true);
+    }
+
+    private Object parseString(boolean parseAtoms, boolean returnString)
+    {
+        skipSpaces();
+        byte b = buffer[index];
+        if(b == 34)
+        {
+            index++;
+            int start = index;
+            int copyto = index;
+            for(; index < size && (b = buffer[index]) != 34; index++)
+            {
+                if(b == 92)
+                    index++;
+                if(index != copyto)
+                    buffer[copyto] = buffer[index];
+                copyto++;
+            }
+
+            if(index >= size)
+                return null;
+            index++;
+            if(returnString)
+                return ASCIIUtility.toString(buffer, start, copyto);
+            else
+                return new ByteArray(buffer, start, copyto - start);
+        }
+        if(b == 123)
+        {
+            int start = ++index;
+            for(; buffer[index] != 125; index++);
+            int count = 0;
+            try
+            {
+                count = ASCIIUtility.parseInt(buffer, start, index);
+            }
+            catch(NumberFormatException nex)
+            {
+                return null;
+            }
+            start = index + 3;
+            index = start + count;
+            if(returnString)
+                return ASCIIUtility.toString(buffer, start, start + count);
+            else
+                return new ByteArray(buffer, start, count);
+        }
+        if(parseAtoms)
+        {
+            int start = index;
+            String s = readAtom();
+            if(returnString)
+                return s;
+            else
+                return new ByteArray(buffer, start, index);
+        }
+        if(b == 78 || b == 110)
+        {
+            index += 3;
+            return null;
+        } else
+        {
+            return null;
+        }
+    }
+
+    public int getType()
+    {
+        return type;
+    }
+
+    public boolean isContinuation()
+    {
+        return (type & 3) == 1;
+    }
+
+    public boolean isTagged()
+    {
+        return (type & 3) == 2;
+    }
+
+    public boolean isUnTagged()
+    {
+        return (type & 3) == 3;
+    }
+
+    public boolean isOK()
+    {
+        return (type & 0x1c) == 4;
+    }
+
+    public boolean isNO()
+    {
+        return (type & 0x1c) == 8;
+    }
+
+    public boolean isBAD()
+    {
+        return (type & 0x1c) == 12;
+    }
+
+    public boolean isBYE()
+    {
+        return (type & 0x1c) == 16;
+    }
+
+    public boolean isSynthetic()
+    {
+        return (type & 0x20) == 32;
+    }
+
+    public String getTag()
+    {
+        return tag;
+    }
+
+    public String getRest()
+    {
+        skipSpaces();
+        return ASCIIUtility.toString(buffer, index, size);
+    }
+
+    public void reset()
+    {
+        index = pindex;
+    }
+
+    public String toString()
+    {
+        return ASCIIUtility.toString(buffer, 0, size);
+    }
+
+    protected int index;
+    protected int pindex;
+    protected int size;
+    protected byte buffer[];
+    protected int type;
+    protected String tag;
+    private static final int increment = 100;
+    public static final int TAG_MASK = 3;
+    public static final int CONTINUATION = 1;
+    public static final int TAGGED = 2;
+    public static final int UNTAGGED = 3;
+    public static final int TYPE_MASK = 28;
+    public static final int OK = 4;
+    public static final int NO = 8;
+    public static final int BAD = 12;
+    public static final int BYE = 16;
+    public static final int SYNTHETIC = 32;
+}

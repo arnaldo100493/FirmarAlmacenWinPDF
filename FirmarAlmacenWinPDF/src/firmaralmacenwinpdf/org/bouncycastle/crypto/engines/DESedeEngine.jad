@@ -1,0 +1,92 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DESedeEngine.java
+
+package org.bouncycastle.crypto.engines;
+
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.DataLengthException;
+import org.bouncycastle.crypto.params.KeyParameter;
+
+// Referenced classes of package org.bouncycastle.crypto.engines:
+//            DESEngine
+
+public class DESedeEngine extends DESEngine
+{
+
+    public DESedeEngine()
+    {
+        workingKey1 = null;
+        workingKey2 = null;
+        workingKey3 = null;
+    }
+
+    public void init(boolean encrypting, CipherParameters params)
+    {
+        if(!(params instanceof KeyParameter))
+            throw new IllegalArgumentException((new StringBuilder()).append("invalid parameter passed to DESede init - ").append(params.getClass().getName()).toString());
+        byte keyMaster[] = ((KeyParameter)params).getKey();
+        if(keyMaster.length > 24)
+            throw new IllegalArgumentException("key size greater than 24 bytes");
+        forEncryption = encrypting;
+        byte key1[] = new byte[8];
+        System.arraycopy(keyMaster, 0, key1, 0, key1.length);
+        workingKey1 = generateWorkingKey(encrypting, key1);
+        byte key2[] = new byte[8];
+        System.arraycopy(keyMaster, 8, key2, 0, key2.length);
+        workingKey2 = generateWorkingKey(!encrypting, key2);
+        if(keyMaster.length == 24)
+        {
+            byte key3[] = new byte[8];
+            System.arraycopy(keyMaster, 16, key3, 0, key3.length);
+            workingKey3 = generateWorkingKey(encrypting, key3);
+        } else
+        {
+            workingKey3 = workingKey1;
+        }
+    }
+
+    public String getAlgorithmName()
+    {
+        return "DESede";
+    }
+
+    public int getBlockSize()
+    {
+        return 8;
+    }
+
+    public int processBlock(byte in[], int inOff, byte out[], int outOff)
+    {
+        if(workingKey1 == null)
+            throw new IllegalStateException("DESede engine not initialised");
+        if(inOff + 8 > in.length)
+            throw new DataLengthException("input buffer too short");
+        if(outOff + 8 > out.length)
+            throw new DataLengthException("output buffer too short");
+        byte temp[] = new byte[8];
+        if(forEncryption)
+        {
+            desFunc(workingKey1, in, inOff, temp, 0);
+            desFunc(workingKey2, temp, 0, temp, 0);
+            desFunc(workingKey3, temp, 0, out, outOff);
+        } else
+        {
+            desFunc(workingKey3, in, inOff, temp, 0);
+            desFunc(workingKey2, temp, 0, temp, 0);
+            desFunc(workingKey1, temp, 0, out, outOff);
+        }
+        return 8;
+    }
+
+    public void reset()
+    {
+    }
+
+    protected static final int BLOCK_SIZE = 8;
+    private int workingKey1[];
+    private int workingKey2[];
+    private int workingKey3[];
+    private boolean forEncryption;
+}

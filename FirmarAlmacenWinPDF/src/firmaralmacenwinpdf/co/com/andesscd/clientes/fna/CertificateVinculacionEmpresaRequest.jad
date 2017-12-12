@@ -1,0 +1,335 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:43 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CertificateVinculacionEmpresaRequest.java
+
+package co.com.andesscd.clientes.fna;
+
+
+public class CertificateVinculacionEmpresaRequest
+{
+
+    public CertificateVinculacionEmpresaRequest()
+    {
+    }
+
+    public int getTipoCert()
+    {
+        return tipoCert;
+    }
+
+    public void setTipoCert(int value)
+    {
+        tipoCert = value;
+    }
+
+    public int getTipoDoc()
+    {
+        return tipoDoc;
+    }
+
+    public void setTipoDoc(int value)
+    {
+        tipoDoc = value;
+    }
+
+    public String getDocumento()
+    {
+        return documento;
+    }
+
+    public void setDocumento(String value)
+    {
+        documento = value;
+    }
+
+    public String getNombres()
+    {
+        return nombres;
+    }
+
+    public void setNombres(String value)
+    {
+        nombres = value;
+    }
+
+    public String getApellidos()
+    {
+        return apellidos;
+    }
+
+    public void setApellidos(String value)
+    {
+        apellidos = value;
+    }
+
+    public int getMunicipio()
+    {
+        return municipio;
+    }
+
+    public void setMunicipio(int value)
+    {
+        municipio = value;
+    }
+
+    public String getDireccion()
+    {
+        return direccion;
+    }
+
+    public void setDireccion(String value)
+    {
+        direccion = value;
+    }
+
+    public String getEmail()
+    {
+        return email;
+    }
+
+    public void setEmail(String value)
+    {
+        email = value;
+    }
+
+    public String getEmailEnt()
+    {
+        return emailEnt;
+    }
+
+    public void setEmailEnt(String value)
+    {
+        emailEnt = value;
+    }
+
+    public String getTelefono()
+    {
+        return telefono;
+    }
+
+    public void setTelefono(String value)
+    {
+        telefono = value;
+    }
+
+    public String getCelular()
+    {
+        return celular;
+    }
+
+    public void setCelular(String value)
+    {
+        celular = value;
+    }
+
+    public String getOcupacion()
+    {
+        return ocupacion;
+    }
+
+    public void setOcupacion(String value)
+    {
+        ocupacion = value;
+    }
+
+    public int getTipoDocEnt()
+    {
+        return tipoDocEnt;
+    }
+
+    public void setTipoDocEnt(int value)
+    {
+        tipoDocEnt = value;
+    }
+
+    public String getDocumentoEnt()
+    {
+        return documentoEnt;
+    }
+
+    public void setDocumentoEnt(String value)
+    {
+        documentoEnt = value;
+    }
+
+    public String getRazonsocial()
+    {
+        return razonsocial;
+    }
+
+    public void setRazonsocial(String value)
+    {
+        razonsocial = value;
+    }
+
+    public int getMunicipioEnt()
+    {
+        return municipioEnt;
+    }
+
+    public void setMunicipioEnt(int value)
+    {
+        municipioEnt = value;
+    }
+
+    public String getDireccionEnt()
+    {
+        return direccionEnt;
+    }
+
+    public void setDireccionEnt(String value)
+    {
+        direccionEnt = value;
+    }
+
+    public String getCargo()
+    {
+        return cargo;
+    }
+
+    public void setCargo(String value)
+    {
+        cargo = value;
+    }
+
+    public String getUnidadOrganizacional()
+    {
+        return unidadOrganizacional;
+    }
+
+    public void setUnidadOrganizacional(String value)
+    {
+        unidadOrganizacional = value;
+    }
+
+    public String getFechaCert()
+    {
+        return fechaCert;
+    }
+
+    public void setFechaCert(String value)
+    {
+        fechaCert = value;
+    }
+
+    public int getFormato()
+    {
+        return formato;
+    }
+
+    public void setFormato(int value)
+    {
+        formato = value;
+    }
+
+    public int getVigenciaCert()
+    {
+        return vigenciaCert;
+    }
+
+    public void setVigenciaCert(int value)
+    {
+        vigenciaCert = value;
+    }
+
+    public String getTestigo()
+    {
+        return testigo;
+    }
+
+    public void setTestigo(String value)
+    {
+        testigo = value;
+    }
+
+    public String getFoto()
+    {
+        return foto;
+    }
+
+    public void setFoto(String value)
+    {
+        foto = value;
+    }
+
+    public String getPin()
+    {
+        return pin;
+    }
+
+    public void setPin(String value)
+    {
+        pin = value;
+    }
+
+    public String getPkcs10()
+    {
+        return pkcs10;
+    }
+
+    public void setPkcs10(String value)
+    {
+        pkcs10 = value;
+    }
+
+    public String getSoporte()
+    {
+        return soporte;
+    }
+
+    public void setSoporte(String value)
+    {
+        soporte = value;
+    }
+
+    public String getVerificDoc()
+    {
+        return verificDoc;
+    }
+
+    public void setVerificDoc(String value)
+    {
+        verificDoc = value;
+    }
+
+    public String getPlantillaHuella()
+    {
+        return plantillaHuella;
+    }
+
+    public void setPlantillaHuella(String value)
+    {
+        plantillaHuella = value;
+    }
+
+    protected int tipoCert;
+    protected int tipoDoc;
+    protected String documento;
+    protected String nombres;
+    protected String apellidos;
+    protected int municipio;
+    protected String direccion;
+    protected String email;
+    protected String emailEnt;
+    protected String telefono;
+    protected String celular;
+    protected String ocupacion;
+    protected int tipoDocEnt;
+    protected String documentoEnt;
+    protected String razonsocial;
+    protected int municipioEnt;
+    protected String direccionEnt;
+    protected String cargo;
+    protected String unidadOrganizacional;
+    protected String fechaCert;
+    protected int formato;
+    protected int vigenciaCert;
+    protected String testigo;
+    protected String foto;
+    protected String pin;
+    protected String pkcs10;
+    protected String soporte;
+    protected String verificDoc;
+    protected String plantillaHuella;
+}

@@ -1,0 +1,87 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPSaslAuthenticator.java
+
+package com.sun.mail.smtp;
+
+import com.sun.mail.util.MailLogger;
+import java.util.logging.Level;
+import javax.security.auth.callback.*;
+import javax.security.sasl.RealmCallback;
+import javax.security.sasl.RealmChoiceCallback;
+
+// Referenced classes of package com.sun.mail.smtp:
+//            SMTPSaslAuthenticator
+
+class SMTPSaslAuthenticator$1
+    implements CallbackHandler
+{
+
+    public void handle(Callback callbacks[])
+    {
+        if(SMTPSaslAuthenticator.access$000(SMTPSaslAuthenticator.this).isLoggable(Level.FINE))
+            SMTPSaslAuthenticator.access$000(SMTPSaslAuthenticator.this).fine((new StringBuilder()).append("SASL callback length: ").append(callbacks.length).toString());
+label0:
+        for(int i = 0; i < callbacks.length; i++)
+        {
+            if(SMTPSaslAuthenticator.access$000(SMTPSaslAuthenticator.this).isLoggable(Level.FINE))
+                SMTPSaslAuthenticator.access$000(SMTPSaslAuthenticator.this).fine((new StringBuilder()).append("SASL callback ").append(i).append(": ").append(callbacks[i]).toString());
+            if(callbacks[i] instanceof NameCallback)
+            {
+                NameCallback ncb = (NameCallback)callbacks[i];
+                ncb.setName(val$u);
+                continue;
+            }
+            if(callbacks[i] instanceof PasswordCallback)
+            {
+                PasswordCallback pcb = (PasswordCallback)callbacks[i];
+                pcb.setPassword(val$p.toCharArray());
+                continue;
+            }
+            RealmChoiceCallback rcb;
+            if(callbacks[i] instanceof RealmCallback)
+            {
+                rcb = (RealmCallback)callbacks[i];
+                rcb.setText(val$realm == null ? rcb.getDefaultText() : val$realm);
+                continue;
+            }
+            if(!(callbacks[i] instanceof RealmChoiceCallback))
+                continue;
+            rcb = (RealmChoiceCallback)callbacks[i];
+            if(val$realm == null)
+            {
+                rcb.setSelectedIndex(rcb.getDefaultChoice());
+                continue;
+            }
+            String choices[] = rcb.getChoices();
+            int k = 0;
+            do
+            {
+                if(k >= choices.length)
+                    continue label0;
+                if(choices[k].equals(val$realm))
+                {
+                    rcb.setSelectedIndex(k);
+                    continue label0;
+                }
+                k++;
+            } while(true);
+        }
+
+    }
+
+    final String val$u;
+    final String val$p;
+    final String val$realm;
+    final SMTPSaslAuthenticator this$0;
+
+    SMTPSaslAuthenticator$1()
+    {
+        this$0 = final_smtpsaslauthenticator;
+        val$u = s;
+        val$p = s1;
+        val$realm = String.this;
+        super();
+    }
+}

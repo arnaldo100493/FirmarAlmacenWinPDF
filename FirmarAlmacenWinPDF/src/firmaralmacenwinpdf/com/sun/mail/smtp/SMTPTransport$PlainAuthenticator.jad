@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPTransport.java
+
+package com.sun.mail.smtp;
+
+import com.sun.mail.util.ASCIIUtility;
+import com.sun.mail.util.BASE64EncoderStream;
+import java.io.*;
+import javax.mail.AuthenticationFailedException;
+import javax.mail.MessagingException;
+
+// Referenced classes of package com.sun.mail.smtp:
+//            SMTPTransport
+
+private class SMTPTransport$PlainAuthenticator extends SMTPTransport.Authenticator
+{
+
+    String getInitialResponse(String host, String authzid, String user, String passwd)
+        throws MessagingException, IOException
+    {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        OutputStream b64os = new BASE64EncoderStream(bos, 0x7fffffff);
+        if(authzid != null)
+            b64os.write(ASCIIUtility.getBytes(authzid));
+        b64os.write(0);
+        b64os.write(ASCIIUtility.getBytes(user));
+        b64os.write(0);
+        b64os.write(ASCIIUtility.getBytes(passwd));
+        b64os.flush();
+        return ASCIIUtility.toString(bos.toByteArray());
+    }
+
+    void doAuth(String host, String authzid, String user, String passwd)
+        throws MessagingException, IOException
+    {
+        throw new AuthenticationFailedException("PLAIN asked for more");
+    }
+
+    final SMTPTransport this$0;
+
+    SMTPTransport$PlainAuthenticator()
+    {
+        this$0 = SMTPTransport.this;
+        super(SMTPTransport.this, "PLAIN");
+    }
+}

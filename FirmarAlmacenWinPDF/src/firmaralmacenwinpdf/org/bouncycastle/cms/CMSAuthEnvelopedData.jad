@@ -1,0 +1,92 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSAuthEnvelopedData.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.Provider;
+import javax.crypto.SecretKey;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Set;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSException, CMSUtils, CMSEnvelopedHelper, RecipientInformationStore, 
+//            CMSSecureReadable, CMSReadable
+
+class CMSAuthEnvelopedData
+{
+
+    public CMSAuthEnvelopedData(byte authEnvData[])
+        throws CMSException
+    {
+        this(CMSUtils.readContentInfo(authEnvData));
+    }
+
+    public CMSAuthEnvelopedData(InputStream authEnvData)
+        throws CMSException
+    {
+        this(CMSUtils.readContentInfo(authEnvData));
+    }
+
+    public CMSAuthEnvelopedData(ContentInfo contentInfo)
+        throws CMSException
+    {
+        this.contentInfo = contentInfo;
+        AuthEnvelopedData authEnvData = AuthEnvelopedData.getInstance(contentInfo.getContent());
+        originator = authEnvData.getOriginatorInfo();
+        ASN1Set recipientInfos = authEnvData.getRecipientInfos();
+        EncryptedContentInfo authEncInfo = authEnvData.getAuthEncryptedContentInfo();
+        authEncAlg = authEncInfo.getContentEncryptionAlgorithm();
+        CMSSecureReadable secureReadable = new CMSSecureReadable() {
+
+            public AlgorithmIdentifier getAlgorithm()
+            {
+                return authEncAlg;
+            }
+
+            public Object getCryptoObject()
+            {
+                return null;
+            }
+
+            public CMSReadable getReadable(SecretKey key, Provider provider)
+                throws CMSException
+            {
+                throw new CMSException("AuthEnveloped data decryption not yet implemented");
+            }
+
+            public InputStream getInputStream()
+                throws IOException, CMSException
+            {
+                return null;
+            }
+
+            final CMSAuthEnvelopedData this$0;
+
+            
+            {
+                this$0 = CMSAuthEnvelopedData.this;
+                super();
+            }
+        }
+;
+        recipientInfoStore = CMSEnvelopedHelper.buildRecipientInformationStore(recipientInfos, authEncAlg, secureReadable);
+        authAttrs = authEnvData.getAuthAttrs();
+        mac = authEnvData.getMac().getOctets();
+        unauthAttrs = authEnvData.getUnauthAttrs();
+    }
+
+    RecipientInformationStore recipientInfoStore;
+    ContentInfo contentInfo;
+    private OriginatorInfo originator;
+    private AlgorithmIdentifier authEncAlg;
+    private ASN1Set authAttrs;
+    private byte mac[];
+    private ASN1Set unauthAttrs;
+
+}

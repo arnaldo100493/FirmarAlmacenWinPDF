@@ -1,0 +1,237 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SignerInfoGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.teletrust.TeleTrusTObjectIdentifiers;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.operator.*;
+import org.bouncycastle.util.io.TeeOutputStream;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            DefaultSignedAttributeTableGenerator, CMSException, CMSAttributeTableGenerator
+
+public class SignerInfoGenerator
+{
+
+    public SignerInfoGenerator(SignerIdentifier signerIdentifier, ContentSigner signer, DigestCalculatorProvider digesterProvider)
+        throws OperatorCreationException
+    {
+        this(signerIdentifier, signer, digesterProvider, false);
+    }
+
+    public SignerInfoGenerator(SignerIdentifier signerIdentifier, ContentSigner signer, DigestCalculatorProvider digesterProvider, boolean isDirectSignature)
+        throws OperatorCreationException
+    {
+        digAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
+        calculatedDigest = null;
+        this.signerIdentifier = signerIdentifier;
+        this.signer = signer;
+        if(digesterProvider != null)
+            digester = digesterProvider.get(digAlgFinder.find(signer.getAlgorithmIdentifier()));
+        else
+            digester = null;
+        if(isDirectSignature)
+        {
+            sAttrGen = null;
+            unsAttrGen = null;
+        } else
+        {
+            sAttrGen = new DefaultSignedAttributeTableGenerator();
+            unsAttrGen = null;
+        }
+    }
+
+    public SignerInfoGenerator(SignerInfoGenerator original, CMSAttributeTableGenerator sAttrGen, CMSAttributeTableGenerator unsAttrGen)
+    {
+        digAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
+        calculatedDigest = null;
+        signerIdentifier = original.signerIdentifier;
+        signer = original.signer;
+        digester = original.digester;
+        this.sAttrGen = sAttrGen;
+        this.unsAttrGen = unsAttrGen;
+    }
+
+    public SignerInfoGenerator(SignerIdentifier signerIdentifier, ContentSigner signer, DigestCalculatorProvider digesterProvider, CMSAttributeTableGenerator sAttrGen, CMSAttributeTableGenerator unsAttrGen)
+        throws OperatorCreationException
+    {
+        digAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
+        calculatedDigest = null;
+        this.signerIdentifier = signerIdentifier;
+        this.signer = signer;
+        if(digesterProvider != null)
+            digester = digesterProvider.get(digAlgFinder.find(signer.getAlgorithmIdentifier()));
+        else
+            digester = null;
+        this.sAttrGen = sAttrGen;
+        this.unsAttrGen = unsAttrGen;
+    }
+
+    public boolean hasAssociatedCertificate()
+    {
+        return certHolder != null;
+    }
+
+    public X509CertificateHolder getAssociatedCertificate()
+    {
+        return certHolder;
+    }
+
+    public AlgorithmIdentifier getDigestAlgorithm()
+    {
+        if(digester != null)
+            return digester.getAlgorithmIdentifier();
+        else
+            return digAlgFinder.find(signer.getAlgorithmIdentifier());
+    }
+
+    public OutputStream getCalculatingOutputStream()
+    {
+        if(digester != null)
+        {
+            if(sAttrGen == null)
+                return new TeeOutputStream(digester.getOutputStream(), signer.getOutputStream());
+            else
+                return digester.getOutputStream();
+        } else
+        {
+            return signer.getOutputStream();
+        }
+    }
+
+    public SignerInfo generate(ASN1ObjectIdentifier contentType)
+        throws CMSException
+    {
+        try
+        {
+            ASN1Set signedAttr = null;
+            AlgorithmIdentifier digestAlg = null;
+            if(sAttrGen != null)
+            {
+                digestAlg = digester.getAlgorithmIdentifier();
+                calculatedDigest = digester.getDigest();
+                Map parameters = getBaseParameters(contentType, digester.getAlgorithmIdentifier(), calculatedDigest);
+                AttributeTable signed = sAttrGen.getAttributes(Collections.unmodifiableMap(parameters));
+                signedAttr = getAttributeSet(signed);
+                OutputStream sOut = signer.getOutputStream();
+                sOut.write(signedAttr.getEncoded("DER"));
+                sOut.close();
+            } else
+            if(digester != null)
+            {
+                digestAlg = digester.getAlgorithmIdentifier();
+                calculatedDigest = digester.getDigest();
+            } else
+            {
+                digestAlg = digAlgFinder.find(signer.getAlgorithmIdentifier());
+                calculatedDigest = null;
+            }
+            byte sigBytes[] = signer.getSignature();
+            ASN1Set unsignedAttr = null;
+            if(unsAttrGen != null)
+            {
+                Map parameters = getBaseParameters(contentType, digestAlg, calculatedDigest);
+                parameters.put("encryptedDigest", sigBytes.clone());
+                AttributeTable unsigned = unsAttrGen.getAttributes(Collections.unmodifiableMap(parameters));
+                unsignedAttr = getAttributeSet(unsigned);
+            }
+            AlgorithmIdentifier digestEncryptionAlgorithm = getSignatureAlgorithm(signer.getAlgorithmIdentifier());
+            return new SignerInfo(signerIdentifier, digestAlg, signedAttr, digestEncryptionAlgorithm, new DEROctetString(sigBytes), unsignedAttr);
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("encoding error.", e);
+        }
+    }
+
+    void setAssociatedCertificate(X509CertificateHolder certHolder)
+    {
+        this.certHolder = certHolder;
+    }
+
+    private ASN1Set getAttributeSet(AttributeTable attr)
+    {
+        if(attr != null)
+            return new DERSet(attr.toASN1EncodableVector());
+        else
+            return null;
+    }
+
+    private Map getBaseParameters(DERObjectIdentifier contentType, AlgorithmIdentifier digAlgId, byte hash[])
+    {
+        Map param = new HashMap();
+        if(contentType != null)
+            param.put("contentType", contentType);
+        param.put("digestAlgID", digAlgId);
+        param.put("digest", hash.clone());
+        return param;
+    }
+
+    private AlgorithmIdentifier getSignatureAlgorithm(AlgorithmIdentifier sigAlgID)
+        throws IOException
+    {
+        if(RSA_PKCS1d5.contains(sigAlgID.getAlgorithm()))
+            return new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
+        else
+            return sigAlgID;
+    }
+
+    public byte[] getCalculatedDigest()
+    {
+        if(calculatedDigest != null)
+            return (byte[])(byte[])calculatedDigest.clone();
+        else
+            return null;
+    }
+
+    public CMSAttributeTableGenerator getSignedAttributeTableGenerator()
+    {
+        return sAttrGen;
+    }
+
+    public CMSAttributeTableGenerator getUnsignedAttributeTableGenerator()
+    {
+        return unsAttrGen;
+    }
+
+    private static final Set RSA_PKCS1d5;
+    private final SignerIdentifier signerIdentifier;
+    private final CMSAttributeTableGenerator sAttrGen;
+    private final CMSAttributeTableGenerator unsAttrGen;
+    private final ContentSigner signer;
+    private final DigestCalculator digester;
+    private final DigestAlgorithmIdentifierFinder digAlgFinder;
+    private byte calculatedDigest[];
+    private X509CertificateHolder certHolder;
+
+    static 
+    {
+        RSA_PKCS1d5 = new HashSet();
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.md2WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.md4WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.md5WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.sha1WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.sha224WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.sha256WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.sha384WithRSAEncryption);
+        RSA_PKCS1d5.add(PKCSObjectIdentifiers.sha512WithRSAEncryption);
+        RSA_PKCS1d5.add(OIWObjectIdentifiers.md4WithRSAEncryption);
+        RSA_PKCS1d5.add(OIWObjectIdentifiers.md4WithRSA);
+        RSA_PKCS1d5.add(OIWObjectIdentifiers.md5WithRSA);
+        RSA_PKCS1d5.add(OIWObjectIdentifiers.sha1WithRSA);
+        RSA_PKCS1d5.add(TeleTrusTObjectIdentifiers.rsaSignatureWithripemd128);
+        RSA_PKCS1d5.add(TeleTrusTObjectIdentifiers.rsaSignatureWithripemd160);
+        RSA_PKCS1d5.add(TeleTrusTObjectIdentifiers.rsaSignatureWithripemd256);
+    }
+}

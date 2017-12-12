@@ -1,0 +1,110 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PrivateKeyFactory.java
+
+package org.bouncycastle.crypto.util;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.nist.NISTNamedCurves;
+import org.bouncycastle.asn1.oiw.ElGamalParameter;
+import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.*;
+import org.bouncycastle.asn1.sec.ECPrivateKeyStructure;
+import org.bouncycastle.asn1.sec.SECNamedCurves;
+import org.bouncycastle.asn1.teletrust.TeleTrusTNamedCurves;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DSAParameter;
+import org.bouncycastle.asn1.x9.*;
+import org.bouncycastle.crypto.params.*;
+
+public class PrivateKeyFactory
+{
+
+    public PrivateKeyFactory()
+    {
+    }
+
+    public static AsymmetricKeyParameter createKey(byte privateKeyInfoData[])
+        throws IOException
+    {
+        return createKey(PrivateKeyInfo.getInstance(ASN1Object.fromByteArray(privateKeyInfoData)));
+    }
+
+    public static AsymmetricKeyParameter createKey(InputStream inStr)
+        throws IOException
+    {
+        return createKey(PrivateKeyInfo.getInstance((new ASN1InputStream(inStr)).readObject()));
+    }
+
+    public static AsymmetricKeyParameter createKey(PrivateKeyInfo keyInfo)
+        throws IOException
+    {
+        AlgorithmIdentifier algId = keyInfo.getAlgorithmId();
+        if(algId.getAlgorithm().equals(PKCSObjectIdentifiers.rsaEncryption))
+        {
+            RSAPrivateKeyStructure keyStructure = new RSAPrivateKeyStructure((ASN1Sequence)keyInfo.getPrivateKey());
+            return new RSAPrivateCrtKeyParameters(keyStructure.getModulus(), keyStructure.getPublicExponent(), keyStructure.getPrivateExponent(), keyStructure.getPrime1(), keyStructure.getPrime2(), keyStructure.getExponent1(), keyStructure.getExponent2(), keyStructure.getCoefficient());
+        }
+        if(algId.getObjectId().equals(PKCSObjectIdentifiers.dhKeyAgreement))
+        {
+            DHParameter params = new DHParameter((ASN1Sequence)keyInfo.getAlgorithmId().getParameters());
+            DERInteger derX = (DERInteger)keyInfo.getPrivateKey();
+            BigInteger lVal = params.getL();
+            int l = lVal != null ? lVal.intValue() : 0;
+            DHParameters dhParams = new DHParameters(params.getP(), params.getG(), null, l);
+            return new DHPrivateKeyParameters(derX.getValue(), dhParams);
+        }
+        if(algId.getObjectId().equals(OIWObjectIdentifiers.elGamalAlgorithm))
+        {
+            ElGamalParameter params = new ElGamalParameter((ASN1Sequence)keyInfo.getAlgorithmId().getParameters());
+            DERInteger derX = (DERInteger)keyInfo.getPrivateKey();
+            return new ElGamalPrivateKeyParameters(derX.getValue(), new ElGamalParameters(params.getP(), params.getG()));
+        }
+        if(algId.getObjectId().equals(X9ObjectIdentifiers.id_dsa))
+        {
+            DERInteger derX = (DERInteger)keyInfo.getPrivateKey();
+            DEREncodable de = keyInfo.getAlgorithmId().getParameters();
+            DSAParameters parameters = null;
+            if(de != null)
+            {
+                DSAParameter params = DSAParameter.getInstance(de.getDERObject());
+                parameters = new DSAParameters(params.getP(), params.getQ(), params.getG());
+            }
+            return new DSAPrivateKeyParameters(derX.getValue(), parameters);
+        }
+        if(algId.getObjectId().equals(X9ObjectIdentifiers.id_ecPublicKey))
+        {
+            X962Parameters params = new X962Parameters((DERObject)keyInfo.getAlgorithmId().getParameters());
+            ECDomainParameters dParams = null;
+            if(params.isNamedCurve())
+            {
+                DERObjectIdentifier oid = (DERObjectIdentifier)params.getParameters();
+                X9ECParameters ecP = X962NamedCurves.getByOID(oid);
+                if(ecP == null)
+                {
+                    ecP = SECNamedCurves.getByOID(oid);
+                    if(ecP == null)
+                    {
+                        ecP = NISTNamedCurves.getByOID(oid);
+                        if(ecP == null)
+                            ecP = TeleTrusTNamedCurves.getByOID(oid);
+                    }
+                }
+                dParams = new ECDomainParameters(ecP.getCurve(), ecP.getG(), ecP.getN(), ecP.getH(), ecP.getSeed());
+            } else
+            {
+                X9ECParameters ecP = new X9ECParameters((ASN1Sequence)params.getParameters());
+                dParams = new ECDomainParameters(ecP.getCurve(), ecP.getG(), ecP.getN(), ecP.getH(), ecP.getSeed());
+            }
+            ECPrivateKeyStructure ec = new ECPrivateKeyStructure((ASN1Sequence)keyInfo.getPrivateKey());
+            return new ECPrivateKeyParameters(ec.getKey(), dParams);
+        } else
+        {
+            throw new RuntimeException("algorithm identifier in key not recognised");
+        }
+    }
+}

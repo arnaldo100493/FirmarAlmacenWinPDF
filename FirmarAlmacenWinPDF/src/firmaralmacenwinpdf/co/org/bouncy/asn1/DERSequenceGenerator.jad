@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERSequenceGenerator.java
+
+package co.org.bouncy.asn1;
+
+import java.io.*;
+
+// Referenced classes of package co.org.bouncy.asn1:
+//            DERGenerator, DEROutputStream, ASN1Encodable, ASN1Primitive
+
+public class DERSequenceGenerator extends DERGenerator
+{
+
+    public DERSequenceGenerator(OutputStream out)
+        throws IOException
+    {
+        super(out);
+        _bOut = new ByteArrayOutputStream();
+    }
+
+    public DERSequenceGenerator(OutputStream out, int tagNo, boolean isExplicit)
+        throws IOException
+    {
+        super(out, tagNo, isExplicit);
+        _bOut = new ByteArrayOutputStream();
+    }
+
+    public void addObject(ASN1Encodable object)
+        throws IOException
+    {
+        object.toASN1Primitive().encode(new DEROutputStream(_bOut));
+    }
+
+    public OutputStream getRawOutputStream()
+    {
+        return _bOut;
+    }
+
+    public void close()
+        throws IOException
+    {
+        writeDEREncoded(48, _bOut.toByteArray());
+    }
+
+    private final ByteArrayOutputStream _bOut;
+}

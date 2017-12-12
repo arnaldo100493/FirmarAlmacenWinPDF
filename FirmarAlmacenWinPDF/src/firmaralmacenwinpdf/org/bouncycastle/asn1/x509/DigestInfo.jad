@@ -1,0 +1,65 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DigestInfo.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            AlgorithmIdentifier
+
+public class DigestInfo extends ASN1Encodable
+{
+
+    public static DigestInfo getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static DigestInfo getInstance(Object obj)
+    {
+        if(obj instanceof DigestInfo)
+            return (DigestInfo)obj;
+        if(obj instanceof ASN1Sequence)
+            return new DigestInfo((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public DigestInfo(AlgorithmIdentifier algId, byte digest[])
+    {
+        this.digest = digest;
+        this.algId = algId;
+    }
+
+    public DigestInfo(ASN1Sequence obj)
+    {
+        Enumeration e = obj.getObjects();
+        algId = AlgorithmIdentifier.getInstance(e.nextElement());
+        digest = ASN1OctetString.getInstance(e.nextElement()).getOctets();
+    }
+
+    public AlgorithmIdentifier getAlgorithmId()
+    {
+        return algId;
+    }
+
+    public byte[] getDigest()
+    {
+        return digest;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(algId);
+        v.add(new DEROctetString(digest));
+        return new DERSequence(v);
+    }
+
+    private byte digest[];
+    private AlgorithmIdentifier algId;
+}

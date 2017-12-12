@@ -1,0 +1,541 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   POP3Folder.java
+
+package com.sun.mail.pop3;
+
+import com.sun.mail.util.LineInputStream;
+import com.sun.mail.util.MailLogger;
+import java.io.*;
+import java.lang.reflect.Constructor;
+import java.util.StringTokenizer;
+import java.util.Vector;
+import java.util.logging.Level;
+import javax.mail.*;
+
+// Referenced classes of package com.sun.mail.pop3:
+//            DefaultFolder, TempFile, POP3Message, POP3Store, 
+//            Status, Protocol
+
+public class POP3Folder extends Folder
+{
+
+    POP3Folder(POP3Store store, String name)
+    {
+        super(store);
+        exists = false;
+        opened = false;
+        doneUidl = false;
+        fileCache = null;
+        this.name = name;
+        this.store = store;
+        if(name.equalsIgnoreCase("INBOX"))
+            exists = true;
+        logger = new MailLogger(getClass(), "DEBUG POP3", store.getSession());
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public String getFullName()
+    {
+        return name;
+    }
+
+    public Folder getParent()
+    {
+        return new DefaultFolder(store);
+    }
+
+    public boolean exists()
+    {
+        return exists;
+    }
+
+    public Folder[] list(String pattern)
+        throws MessagingException
+    {
+        throw new MessagingException("not a directory");
+    }
+
+    public char getSeparator()
+    {
+        return '\0';
+    }
+
+    public int getType()
+    {
+        return 1;
+    }
+
+    public boolean create(int type)
+        throws MessagingException
+    {
+        return false;
+    }
+
+    public boolean hasNewMessages()
+        throws MessagingException
+    {
+        return false;
+    }
+
+    public Folder getFolder(String name)
+        throws MessagingException
+    {
+        throw new MessagingException("not a directory");
+    }
+
+    public boolean delete(boolean recurse)
+        throws MessagingException
+    {
+        throw new MethodNotSupportedException("delete");
+    }
+
+    public boolean renameTo(Folder f)
+        throws MessagingException
+    {
+        throw new MethodNotSupportedException("renameTo");
+    }
+
+    public synchronized void open(int mode)
+        throws MessagingException
+    {
+        checkClosed();
+        if(!exists)
+            throw new FolderNotFoundException(this, "folder is not INBOX");
+        port = store.getPort(this);
+        Status s = port.stat();
+        total = s.total;
+        size = s.size;
+        this.mode = mode;
+        if(store.useFileCache)
+            try
+            {
+                fileCache = new TempFile(store.fileCacheDir);
+            }
+            catch(IOException ex)
+            {
+                logger.log(Level.FINE, "failed to create file cache", ex);
+                throw ex;
+            }
+        opened = true;
+        break MISSING_BLOCK_LABEL_196;
+        IOException ioex;
+        ioex;
+        try
+        {
+            if(port != null)
+                port.quit();
+        }
+        catch(IOException ioex2)
+        {
+            port = null;
+            store.closePort(this);
+            break MISSING_BLOCK_LABEL_185;
+        }
+        port = null;
+        store.closePort(this);
+        break MISSING_BLOCK_LABEL_185;
+        Exception exception;
+        exception;
+        port = null;
+        store.closePort(this);
+        throw exception;
+        throw new MessagingException("Open failed", ioex);
+        message_cache = new Vector(total);
+        message_cache.setSize(total);
+        doneUidl = false;
+        notifyConnectionListeners(1);
+        return;
+    }
+
+    public synchronized void close(boolean expunge)
+        throws MessagingException
+    {
+        checkOpen();
+        try
+        {
+            if(store.rsetBeforeQuit)
+                port.rset();
+            if(expunge && mode == 2)
+            {
+                for(int i = 0; i < message_cache.size(); i++)
+                {
+                    POP3Message m;
+                    if((m = (POP3Message)message_cache.elementAt(i)) == null || !m.isSet(javax.mail.Flags.Flag.DELETED))
+                        continue;
+                    try
+                    {
+                        port.dele(i + 1);
+                    }
+                    catch(IOException ioex)
+                    {
+                        throw new MessagingException("Exception deleting messages during close", ioex);
+                    }
+                }
+
+            }
+            for(int i = 0; i < message_cache.size(); i++)
+            {
+                POP3Message m;
+                if((m = (POP3Message)message_cache.elementAt(i)) != null)
+                    m.invalidate(true);
+            }
+
+            port.quit();
+        }
+        catch(IOException ex)
+        {
+            port = null;
+            store.closePort(this);
+            message_cache = null;
+            opened = false;
+            notifyConnectionListeners(3);
+            if(fileCache != null)
+            {
+                fileCache.close();
+                fileCache = null;
+            }
+            break MISSING_BLOCK_LABEL_308;
+        }
+        port = null;
+        store.closePort(this);
+        message_cache = null;
+        opened = false;
+        notifyConnectionListeners(3);
+        if(fileCache != null)
+        {
+            fileCache.close();
+            fileCache = null;
+        }
+        break MISSING_BLOCK_LABEL_308;
+        Exception exception;
+        exception;
+        port = null;
+        store.closePort(this);
+        message_cache = null;
+        opened = false;
+        notifyConnectionListeners(3);
+        if(fileCache != null)
+        {
+            fileCache.close();
+            fileCache = null;
+        }
+        throw exception;
+    }
+
+    public synchronized boolean isOpen()
+    {
+        if(!opened)
+            return false;
+        try
+        {
+            if(!port.noop())
+                throw new IOException("NOOP failed");
+            break MISSING_BLOCK_LABEL_46;
+        }
+        catch(IOException ioex) { }
+        try
+        {
+            close(false);
+        }
+        catch(MessagingException mex)
+        {
+            return false;
+        }
+        return false;
+        Exception exception;
+        exception;
+        return false;
+        return true;
+    }
+
+    public Flags getPermanentFlags()
+    {
+        return new Flags();
+    }
+
+    public synchronized int getMessageCount()
+        throws MessagingException
+    {
+        if(!opened)
+        {
+            return -1;
+        } else
+        {
+            checkReadable();
+            return total;
+        }
+    }
+
+    public synchronized Message getMessage(int msgno)
+        throws MessagingException
+    {
+        checkOpen();
+        POP3Message m;
+        if((m = (POP3Message)message_cache.elementAt(msgno - 1)) == null)
+        {
+            m = createMessage(this, msgno);
+            message_cache.setElementAt(m, msgno - 1);
+        }
+        return m;
+    }
+
+    protected POP3Message createMessage(Folder f, int msgno)
+        throws MessagingException
+    {
+        POP3Message m = null;
+        Constructor cons = store.messageConstructor;
+        if(cons != null)
+            try
+            {
+                Object o[] = {
+                    this, new Integer(msgno)
+                };
+                m = (POP3Message)cons.newInstance(o);
+            }
+            catch(Exception ex) { }
+        if(m == null)
+            m = new POP3Message(this, msgno);
+        return m;
+    }
+
+    public void appendMessages(Message msgs[])
+        throws MessagingException
+    {
+        throw new MethodNotSupportedException("Append not supported");
+    }
+
+    public Message[] expunge()
+        throws MessagingException
+    {
+        throw new MethodNotSupportedException("Expunge not supported");
+    }
+
+    public synchronized void fetch(Message msgs[], FetchProfile fp)
+        throws MessagingException
+    {
+        checkReadable();
+        if(!doneUidl && store.supportsUidl && fp.contains(javax.mail.UIDFolder.FetchProfileItem.UID))
+        {
+            String uids[] = new String[message_cache.size()];
+            try
+            {
+                if(!port.uidl(uids))
+                    return;
+            }
+            catch(EOFException eex)
+            {
+                close(false);
+                throw new FolderClosedException(this, eex.toString());
+            }
+            catch(IOException ex)
+            {
+                throw new MessagingException("error getting UIDL", ex);
+            }
+            for(int i = 0; i < uids.length; i++)
+                if(uids[i] != null)
+                {
+                    POP3Message m = (POP3Message)getMessage(i + 1);
+                    m.uid = uids[i];
+                }
+
+            doneUidl = true;
+        }
+        if(fp.contains(javax.mail.FetchProfile.Item.ENVELOPE))
+        {
+            for(int i = 0; i < msgs.length; i++)
+                try
+                {
+                    POP3Message msg = (POP3Message)msgs[i];
+                    msg.getHeader("");
+                    msg.getSize();
+                }
+                catch(MessageRemovedException mex) { }
+
+        }
+    }
+
+    public synchronized String getUID(Message msg)
+        throws MessagingException
+    {
+        checkOpen();
+        POP3Message m = (POP3Message)msg;
+        try
+        {
+            if(!store.supportsUidl)
+                return null;
+        }
+        catch(EOFException eex)
+        {
+            close(false);
+            throw new FolderClosedException(this, eex.toString());
+        }
+        catch(IOException ex)
+        {
+            throw new MessagingException("error getting UIDL", ex);
+        }
+        if(m.uid == "UNKNOWN")
+            m.uid = port.uidl(m.getMessageNumber());
+        return m.uid;
+    }
+
+    public synchronized int getSize()
+        throws MessagingException
+    {
+        checkOpen();
+        return size;
+    }
+
+    public synchronized int[] getSizes()
+        throws MessagingException
+    {
+        int sizes[];
+        InputStream is;
+        LineInputStream lis;
+        checkOpen();
+        sizes = new int[total];
+        is = null;
+        lis = null;
+        try
+        {
+            is = port.list();
+            lis = new LineInputStream(is);
+            do
+            {
+                String line;
+                if((line = lis.readLine()) == null)
+                    break;
+                try
+                {
+                    StringTokenizer st = new StringTokenizer(line);
+                    int msgnum = Integer.parseInt(st.nextToken());
+                    int size = Integer.parseInt(st.nextToken());
+                    if(msgnum > 0 && msgnum <= total)
+                        sizes[msgnum - 1] = size;
+                }
+                catch(Exception e) { }
+            } while(true);
+        }
+        catch(IOException ex)
+        {
+            try
+            {
+                if(lis != null)
+                    lis.close();
+            }
+            catch(IOException cex) { }
+            try
+            {
+                if(is != null)
+                    is.close();
+            }
+            catch(IOException cex) { }
+            break MISSING_BLOCK_LABEL_194;
+        }
+        try
+        {
+            if(lis != null)
+                lis.close();
+        }
+        catch(IOException cex) { }
+        try
+        {
+            if(is != null)
+                is.close();
+        }
+        catch(IOException cex) { }
+        break MISSING_BLOCK_LABEL_194;
+        Exception exception;
+        exception;
+        try
+        {
+            if(lis != null)
+                lis.close();
+        }
+        catch(IOException cex) { }
+        try
+        {
+            if(is != null)
+                is.close();
+        }
+        catch(IOException cex) { }
+        throw exception;
+        return sizes;
+    }
+
+    public synchronized InputStream listCommand()
+        throws MessagingException, IOException
+    {
+        checkOpen();
+        return port.list();
+    }
+
+    protected void finalize()
+        throws Throwable
+    {
+        super.finalize();
+        close(false);
+    }
+
+    private void checkOpen()
+        throws IllegalStateException
+    {
+        if(!opened)
+            throw new IllegalStateException("Folder is not Open");
+        else
+            return;
+    }
+
+    private void checkClosed()
+        throws IllegalStateException
+    {
+        if(opened)
+            throw new IllegalStateException("Folder is Open");
+        else
+            return;
+    }
+
+    private void checkReadable()
+        throws IllegalStateException
+    {
+        if(!opened || mode != 1 && mode != 2)
+            throw new IllegalStateException("Folder is not Readable");
+        else
+            return;
+    }
+
+    Protocol getProtocol()
+        throws MessagingException
+    {
+        Protocol p = port;
+        checkOpen();
+        return p;
+    }
+
+    protected void notifyMessageChangedListeners(int type, Message m)
+    {
+        super.notifyMessageChangedListeners(type, m);
+    }
+
+    TempFile getFileCache()
+    {
+        return fileCache;
+    }
+
+    private String name;
+    private POP3Store store;
+    private volatile Protocol port;
+    private int total;
+    private int size;
+    private boolean exists;
+    private volatile boolean opened;
+    private Vector message_cache;
+    private boolean doneUidl;
+    private volatile TempFile fileCache;
+    MailLogger logger;
+}

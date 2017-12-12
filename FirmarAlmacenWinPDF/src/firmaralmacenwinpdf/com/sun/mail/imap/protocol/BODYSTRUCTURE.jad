@@ -1,0 +1,348 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BODYSTRUCTURE.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.ParsingException;
+import com.sun.mail.iap.Response;
+import com.sun.mail.util.PropUtil;
+import java.io.PrintStream;
+import java.util.Vector;
+import javax.mail.internet.ParameterList;
+
+// Referenced classes of package com.sun.mail.imap.protocol:
+//            ENVELOPE, Item, FetchResponse
+
+public class BODYSTRUCTURE
+    implements Item
+{
+
+    public BODYSTRUCTURE(FetchResponse r)
+        throws ParsingException
+    {
+        lines = -1;
+        size = -1;
+        if(parseDebug)
+            System.out.println("DEBUG IMAP: parsing BODYSTRUCTURE");
+        msgno = r.getNumber();
+        if(parseDebug)
+            System.out.println((new StringBuilder()).append("DEBUG IMAP: msgno ").append(msgno).toString());
+        r.skipSpaces();
+        if(r.readByte() != 40)
+            throw new ParsingException("BODYSTRUCTURE parse error: missing ``('' at start");
+        if(r.peekByte() == 40)
+        {
+            if(parseDebug)
+                System.out.println("DEBUG IMAP: parsing multipart");
+            type = "multipart";
+            processedType = MULTI;
+            Vector v = new Vector(1);
+            int i = 1;
+            do
+            {
+                v.addElement(new BODYSTRUCTURE(r));
+                r.skipSpaces();
+            } while(r.peekByte() == 40);
+            bodies = new BODYSTRUCTURE[v.size()];
+            v.copyInto(bodies);
+            subtype = r.readString();
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: subtype ").append(subtype).toString());
+            if(r.readByte() == 41)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: parse DONE");
+                return;
+            }
+            if(parseDebug)
+                System.out.println("DEBUG IMAP: parsing extension data");
+            cParams = parseParameters(r);
+            if(r.readByte() == 41)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: body parameters DONE");
+                return;
+            }
+            byte b = r.readByte();
+            if(b == 40)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: parse disposition");
+                disposition = r.readString();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: disposition ").append(disposition).toString());
+                dParams = parseParameters(r);
+                if(r.readByte() != 41)
+                    throw new ParsingException("BODYSTRUCTURE parse error: missing ``)'' at end of disposition in multipart");
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: disposition DONE");
+            } else
+            if(b == 78 || b == 110)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: disposition NIL");
+                r.skip(2);
+            } else
+            {
+                throw new ParsingException((new StringBuilder()).append("BODYSTRUCTURE parse error: ").append(type).append("/").append(subtype).append(": ").append("bad multipart disposition, b ").append(b).toString());
+            }
+            if((b = r.readByte()) == 41)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: no body-fld-lang");
+                return;
+            }
+            if(b != 32)
+                throw new ParsingException("BODYSTRUCTURE parse error: missing space after disposition");
+            if(r.peekByte() == 40)
+            {
+                language = r.readStringList();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: language len ").append(language.length).toString());
+            } else
+            {
+                String l = r.readString();
+                if(l != null)
+                {
+                    String la[] = {
+                        l
+                    };
+                    language = la;
+                    if(parseDebug)
+                        System.out.println((new StringBuilder()).append("DEBUG IMAP: language ").append(l).toString());
+                }
+            }
+            for(; r.readByte() == 32; parseBodyExtension(r));
+        } else
+        {
+            if(parseDebug)
+                System.out.println("DEBUG IMAP: single part");
+            type = r.readString();
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: type ").append(type).toString());
+            processedType = SINGLE;
+            subtype = r.readString();
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: subtype ").append(subtype).toString());
+            if(type == null)
+            {
+                type = "application";
+                subtype = "octet-stream";
+            }
+            cParams = parseParameters(r);
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: cParams ").append(cParams).toString());
+            id = r.readString();
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: id ").append(id).toString());
+            description = r.readString();
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: description ").append(description).toString());
+            encoding = r.readAtomString();
+            if(encoding != null && encoding.equalsIgnoreCase("NIL"))
+                encoding = null;
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: encoding ").append(encoding).toString());
+            size = r.readNumber();
+            if(parseDebug)
+                System.out.println((new StringBuilder()).append("DEBUG IMAP: size ").append(size).toString());
+            if(size < 0)
+                throw new ParsingException("BODYSTRUCTURE parse error: bad ``size'' element");
+            if(type.equalsIgnoreCase("text"))
+            {
+                lines = r.readNumber();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: lines ").append(lines).toString());
+                if(lines < 0)
+                    throw new ParsingException("BODYSTRUCTURE parse error: bad ``lines'' element");
+            } else
+            if(type.equalsIgnoreCase("message") && subtype.equalsIgnoreCase("rfc822"))
+            {
+                processedType = NESTED;
+                r.skipSpaces();
+                if(r.peekByte() == 40)
+                {
+                    envelope = new ENVELOPE(r);
+                    if(parseDebug)
+                        System.out.println("DEBUG IMAP: got envelope of nested message");
+                    BODYSTRUCTURE bs[] = {
+                        new BODYSTRUCTURE(r)
+                    };
+                    bodies = bs;
+                    lines = r.readNumber();
+                    if(parseDebug)
+                        System.out.println((new StringBuilder()).append("DEBUG IMAP: lines ").append(lines).toString());
+                    if(lines < 0)
+                        throw new ParsingException("BODYSTRUCTURE parse error: bad ``lines'' element");
+                } else
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: missing envelope and body of nested message");
+            } else
+            {
+                r.skipSpaces();
+                byte bn = r.peekByte();
+                if(Character.isDigit((char)bn))
+                    throw new ParsingException((new StringBuilder()).append("BODYSTRUCTURE parse error: server erroneously included ``lines'' element with type ").append(type).append("/").append(subtype).toString());
+            }
+            if(r.peekByte() == 41)
+            {
+                r.readByte();
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: parse DONE");
+                return;
+            }
+            md5 = r.readString();
+            if(r.readByte() == 41)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: no MD5 DONE");
+                return;
+            }
+            byte b = r.readByte();
+            if(b == 40)
+            {
+                disposition = r.readString();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: disposition ").append(disposition).toString());
+                dParams = parseParameters(r);
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: dParams ").append(dParams).toString());
+                if(r.readByte() != 41)
+                    throw new ParsingException("BODYSTRUCTURE parse error: missing ``)'' at end of disposition");
+            } else
+            if(b == 78 || b == 110)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: disposition NIL");
+                r.skip(2);
+            } else
+            {
+                throw new ParsingException((new StringBuilder()).append("BODYSTRUCTURE parse error: ").append(type).append("/").append(subtype).append(": ").append("bad single part disposition, b ").append(b).toString());
+            }
+            if(r.readByte() == 41)
+            {
+                if(parseDebug)
+                    System.out.println("DEBUG IMAP: disposition DONE");
+                return;
+            }
+            if(r.peekByte() == 40)
+            {
+                language = r.readStringList();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: language len ").append(language.length).toString());
+            } else
+            {
+                String l = r.readString();
+                if(l != null)
+                {
+                    String la[] = {
+                        l
+                    };
+                    language = la;
+                    if(parseDebug)
+                        System.out.println((new StringBuilder()).append("DEBUG IMAP: language ").append(l).toString());
+                }
+            }
+            for(; r.readByte() == 32; parseBodyExtension(r));
+            if(parseDebug)
+                System.out.println("DEBUG IMAP: all DONE");
+        }
+    }
+
+    public boolean isMulti()
+    {
+        return processedType == MULTI;
+    }
+
+    public boolean isSingle()
+    {
+        return processedType == SINGLE;
+    }
+
+    public boolean isNested()
+    {
+        return processedType == NESTED;
+    }
+
+    private ParameterList parseParameters(Response r)
+        throws ParsingException
+    {
+        r.skipSpaces();
+        ParameterList list = null;
+        byte b = r.readByte();
+        if(b == 40)
+        {
+            list = new ParameterList();
+            do
+            {
+                String name = r.readString();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: parameter name ").append(name).toString());
+                if(name == null)
+                    throw new ParsingException((new StringBuilder()).append("BODYSTRUCTURE parse error: ").append(type).append("/").append(subtype).append(": ").append("null name in parameter list").toString());
+                String value = r.readString();
+                if(parseDebug)
+                    System.out.println((new StringBuilder()).append("DEBUG IMAP: parameter value ").append(value).toString());
+                list.set(name, value);
+            } while(r.readByte() != 41);
+            list.combineSegments();
+        } else
+        if(b == 78 || b == 110)
+        {
+            if(parseDebug)
+                System.out.println("DEBUG IMAP: parameter list NIL");
+            r.skip(2);
+        } else
+        {
+            throw new ParsingException("Parameter list parse error");
+        }
+        return list;
+    }
+
+    private void parseBodyExtension(Response r)
+        throws ParsingException
+    {
+        r.skipSpaces();
+        byte b = r.peekByte();
+        if(b == 40)
+        {
+            r.skip(1);
+            do
+                parseBodyExtension(r);
+            while(r.readByte() != 41);
+        } else
+        if(Character.isDigit((char)b))
+            r.readNumber();
+        else
+            r.readString();
+    }
+
+    static final char name[] = {
+        'B', 'O', 'D', 'Y', 'S', 'T', 'R', 'U', 'C', 'T', 
+        'U', 'R', 'E'
+    };
+    public int msgno;
+    public String type;
+    public String subtype;
+    public String encoding;
+    public int lines;
+    public int size;
+    public String disposition;
+    public String id;
+    public String description;
+    public String md5;
+    public String attachment;
+    public ParameterList cParams;
+    public ParameterList dParams;
+    public String language[];
+    public BODYSTRUCTURE bodies[];
+    public ENVELOPE envelope;
+    private static int SINGLE = 1;
+    private static int MULTI = 2;
+    private static int NESTED = 3;
+    private int processedType;
+    private static boolean parseDebug = PropUtil.getBooleanSystemProperty("mail.imap.parse.debug", false);
+
+}

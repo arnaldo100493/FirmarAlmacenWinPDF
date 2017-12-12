@@ -1,0 +1,37 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ASN1Null.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, DERObject, DEROutputStream
+
+public abstract class ASN1Null extends ASN1Object
+{
+
+    public ASN1Null()
+    {
+    }
+
+    public int hashCode()
+    {
+        return -1;
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        return o instanceof ASN1Null;
+    }
+
+    abstract void encode(DEROutputStream deroutputstream)
+        throws IOException;
+
+    public String toString()
+    {
+        return "NULL";
+    }
+}

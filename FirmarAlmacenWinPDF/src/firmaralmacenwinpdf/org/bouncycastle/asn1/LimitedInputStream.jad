@@ -1,0 +1,35 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   LimitedInputStream.java
+
+package org.bouncycastle.asn1;
+
+import java.io.InputStream;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            IndefiniteLengthInputStream
+
+abstract class LimitedInputStream extends InputStream
+{
+
+    LimitedInputStream(InputStream in, int limit)
+    {
+        _in = in;
+        _limit = limit;
+    }
+
+    int getRemaining()
+    {
+        return _limit;
+    }
+
+    protected void setParentEofDetect(boolean on)
+    {
+        if(_in instanceof IndefiniteLengthInputStream)
+            ((IndefiniteLengthInputStream)_in).setEofOn00(on);
+    }
+
+    protected final InputStream _in;
+    private int _limit;
+}

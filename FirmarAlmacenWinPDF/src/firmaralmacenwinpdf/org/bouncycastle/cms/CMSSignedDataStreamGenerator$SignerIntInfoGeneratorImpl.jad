@@ -1,0 +1,105 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSSignedDataStreamGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.security.*;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DigestInfo;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            CMSStreamException, SignerIntInfoGenerator, CMSSignedDataStreamGenerator, CMSAttributeTableGenerator, 
+//            CMSSignedHelper
+
+private class CMSSignedDataStreamGenerator$SignerIntInfoGeneratorImpl
+    implements SignerIntInfoGenerator
+{
+
+    public SignerInfo generate(DERObjectIdentifier contentType, AlgorithmIdentifier digestAlgorithm, byte calculatedDigest[])
+        throws CMSStreamException
+    {
+        try
+        {
+            byte bytesToSign[] = calculatedDigest;
+            ASN1Set signedAttr = null;
+            if(_sAttr != null)
+            {
+                Map parameters = getBaseParameters(contentType, digestAlgorithm, calculatedDigest);
+                AttributeTable signed = _sAttr.getAttributes(Collections.unmodifiableMap(parameters));
+                if(contentType == null && signed != null && signed.get(CMSAttributes.contentType) != null)
+                {
+                    Hashtable tmpSigned = signed.toHashtable();
+                    tmpSigned.remove(CMSAttributes.contentType);
+                    signed = new AttributeTable(tmpSigned);
+                }
+                signedAttr = getAttributeSet(signed);
+                bytesToSign = signedAttr.getEncoded("DER");
+            } else
+            if(_encName.equals("RSA"))
+            {
+                DigestInfo dInfo = new DigestInfo(digestAlgorithm, calculatedDigest);
+                bytesToSign = dInfo.getEncoded("DER");
+            }
+            _sig.update(bytesToSign);
+            byte sigBytes[] = _sig.sign();
+            ASN1Set unsignedAttr = null;
+            if(_unsAttr != null)
+            {
+                Map parameters = getBaseParameters(contentType, digestAlgorithm, calculatedDigest);
+                parameters.put("encryptedDigest", sigBytes.clone());
+                AttributeTable unsigned = _unsAttr.getAttributes(Collections.unmodifiableMap(parameters));
+                unsignedAttr = getAttributeSet(unsigned);
+            }
+            AlgorithmIdentifier digestEncryptionAlgorithm = getEncAlgorithmIdentifier(_encOID, _sig);
+            return new SignerInfo(_signerIdentifier, digestAlgorithm, signedAttr, digestEncryptionAlgorithm, new DEROctetString(sigBytes), unsignedAttr);
+        }
+        catch(IOException e)
+        {
+            throw new CMSStreamException("encoding error.", e);
+        }
+        catch(SignatureException e)
+        {
+            throw new CMSStreamException("error creating signature.", e);
+        }
+    }
+
+    private final SignerIdentifier _signerIdentifier;
+    private final String _encOID;
+    private final CMSAttributeTableGenerator _sAttr;
+    private final CMSAttributeTableGenerator _unsAttr;
+    private final String _encName;
+    private final Signature _sig;
+    final CMSSignedDataStreamGenerator this$0;
+
+    CMSSignedDataStreamGenerator$SignerIntInfoGeneratorImpl(PrivateKey key, SignerIdentifier signerIdentifier, String digestOID, String encOID, CMSAttributeTableGenerator sAttr, CMSAttributeTableGenerator unsAttr, 
+            Provider sigProvider, SecureRandom random)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        this$0 = CMSSignedDataStreamGenerator.this;
+        super();
+        _signerIdentifier = signerIdentifier;
+        _encOID = encOID;
+        _sAttr = sAttr;
+        _unsAttr = unsAttr;
+        _encName = CMSSignedHelper.INSTANCE.getEncryptionAlgName(_encOID);
+        String digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(digestOID);
+        String signatureName = (new StringBuilder()).append(digestName).append("with").append(_encName).toString();
+        if(_sAttr != null)
+            _sig = CMSSignedHelper.INSTANCE.getSignatureInstance(signatureName, sigProvider);
+        else
+        if(_encName.equals("RSA"))
+            _sig = CMSSignedHelper.INSTANCE.getSignatureInstance("RSA", sigProvider);
+        else
+        if(_encName.equals("DSA"))
+            _sig = CMSSignedHelper.INSTANCE.getSignatureInstance("NONEwithDSA", sigProvider);
+        else
+            throw new NoSuchAlgorithmException((new StringBuilder()).append("algorithm: ").append(_encName).append(" not supported in base signatures.").toString());
+        _sig.initSign(key, random);
+    }
+}

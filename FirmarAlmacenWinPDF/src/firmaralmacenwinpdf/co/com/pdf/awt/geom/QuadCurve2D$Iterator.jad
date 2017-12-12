@@ -1,0 +1,97 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   QuadCurve2D.java
+
+package co.com.pdf.awt.geom;
+
+import co.com.pdf.awt.geom.misc.Messages;
+import java.util.NoSuchElementException;
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            PathIterator, QuadCurve2D, AffineTransform
+
+class QuadCurve2D$Iterator
+    implements PathIterator
+{
+
+    public int getWindingRule()
+    {
+        return 1;
+    }
+
+    public boolean isDone()
+    {
+        return index > 1;
+    }
+
+    public void next()
+    {
+        index++;
+    }
+
+    public int currentSegment(double coords[])
+    {
+        if(isDone())
+            throw new NoSuchElementException(Messages.getString("awt.4B"));
+        int type;
+        int count;
+        if(index == 0)
+        {
+            type = 0;
+            coords[0] = c.getX1();
+            coords[1] = c.getY1();
+            count = 1;
+        } else
+        {
+            type = 2;
+            coords[0] = c.getCtrlX();
+            coords[1] = c.getCtrlY();
+            coords[2] = c.getX2();
+            coords[3] = c.getY2();
+            count = 2;
+        }
+        if(t != null)
+            t.transform(coords, 0, coords, 0, count);
+        return type;
+    }
+
+    public int currentSegment(float coords[])
+    {
+        if(isDone())
+            throw new NoSuchElementException(Messages.getString("awt.4B"));
+        int type;
+        int count;
+        if(index == 0)
+        {
+            type = 0;
+            coords[0] = (float)c.getX1();
+            coords[1] = (float)c.getY1();
+            count = 1;
+        } else
+        {
+            type = 2;
+            coords[0] = (float)c.getCtrlX();
+            coords[1] = (float)c.getCtrlY();
+            coords[2] = (float)c.getX2();
+            coords[3] = (float)c.getY2();
+            count = 2;
+        }
+        if(t != null)
+            t.transform(coords, 0, coords, 0, count);
+        return type;
+    }
+
+    QuadCurve2D c;
+    AffineTransform t;
+    int index;
+    final QuadCurve2D this$0;
+
+    QuadCurve2D$Iterator(QuadCurve2D q, AffineTransform t)
+    {
+        this$0 = QuadCurve2D.this;
+        super();
+        c = q;
+        this.t = t;
+    }
+}

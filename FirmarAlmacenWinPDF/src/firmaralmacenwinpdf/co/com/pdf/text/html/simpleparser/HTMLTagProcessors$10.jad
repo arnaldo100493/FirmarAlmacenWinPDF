@@ -1,0 +1,35 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   HTMLTagProcessors.java
+
+package co.com.pdf.text.html.simpleparser;
+
+import co.com.pdf.text.DocumentException;
+import java.util.Map;
+
+// Referenced classes of package co.com.pdf.text.html.simpleparser:
+//            HTMLTagProcessor, HTMLTagProcessors, HTMLWorker
+
+static class HTMLTagProcessors$10
+    implements HTMLTagProcessor
+{
+
+    public void startElement(HTMLWorker worker, String tag, Map attrs)
+        throws DocumentException
+    {
+        worker.carriageReturn();
+        worker.updateChain(tag, attrs);
+    }
+
+    public void endElement(HTMLWorker worker, String tag)
+        throws DocumentException
+    {
+        worker.carriageReturn();
+        worker.updateChain(tag);
+    }
+
+    HTMLTagProcessors$10()
+    {
+    }
+}

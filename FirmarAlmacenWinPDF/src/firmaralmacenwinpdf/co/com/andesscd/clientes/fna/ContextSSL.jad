@@ -1,0 +1,82 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:43 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   ContextSSL.java
+
+package co.com.andesscd.clientes.fna;
+
+import java.security.*;
+import java.security.cert.X509Certificate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.net.ssl.*;
+
+public class ContextSSL
+{
+
+    public ContextSSL()
+    {
+    }
+
+    public void setContext()
+    {
+        try
+        {
+            TrustManager trustAllCerts[] = {
+                new X509TrustManager() {
+
+                    public X509Certificate[] getAcceptedIssuers()
+                    {
+                        return null;
+                    }
+
+                    public void checkClientTrusted(X509Certificate ax509certificate[], String s)
+                    {
+                    }
+
+                    public void checkServerTrusted(X509Certificate ax509certificate[], String s)
+                    {
+                    }
+
+                    final ContextSSL this$0;
+
+            
+            {
+                this$0 = ContextSSL.this;
+                super();
+            }
+                }
+
+            };
+            SSLContext sc = SSLContext.getInstance("SSL");
+            HostnameVerifier hv = new HostnameVerifier() {
+
+                public boolean verify(String arg0, SSLSession arg1)
+                {
+                    return true;
+                }
+
+                final ContextSSL this$0;
+
+            
+            {
+                this$0 = ContextSSL.this;
+                super();
+            }
+            }
+;
+            sc.init(null, trustAllCerts, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier(hv);
+            System.setProperty("jsse.enableSNIExtension", "false");
+        }
+        catch(NoSuchAlgorithmException ex)
+        {
+            Logger.getLogger(co/com/andesscd/clientes/fna/ContextSSL.getName()).log(Level.SEVERE, null, ex);
+        }
+        catch(KeyManagementException ex)
+        {
+            Logger.getLogger(co/com/andesscd/clientes/fna/ContextSSL.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+}

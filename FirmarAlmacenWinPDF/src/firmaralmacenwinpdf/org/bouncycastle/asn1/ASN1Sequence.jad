@@ -1,0 +1,178 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ASN1Sequence.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.Vector;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, BERTaggedObject, BERSequence, DERSequence, 
+//            DEREncodable, DERObject, ASN1TaggedObject, DERNull, 
+//            ASN1SequenceParser, DEROutputStream, ASN1Set
+
+public abstract class ASN1Sequence extends ASN1Object
+{
+
+    public ASN1Sequence()
+    {
+        seq = new Vector();
+    }
+
+    public static ASN1Sequence getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof ASN1Sequence))
+            return (ASN1Sequence)obj;
+        if(obj instanceof byte[])
+            try
+            {
+                return getInstance(ASN1Object.fromByteArray((byte[])(byte[])obj));
+            }
+            catch(IOException e)
+            {
+                throw new IllegalArgumentException((new StringBuilder()).append("failed to construct sequence from byte[]: ").append(e.getMessage()).toString());
+            }
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public static ASN1Sequence getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        if(explicit)
+            if(!obj.isExplicit())
+                throw new IllegalArgumentException("object implicit - explicit expected.");
+            else
+                return (ASN1Sequence)obj.getObject();
+        if(obj.isExplicit())
+            if(obj instanceof BERTaggedObject)
+                return new BERSequence(obj.getObject());
+            else
+                return new DERSequence(obj.getObject());
+        if(obj.getObject() instanceof ASN1Sequence)
+            return (ASN1Sequence)obj.getObject();
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public Enumeration getObjects()
+    {
+        return seq.elements();
+    }
+
+    public ASN1SequenceParser parser()
+    {
+        final ASN1Sequence outer = this;
+        return new ASN1SequenceParser() {
+
+            public DEREncodable readObject()
+                throws IOException
+            {
+                if(index == max)
+                    return null;
+                DEREncodable obj = getObjectAt(index++);
+                if(obj instanceof ASN1Sequence)
+                    return ((ASN1Sequence)obj).parser();
+                if(obj instanceof ASN1Set)
+                    return ((ASN1Set)obj).parser();
+                else
+                    return obj;
+            }
+
+            public DERObject getLoadedObject()
+            {
+                return outer;
+            }
+
+            public DERObject getDERObject()
+            {
+                return outer;
+            }
+
+            private final int max;
+            private int index;
+            final ASN1Sequence val$outer;
+            final ASN1Sequence this$0;
+
+            
+            {
+                this$0 = ASN1Sequence.this;
+                outer = asn1sequence1;
+                super();
+                max = size();
+            }
+        }
+;
+    }
+
+    public DEREncodable getObjectAt(int index)
+    {
+        return (DEREncodable)seq.elementAt(index);
+    }
+
+    public int size()
+    {
+        return seq.size();
+    }
+
+    public int hashCode()
+    {
+        Enumeration e = getObjects();
+        int hashCode;
+        Object o;
+        for(hashCode = size(); e.hasMoreElements(); hashCode ^= o.hashCode())
+        {
+            o = getNext(e);
+            hashCode *= 17;
+        }
+
+        return hashCode;
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof ASN1Sequence))
+            return false;
+        ASN1Sequence other = (ASN1Sequence)o;
+        if(size() != other.size())
+            return false;
+        Enumeration s1 = getObjects();
+        Enumeration s2 = other.getObjects();
+        while(s1.hasMoreElements()) 
+        {
+            DEREncodable obj1 = getNext(s1);
+            DEREncodable obj2 = getNext(s2);
+            DERObject o1 = obj1.getDERObject();
+            DERObject o2 = obj2.getDERObject();
+            if(o1 != o2 && !o1.equals(o2))
+                return false;
+        }
+        return true;
+    }
+
+    private DEREncodable getNext(Enumeration e)
+    {
+        DEREncodable encObj = (DEREncodable)e.nextElement();
+        if(encObj == null)
+            return DERNull.INSTANCE;
+        else
+            return encObj;
+    }
+
+    protected void addObject(DEREncodable obj)
+    {
+        seq.addElement(obj);
+    }
+
+    abstract void encode(DEROutputStream deroutputstream)
+        throws IOException;
+
+    public String toString()
+    {
+        return seq.toString();
+    }
+
+    private Vector seq;
+}

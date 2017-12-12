@@ -1,0 +1,135 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CertificateVerifier.java
+
+package co.com.andesscd.pki.clases;
+
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.*;
+import java.util.*;
+
+// Referenced classes of package co.com.andesscd.pki.clases:
+//            RESULTADO_VERIFICACION, OCSPClient, CRLClient
+
+public class CertificateVerifier
+{
+
+    public CertificateVerifier()
+    {
+    }
+
+    public static boolean esAutoFirmado(X509Certificate cert)
+        throws CertificateException, NoSuchAlgorithmException, NoSuchProviderException
+    {
+        try
+        {
+            java.security.PublicKey key = cert.getPublicKey();
+            cert.verify(key);
+            return true;
+        }
+        catch(SignatureException sigEx)
+        {
+            return false;
+        }
+        catch(InvalidKeyException keyEx)
+        {
+            return false;
+        }
+    }
+
+    public static RESULTADO_VERIFICACION validarCertificado(X509Certificate cert, Set trustedRootCerts, Set intermediateCerts, String urlOCSP, String urlCRL)
+        throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException, CertificateException
+    {
+        if(esAutoFirmado(cert))
+            return RESULTADO_VERIFICACION.RAIZ_NO_CONFIABLE;
+        X509CertSelector selector = new X509CertSelector();
+        selector.setCertificate(cert);
+        Set trustAnchors = new HashSet();
+        X509Certificate trustedRootCert;
+        for(Iterator i$ = trustedRootCerts.iterator(); i$.hasNext(); trustAnchors.add(new TrustAnchor(trustedRootCert, null)))
+            trustedRootCert = (X509Certificate)i$.next();
+
+        PKIXBuilderParameters pkixParams;
+        try
+        {
+            pkixParams = new PKIXBuilderParameters(trustAnchors, selector);
+        }
+        catch(InvalidAlgorithmParameterException ex)
+        {
+            return RESULTADO_VERIFICACION.CADENA_INCOMPLETA;
+        }
+        pkixParams.setRevocationEnabled(false);
+        CertStore intermediateCertStore = CertStore.getInstance("Collection", new CollectionCertStoreParameters(intermediateCerts), "BC");
+        pkixParams.addCertStore(intermediateCertStore);
+        CertPathBuilder builder = CertPathBuilder.getInstance("PKIX", "BC");
+        CertPathBuilderResult result;
+        try
+        {
+            result = builder.build(pkixParams);
+        }
+        catch(CertPathBuilderException ex)
+        {
+            return RESULTADO_VERIFICACION.CADENA_INCOMPLETA;
+        }
+        List certificados = result.getCertPath().getCertificates();
+        X509Certificate cadenaCertificacion[] = new X509Certificate[certificados.size() + 1];
+        cadenaCertificacion[0] = cert;
+        for(int i = 0; i < certificados.size(); i++)
+            cadenaCertificacion[i + 1] = (X509Certificate)certificados.get(i);
+
+        RESULTADO_VERIFICACION resultado = OCSPClient.consultarOCSP(cadenaCertificacion, urlOCSP);
+        if(resultado == RESULTADO_VERIFICACION.CERTIFICADO_REVOCADO || resultado == RESULTADO_VERIFICACION.VALIDO)
+            return resultado;
+        else
+            return CRLClient.consultarCRL(cert, urlCRL);
+    }
+
+    public static RESULTADO_VERIFICACION validarCertificado(X509Certificate cert, Set additionalCerts, String urlOCSP, String urlCRL)
+        throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException, CertificateException
+    {
+        Set trustedRootCerts = new HashSet();
+        Set intermediateCerts = new HashSet();
+        if(additionalCerts != null)
+        {
+            for(Iterator i$ = additionalCerts.iterator(); i$.hasNext();)
+            {
+                X509Certificate additionalCert = (X509Certificate)i$.next();
+                if(esAutoFirmado(additionalCert))
+                    trustedRootCerts.add(additionalCert);
+                else
+                    intermediateCerts.add(additionalCert);
+            }
+
+        }
+        return validarCertificado(cert, trustedRootCerts, intermediateCerts, urlOCSP, urlCRL);
+    }
+
+    public static RESULTADO_VERIFICACION validarCertificado(X509Certificate cert, String urlOCSP, String urlCRL)
+        throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, InvalidAlgorithmParameterException, NoSuchProviderException
+    {
+        HashSet additionalCerts = new HashSet();
+        KeyStore keyStore = KeyStore.getInstance("Windows-MY");
+        keyStore.load(null, null);
+        String alias = keyStore.getCertificateAlias(cert);
+        if(alias == null)
+        {
+            keyStore.deleteEntry("temporal");
+            keyStore.setCertificateEntry("temporal", cert);
+            keyStore.load(null, null);
+            alias = "temporal";
+        }
+        java.security.cert.Certificate cadenaCertificacion[] = keyStore.getCertificateChain(alias);
+        keyStore.deleteEntry("temporal");
+        java.security.cert.Certificate arr$[] = cadenaCertificacion;
+        int len$ = arr$.length;
+        for(int i$ = 0; i$ < len$; i$++)
+        {
+            java.security.cert.Certificate c = arr$[i$];
+            additionalCerts.add((X509Certificate)c);
+        }
+
+        return validarCertificado(cert, ((Set) (additionalCerts)), urlOCSP, urlCRL);
+    }
+}

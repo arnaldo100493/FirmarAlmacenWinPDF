@@ -1,0 +1,177 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IssuingDistributionPoint.java
+
+package org.bouncycastle.asn1.x509;
+
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            ReasonFlags, DistributionPointName
+
+public class IssuingDistributionPoint extends ASN1Encodable
+{
+
+    public static IssuingDistributionPoint getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static IssuingDistributionPoint getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof IssuingDistributionPoint))
+            return (IssuingDistributionPoint)obj;
+        if(obj instanceof ASN1Sequence)
+            return new IssuingDistributionPoint((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public IssuingDistributionPoint(DistributionPointName distributionPoint, boolean onlyContainsUserCerts, boolean onlyContainsCACerts, ReasonFlags onlySomeReasons, boolean indirectCRL, boolean onlyContainsAttributeCerts)
+    {
+        this.distributionPoint = distributionPoint;
+        this.indirectCRL = indirectCRL;
+        this.onlyContainsAttributeCerts = onlyContainsAttributeCerts;
+        this.onlyContainsCACerts = onlyContainsCACerts;
+        this.onlyContainsUserCerts = onlyContainsUserCerts;
+        this.onlySomeReasons = onlySomeReasons;
+        ASN1EncodableVector vec = new ASN1EncodableVector();
+        if(distributionPoint != null)
+            vec.add(new DERTaggedObject(true, 0, distributionPoint));
+        if(onlyContainsUserCerts)
+            vec.add(new DERTaggedObject(false, 1, new DERBoolean(true)));
+        if(onlyContainsCACerts)
+            vec.add(new DERTaggedObject(false, 2, new DERBoolean(true)));
+        if(onlySomeReasons != null)
+            vec.add(new DERTaggedObject(false, 3, onlySomeReasons));
+        if(indirectCRL)
+            vec.add(new DERTaggedObject(false, 4, new DERBoolean(true)));
+        if(onlyContainsAttributeCerts)
+            vec.add(new DERTaggedObject(false, 5, new DERBoolean(true)));
+        seq = new DERSequence(vec);
+    }
+
+    public IssuingDistributionPoint(ASN1Sequence seq)
+    {
+        this.seq = seq;
+        for(int i = 0; i != seq.size(); i++)
+        {
+            ASN1TaggedObject o = ASN1TaggedObject.getInstance(seq.getObjectAt(i));
+            switch(o.getTagNo())
+            {
+            case 0: // '\0'
+                distributionPoint = DistributionPointName.getInstance(o, true);
+                break;
+
+            case 1: // '\001'
+                onlyContainsUserCerts = DERBoolean.getInstance(o, false).isTrue();
+                break;
+
+            case 2: // '\002'
+                onlyContainsCACerts = DERBoolean.getInstance(o, false).isTrue();
+                break;
+
+            case 3: // '\003'
+                onlySomeReasons = new ReasonFlags(ReasonFlags.getInstance(o, false));
+                break;
+
+            case 4: // '\004'
+                indirectCRL = DERBoolean.getInstance(o, false).isTrue();
+                break;
+
+            case 5: // '\005'
+                onlyContainsAttributeCerts = DERBoolean.getInstance(o, false).isTrue();
+                break;
+
+            default:
+                throw new IllegalArgumentException("unknown tag in IssuingDistributionPoint");
+            }
+        }
+
+    }
+
+    public boolean onlyContainsUserCerts()
+    {
+        return onlyContainsUserCerts;
+    }
+
+    public boolean onlyContainsCACerts()
+    {
+        return onlyContainsCACerts;
+    }
+
+    public boolean isIndirectCRL()
+    {
+        return indirectCRL;
+    }
+
+    public boolean onlyContainsAttributeCerts()
+    {
+        return onlyContainsAttributeCerts;
+    }
+
+    public DistributionPointName getDistributionPoint()
+    {
+        return distributionPoint;
+    }
+
+    public ReasonFlags getOnlySomeReasons()
+    {
+        return onlySomeReasons;
+    }
+
+    public DERObject toASN1Object()
+    {
+        return seq;
+    }
+
+    public String toString()
+    {
+        String sep = System.getProperty("line.separator");
+        StringBuffer buf = new StringBuffer();
+        buf.append("IssuingDistributionPoint: [");
+        buf.append(sep);
+        if(distributionPoint != null)
+            appendObject(buf, sep, "distributionPoint", distributionPoint.toString());
+        if(onlyContainsUserCerts)
+            appendObject(buf, sep, "onlyContainsUserCerts", booleanToString(onlyContainsUserCerts));
+        if(onlyContainsCACerts)
+            appendObject(buf, sep, "onlyContainsCACerts", booleanToString(onlyContainsCACerts));
+        if(onlySomeReasons != null)
+            appendObject(buf, sep, "onlySomeReasons", onlySomeReasons.toString());
+        if(onlyContainsAttributeCerts)
+            appendObject(buf, sep, "onlyContainsAttributeCerts", booleanToString(onlyContainsAttributeCerts));
+        if(indirectCRL)
+            appendObject(buf, sep, "indirectCRL", booleanToString(indirectCRL));
+        buf.append("]");
+        buf.append(sep);
+        return buf.toString();
+    }
+
+    private void appendObject(StringBuffer buf, String sep, String name, String value)
+    {
+        String indent = "    ";
+        buf.append(indent);
+        buf.append(name);
+        buf.append(":");
+        buf.append(sep);
+        buf.append(indent);
+        buf.append(indent);
+        buf.append(value);
+        buf.append(sep);
+    }
+
+    private String booleanToString(boolean value)
+    {
+        return value ? "true" : "false";
+    }
+
+    private DistributionPointName distributionPoint;
+    private boolean onlyContainsUserCerts;
+    private boolean onlyContainsCACerts;
+    private ReasonFlags onlySomeReasons;
+    private boolean indirectCRL;
+    private boolean onlyContainsAttributeCerts;
+    private ASN1Sequence seq;
+}

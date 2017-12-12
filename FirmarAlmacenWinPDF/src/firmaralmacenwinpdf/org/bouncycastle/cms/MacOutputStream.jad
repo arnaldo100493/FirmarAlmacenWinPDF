@@ -1,0 +1,33 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MacOutputStream.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import javax.crypto.Mac;
+
+class MacOutputStream extends OutputStream
+{
+
+    MacOutputStream(Mac mac)
+    {
+        this.mac = mac;
+    }
+
+    public void write(byte b[], int off, int len)
+        throws IOException
+    {
+        mac.update(b, off, len);
+    }
+
+    public void write(int b)
+        throws IOException
+    {
+        mac.update((byte)b);
+    }
+
+    private final Mac mac;
+}

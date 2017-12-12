@@ -1,0 +1,95 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SemanticsInformation.java
+
+package org.bouncycastle.asn1.x509.qualified;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.GeneralName;
+
+public class SemanticsInformation extends ASN1Encodable
+{
+
+    public static SemanticsInformation getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof SemanticsInformation))
+            return (SemanticsInformation)obj;
+        if(obj instanceof ASN1Sequence)
+            return new SemanticsInformation(ASN1Sequence.getInstance(obj));
+        else
+            throw new IllegalArgumentException("unknown object in getInstance");
+    }
+
+    public SemanticsInformation(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        if(seq.size() < 1)
+            throw new IllegalArgumentException("no objects in SemanticsInformation");
+        Object object = e.nextElement();
+        if(object instanceof DERObjectIdentifier)
+        {
+            semanticsIdentifier = DERObjectIdentifier.getInstance(object);
+            if(e.hasMoreElements())
+                object = e.nextElement();
+            else
+                object = null;
+        }
+        if(object != null)
+        {
+            ASN1Sequence generalNameSeq = ASN1Sequence.getInstance(object);
+            nameRegistrationAuthorities = new GeneralName[generalNameSeq.size()];
+            for(int i = 0; i < generalNameSeq.size(); i++)
+                nameRegistrationAuthorities[i] = GeneralName.getInstance(generalNameSeq.getObjectAt(i));
+
+        }
+    }
+
+    public SemanticsInformation(DERObjectIdentifier semanticsIdentifier, GeneralName generalNames[])
+    {
+        this.semanticsIdentifier = semanticsIdentifier;
+        nameRegistrationAuthorities = generalNames;
+    }
+
+    public SemanticsInformation(DERObjectIdentifier semanticsIdentifier)
+    {
+        this.semanticsIdentifier = semanticsIdentifier;
+        nameRegistrationAuthorities = null;
+    }
+
+    public SemanticsInformation(GeneralName generalNames[])
+    {
+        semanticsIdentifier = null;
+        nameRegistrationAuthorities = generalNames;
+    }
+
+    public DERObjectIdentifier getSemanticsIdentifier()
+    {
+        return semanticsIdentifier;
+    }
+
+    public GeneralName[] getNameRegistrationAuthorities()
+    {
+        return nameRegistrationAuthorities;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector seq = new ASN1EncodableVector();
+        if(semanticsIdentifier != null)
+            seq.add(semanticsIdentifier);
+        if(nameRegistrationAuthorities != null)
+        {
+            ASN1EncodableVector seqname = new ASN1EncodableVector();
+            for(int i = 0; i < nameRegistrationAuthorities.length; i++)
+                seqname.add(nameRegistrationAuthorities[i]);
+
+            seq.add(new DERSequence(seqname));
+        }
+        return new DERSequence(seq);
+    }
+
+    DERObjectIdentifier semanticsIdentifier;
+    GeneralName nameRegistrationAuthorities[];
+}

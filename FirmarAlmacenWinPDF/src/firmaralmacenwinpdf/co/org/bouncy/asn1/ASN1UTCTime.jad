@@ -1,0 +1,30 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ASN1UTCTime.java
+
+package co.org.bouncy.asn1;
+
+import java.util.Date;
+
+// Referenced classes of package co.org.bouncy.asn1:
+//            DERUTCTime
+
+public class ASN1UTCTime extends DERUTCTime
+{
+
+    ASN1UTCTime(byte bytes[])
+    {
+        super(bytes);
+    }
+
+    public ASN1UTCTime(Date time)
+    {
+        super(time);
+    }
+
+    public ASN1UTCTime(String time)
+    {
+        super(time);
+    }
+}

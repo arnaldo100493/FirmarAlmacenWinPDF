@@ -1,0 +1,71 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EncryptedValueParser.java
+
+package org.bouncycastle.cert.crmf;
+
+import java.io.*;
+import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.crmf.EncryptedValue;
+import org.bouncycastle.asn1.x509.X509CertificateStructure;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.operator.InputDecryptor;
+import org.bouncycastle.util.Strings;
+import org.bouncycastle.util.io.Streams;
+
+// Referenced classes of package org.bouncycastle.cert.crmf:
+//            CRMFException, ValueDecryptorGenerator, EncryptedValuePadder
+
+public class EncryptedValueParser
+{
+
+    public EncryptedValueParser(EncryptedValue value)
+    {
+        this.value = value;
+    }
+
+    public EncryptedValueParser(EncryptedValue value, EncryptedValuePadder padder)
+    {
+        this.value = value;
+        this.padder = padder;
+    }
+
+    private byte[] decryptValue(ValueDecryptorGenerator decGen)
+        throws CRMFException
+    {
+        if(value.getIntendedAlg() != null)
+            throw new UnsupportedOperationException();
+        if(value.getValueHint() != null)
+            throw new UnsupportedOperationException();
+        InputDecryptor decryptor = decGen.getValueDecryptor(value.getKeyAlg(), value.getSymmAlg(), value.getEncSymmKey().getBytes());
+        InputStream dataIn = decryptor.getInputStream(new ByteArrayInputStream(value.getEncValue().getBytes()));
+        byte data[];
+        try
+        {
+            data = Streams.readAll(dataIn);
+            if(padder != null)
+                return padder.getUnpaddedData(data);
+        }
+        catch(IOException e)
+        {
+            throw new CRMFException((new StringBuilder()).append("Cannot parse decrypted data: ").append(e.getMessage()).toString(), e);
+        }
+        return data;
+    }
+
+    public X509CertificateHolder readCertificateHolder(ValueDecryptorGenerator decGen)
+        throws CRMFException
+    {
+        return new X509CertificateHolder(X509CertificateStructure.getInstance(decryptValue(decGen)));
+    }
+
+    public char[] readPassphrase(ValueDecryptorGenerator decGen)
+        throws CRMFException
+    {
+        return Strings.fromUTF8ByteArray(decryptValue(decGen)).toCharArray();
+    }
+
+    private EncryptedValue value;
+    private EncryptedValuePadder padder;
+}

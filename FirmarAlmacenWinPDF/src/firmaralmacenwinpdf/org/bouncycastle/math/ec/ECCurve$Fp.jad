@@ -1,0 +1,116 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECCurve.java
+
+package org.bouncycastle.math.ec;
+
+import java.math.BigInteger;
+
+// Referenced classes of package org.bouncycastle.math.ec:
+//            ECCurve, ECPoint, ECFieldElement
+
+public static class ECCurve$Fp extends ECCurve
+{
+
+    public BigInteger getQ()
+    {
+        return q;
+    }
+
+    public int getFieldSize()
+    {
+        return q.bitLength();
+    }
+
+    public ECFieldElement fromBigInteger(BigInteger x)
+    {
+        return new ent.Fp(q, x);
+    }
+
+    public ECPoint createPoint(BigInteger x, BigInteger y, boolean withCompression)
+    {
+        return new ECPoint$Fp(this, fromBigInteger(x), fromBigInteger(y), withCompression);
+    }
+
+    public ECPoint decodePoint(byte encoded[])
+    {
+        ECPoint p = null;
+        switch(encoded[0])
+        {
+        case 0: // '\0'
+            if(encoded.length > 1)
+                throw new RuntimeException("Invalid point encoding");
+            p = getInfinity();
+            break;
+
+        case 2: // '\002'
+        case 3: // '\003'
+            int ytilde = encoded[0] & 1;
+            byte i[] = new byte[encoded.length - 1];
+            System.arraycopy(encoded, 1, i, 0, i.length);
+            ECFieldElement x = new ent.Fp(q, new BigInteger(1, i));
+            ECFieldElement alpha = x.multiply(x.square().add(a)).add(b);
+            ECFieldElement beta = alpha.sqrt();
+            if(beta == null)
+                throw new RuntimeException("Invalid point compression");
+            int bit0 = beta.toBigInteger().testBit(0) ? 1 : 0;
+            if(bit0 == ytilde)
+                p = new ECPoint$Fp(this, x, beta, true);
+            else
+                p = new ECPoint$Fp(this, x, new ent.Fp(q, q.subtract(beta.toBigInteger())), true);
+            break;
+
+        case 4: // '\004'
+        case 6: // '\006'
+        case 7: // '\007'
+            byte xEnc[] = new byte[(encoded.length - 1) / 2];
+            byte yEnc[] = new byte[(encoded.length - 1) / 2];
+            System.arraycopy(encoded, 1, xEnc, 0, xEnc.length);
+            System.arraycopy(encoded, xEnc.length + 1, yEnc, 0, yEnc.length);
+            p = new ECPoint$Fp(this, new ent.Fp(q, new BigInteger(1, xEnc)), new ent.Fp(q, new BigInteger(1, yEnc)));
+            break;
+
+        case 1: // '\001'
+        case 5: // '\005'
+        default:
+            throw new RuntimeException((new StringBuilder()).append("Invalid point encoding 0x").append(Integer.toString(encoded[0], 16)).toString());
+        }
+        return p;
+    }
+
+    public ECPoint getInfinity()
+    {
+        return infinity;
+    }
+
+    public boolean equals(Object anObject)
+    {
+        if(anObject == this)
+            return true;
+        if(!(anObject instanceof ECCurve$Fp))
+        {
+            return false;
+        } else
+        {
+            ECCurve$Fp other = (ECCurve$Fp)anObject;
+            return q.equals(other.q) && a.equals(other.a) && b.equals(other.b);
+        }
+    }
+
+    public int hashCode()
+    {
+        return a.hashCode() ^ b.hashCode() ^ q.hashCode();
+    }
+
+    BigInteger q;
+    ECPoint$Fp infinity;
+
+    public ECCurve$Fp(BigInteger q, BigInteger a, BigInteger b)
+    {
+        this.q = q;
+        this.a = fromBigInteger(a);
+        this.b = fromBigInteger(b);
+        infinity = new ECPoint$Fp(this, null, null);
+    }
+}

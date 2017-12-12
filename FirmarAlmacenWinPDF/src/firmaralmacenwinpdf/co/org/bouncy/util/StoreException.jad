@@ -1,0 +1,24 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   StoreException.java
+
+package co.org.bouncy.util;
+
+
+public class StoreException extends RuntimeException
+{
+
+    public StoreException(String s, Throwable e)
+    {
+        super(s);
+        _e = e;
+    }
+
+    public Throwable getCause()
+    {
+        return _e;
+    }
+
+    private Throwable _e;
+}

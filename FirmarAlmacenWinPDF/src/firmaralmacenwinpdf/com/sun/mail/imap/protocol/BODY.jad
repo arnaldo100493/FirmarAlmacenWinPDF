@@ -1,0 +1,58 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BODY.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.ByteArray;
+import com.sun.mail.iap.ParsingException;
+import java.io.ByteArrayInputStream;
+
+// Referenced classes of package com.sun.mail.imap.protocol:
+//            Item, FetchResponse
+
+public class BODY
+    implements Item
+{
+
+    public BODY(FetchResponse r)
+        throws ParsingException
+    {
+        origin = 0;
+        msgno = r.getNumber();
+        r.skipSpaces();
+        int b;
+        while((b = r.readByte()) != 93) 
+            if(b == 0)
+                throw new ParsingException("BODY parse error: missing ``]'' at section end");
+        if(r.readByte() == 60)
+        {
+            origin = r.readNumber();
+            r.skip(1);
+        }
+        data = r.readByteArray();
+    }
+
+    public ByteArray getByteArray()
+    {
+        return data;
+    }
+
+    public ByteArrayInputStream getByteArrayInputStream()
+    {
+        if(data != null)
+            return data.toByteArrayInputStream();
+        else
+            return null;
+    }
+
+    static final char name[] = {
+        'B', 'O', 'D', 'Y'
+    };
+    public int msgno;
+    public ByteArray data;
+    public String section;
+    public int origin;
+
+}

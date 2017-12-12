@@ -1,0 +1,1395 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPStore.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.*;
+import com.sun.mail.imap.protocol.IMAPProtocol;
+import com.sun.mail.imap.protocol.ListInfo;
+import com.sun.mail.imap.protocol.Namespaces;
+import com.sun.mail.util.*;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.*;
+import java.util.logging.Level;
+import javax.mail.*;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPFolder, DefaultFolder
+
+public class IMAPStore extends Store
+    implements QuotaAwareStore, ResponseHandler
+{
+    static class ConnectionPool
+    {
+
+        private Vector authenticatedConnections;
+        private Vector folders;
+        private boolean storeConnectionInUse;
+        private long lastTimePruned;
+        private final boolean separateStoreConnection;
+        private final long clientTimeoutInterval;
+        private final long serverTimeoutInterval;
+        private final int poolSize;
+        private final long pruningInterval;
+        private final MailLogger logger;
+        private static final int RUNNING = 0;
+        private static final int IDLE = 1;
+        private static final int ABORTING = 2;
+        private int idleState;
+        private IMAPProtocol idleProtocol;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        ConnectionPool(String name, MailLogger plogger, Session session)
+        {
+            authenticatedConnections = new Vector();
+            storeConnectionInUse = false;
+            idleState = 0;
+            lastTimePruned = System.currentTimeMillis();
+            boolean debug = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".connectionpool.debug").toString(), false);
+            logger = plogger.getSubLogger("connectionpool", "DEBUG IMAP CP", debug);
+            int size = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".connectionpoolsize").toString(), -1);
+            if(size > 0)
+            {
+                poolSize = size;
+                if(logger.isLoggable(Level.CONFIG))
+                    logger.config((new StringBuilder()).append("mail.imap.connectionpoolsize: ").append(poolSize).toString());
+            } else
+            {
+                poolSize = 1;
+            }
+            int connectionPoolTimeout = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".connectionpooltimeout").toString(), -1);
+            if(connectionPoolTimeout > 0)
+            {
+                clientTimeoutInterval = connectionPoolTimeout;
+                if(logger.isLoggable(Level.CONFIG))
+                    logger.config((new StringBuilder()).append("mail.imap.connectionpooltimeout: ").append(clientTimeoutInterval).toString());
+            } else
+            {
+                clientTimeoutInterval = 45000L;
+            }
+            int serverTimeout = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".servertimeout").toString(), -1);
+            if(serverTimeout > 0)
+            {
+                serverTimeoutInterval = serverTimeout;
+                if(logger.isLoggable(Level.CONFIG))
+                    logger.config((new StringBuilder()).append("mail.imap.servertimeout: ").append(serverTimeoutInterval).toString());
+            } else
+            {
+                serverTimeoutInterval = 0x1b7740L;
+            }
+            int pruning = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".pruninginterval").toString(), -1);
+            if(pruning > 0)
+            {
+                pruningInterval = pruning;
+                if(logger.isLoggable(Level.CONFIG))
+                    logger.config((new StringBuilder()).append("mail.imap.pruninginterval: ").append(pruningInterval).toString());
+            } else
+            {
+                pruningInterval = 60000L;
+            }
+            separateStoreConnection = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".separatestoreconnection").toString(), false);
+            if(separateStoreConnection)
+                logger.config("dedicate a store connection");
+        }
+    }
+
+
+    public IMAPStore(Session session, URLName url)
+    {
+        this(session, url, "imap", false);
+    }
+
+    protected IMAPStore(Session session, URLName url, String name, boolean isSSL)
+    {
+        super(session, url);
+        port = -1;
+        disableAuthLogin = false;
+        disableAuthPlain = false;
+        disableAuthNtlm = false;
+        enableStartTLS = false;
+        requireStartTLS = false;
+        usingSSL = false;
+        enableSASL = false;
+        forcePasswordRefresh = false;
+        enableImapEvents = false;
+        connectionFailed = false;
+        forceClose = false;
+        connectionFailedLock = new Object();
+        folderConstructor = null;
+        folderConstructorLI = null;
+        if(url != null)
+            name = url.getProtocol();
+        this.name = name;
+        if(!isSSL)
+            isSSL = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".ssl.enable").toString(), false);
+        if(isSSL)
+            defaultPort = 993;
+        else
+            defaultPort = 143;
+        this.isSSL = isSSL;
+        debug = session.getDebug();
+        debugusername = PropUtil.getBooleanSessionProperty(session, "mail.debug.auth.username", true);
+        debugpassword = PropUtil.getBooleanSessionProperty(session, "mail.debug.auth.password", false);
+        logger = new MailLogger(getClass(), (new StringBuilder()).append("DEBUG ").append(name.toUpperCase()).toString(), session);
+        boolean partialFetch = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".partialfetch").toString(), true);
+        if(!partialFetch)
+        {
+            blksize = -1;
+            logger.config("mail.imap.partialfetch: false");
+        } else
+        {
+            blksize = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".fetchsize").toString(), 16384);
+            if(logger.isLoggable(Level.CONFIG))
+                logger.config((new StringBuilder()).append("mail.imap.fetchsize: ").append(blksize).toString());
+        }
+        ignoreSize = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".ignorebodystructuresize").toString(), false);
+        if(logger.isLoggable(Level.CONFIG))
+            logger.config((new StringBuilder()).append("mail.imap.ignorebodystructuresize: ").append(ignoreSize).toString());
+        statusCacheTimeout = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".statuscachetimeout").toString(), 1000);
+        if(logger.isLoggable(Level.CONFIG))
+            logger.config((new StringBuilder()).append("mail.imap.statuscachetimeout: ").append(statusCacheTimeout).toString());
+        appendBufferSize = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".appendbuffersize").toString(), -1);
+        if(logger.isLoggable(Level.CONFIG))
+            logger.config((new StringBuilder()).append("mail.imap.appendbuffersize: ").append(appendBufferSize).toString());
+        minIdleTime = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".minidletime").toString(), 10);
+        if(logger.isLoggable(Level.CONFIG))
+            logger.config((new StringBuilder()).append("mail.imap.minidletime: ").append(minIdleTime).toString());
+        String s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".proxyauth.user").toString());
+        if(s != null)
+        {
+            proxyAuthUser = s;
+            if(logger.isLoggable(Level.CONFIG))
+                logger.config((new StringBuilder()).append("mail.imap.proxyauth.user: ").append(proxyAuthUser).toString());
+        }
+        disableAuthLogin = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".auth.login.disable").toString(), false);
+        if(disableAuthLogin)
+            logger.config("disable AUTH=LOGIN");
+        disableAuthPlain = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".auth.plain.disable").toString(), false);
+        if(disableAuthPlain)
+            logger.config("disable AUTH=PLAIN");
+        disableAuthNtlm = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".auth.ntlm.disable").toString(), false);
+        if(disableAuthNtlm)
+            logger.config("disable AUTH=NTLM");
+        enableStartTLS = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".starttls.enable").toString(), false);
+        if(enableStartTLS)
+            logger.config("enable STARTTLS");
+        requireStartTLS = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".starttls.required").toString(), false);
+        if(requireStartTLS)
+            logger.config("require STARTTLS");
+        enableSASL = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".sasl.enable").toString(), false);
+        if(enableSASL)
+            logger.config("enable SASL");
+        if(enableSASL)
+        {
+            s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".sasl.mechanisms").toString());
+            if(s != null && s.length() > 0)
+            {
+                if(logger.isLoggable(Level.CONFIG))
+                    logger.config((new StringBuilder()).append("SASL mechanisms allowed: ").append(s).toString());
+                Vector v = new Vector(5);
+                StringTokenizer st = new StringTokenizer(s, " ,");
+                do
+                {
+                    if(!st.hasMoreTokens())
+                        break;
+                    String m = st.nextToken();
+                    if(m.length() > 0)
+                        v.addElement(m);
+                } while(true);
+                saslMechanisms = new String[v.size()];
+                v.copyInto(saslMechanisms);
+            }
+        }
+        s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".sasl.authorizationid").toString());
+        if(s != null)
+        {
+            authorizationID = s;
+            logger.log(Level.CONFIG, "mail.imap.sasl.authorizationid: {0}", authorizationID);
+        }
+        s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".sasl.realm").toString());
+        if(s != null)
+        {
+            saslRealm = s;
+            logger.log(Level.CONFIG, "mail.imap.sasl.realm: {0}", saslRealm);
+        }
+        forcePasswordRefresh = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".forcepasswordrefresh").toString(), false);
+        if(forcePasswordRefresh)
+            logger.config("enable forcePasswordRefresh");
+        enableImapEvents = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".enableimapevents").toString(), false);
+        if(enableImapEvents)
+            logger.config("enable IMAP events");
+        messageCacheDebug = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".messagecache.debug").toString(), false);
+        guid = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".yahoo.guid").toString());
+        if(guid != null)
+            logger.log(Level.CONFIG, "mail.imap.yahoo.guid: {0}", guid);
+        s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".folder.class").toString());
+        if(s != null)
+        {
+            logger.log(Level.CONFIG, "IMAP: folder class: {0}", s);
+            try
+            {
+                ClassLoader cl = getClass().getClassLoader();
+                Class folderClass = null;
+                try
+                {
+                    folderClass = Class.forName(s, false, cl);
+                }
+                catch(ClassNotFoundException ex1)
+                {
+                    folderClass = Class.forName(s);
+                }
+                Class c[] = {
+                    java/lang/String, Character.TYPE, com/sun/mail/imap/IMAPStore, java/lang/Boolean
+                };
+                folderConstructor = folderClass.getConstructor(c);
+                Class c2[] = {
+                    com/sun/mail/imap/protocol/ListInfo, com/sun/mail/imap/IMAPStore
+                };
+                folderConstructorLI = folderClass.getConstructor(c2);
+            }
+            catch(Exception ex)
+            {
+                logger.log(Level.CONFIG, "IMAP: failed to load folder class", ex);
+            }
+        }
+        pool = new ConnectionPool(name, logger, session);
+    }
+
+    protected synchronized boolean protocolConnect(String host, int pport, String user, String password)
+        throws MessagingException
+    {
+        IMAPProtocol protocol = null;
+        if(host == null || password == null || user == null)
+        {
+            if(logger.isLoggable(Level.FINE))
+                logger.fine((new StringBuilder()).append("protocolConnect returning false, host=").append(host).append(", user=").append(traceUser(user)).append(", password=").append(tracePassword(password)).toString());
+            return false;
+        }
+        if(pport != -1)
+            port = pport;
+        else
+            port = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".port").toString(), port);
+        if(port == -1)
+            port = defaultPort;
+        try
+        {
+            boolean poolEmpty;
+            synchronized(pool)
+            {
+                poolEmpty = pool.authenticatedConnections.isEmpty();
+            }
+            if(poolEmpty)
+            {
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("trying to connect to host \"").append(host).append("\", port ").append(port).append(", isSSL ").append(isSSL).toString());
+                protocol = newIMAPProtocol(host, port);
+                if(logger.isLoggable(Level.FINE))
+                    logger.fine((new StringBuilder()).append("protocolConnect login, host=").append(host).append(", user=").append(traceUser(user)).append(", password=").append(tracePassword(password)).toString());
+                login(protocol, user, password);
+                protocol.addResponseHandler(this);
+                usingSSL = protocol.isSSL();
+                this.host = host;
+                this.user = user;
+                this.password = password;
+                synchronized(pool)
+                {
+                    pool.authenticatedConnections.addElement(protocol);
+                }
+            }
+        }
+        catch(CommandFailedException cex)
+        {
+            if(protocol != null)
+                protocol.disconnect();
+            protocol = null;
+            throw new AuthenticationFailedException(cex.getResponse().getRest());
+        }
+        catch(ProtocolException pex)
+        {
+            if(protocol != null)
+                protocol.disconnect();
+            protocol = null;
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        catch(SocketConnectException scex)
+        {
+            throw new MailConnectException(scex);
+        }
+        catch(IOException ioex)
+        {
+            throw new MessagingException(ioex.getMessage(), ioex);
+        }
+        return true;
+    }
+
+    protected IMAPProtocol newIMAPProtocol(String host, int port)
+        throws IOException, ProtocolException
+    {
+        return new IMAPProtocol(name, host, port, session.getProperties(), isSSL, logger);
+    }
+
+    private void login(IMAPProtocol p, String u, String pw)
+        throws ProtocolException
+    {
+        if(enableStartTLS || requireStartTLS)
+            if(p.hasCapability("STARTTLS"))
+            {
+                p.startTLS();
+                p.capability();
+            } else
+            if(requireStartTLS)
+            {
+                logger.fine("STARTTLS required but not supported by server");
+                throw new ProtocolException("STARTTLS required but not supported by server");
+            }
+        if(p.isAuthenticated())
+            return;
+        preLogin(p);
+        if(guid != null)
+            p.id(guid);
+        p.getCapabilities().put("__PRELOGIN__", "");
+        String authzid;
+        if(authorizationID != null)
+            authzid = authorizationID;
+        else
+        if(proxyAuthUser != null)
+            authzid = proxyAuthUser;
+        else
+            authzid = null;
+        if(enableSASL)
+            p.sasllogin(saslMechanisms, saslRealm, authzid, u, pw);
+        if(!p.isAuthenticated())
+            if(p.hasCapability("AUTH=PLAIN") && !disableAuthPlain)
+                p.authplain(authzid, u, pw);
+            else
+            if((p.hasCapability("AUTH-LOGIN") || p.hasCapability("AUTH=LOGIN")) && !disableAuthLogin)
+                p.authlogin(u, pw);
+            else
+            if(p.hasCapability("AUTH=NTLM") && !disableAuthNtlm)
+                p.authntlm(authzid, u, pw);
+            else
+            if(!p.hasCapability("LOGINDISABLED"))
+                p.login(u, pw);
+            else
+                throw new ProtocolException("No login methods supported!");
+        if(proxyAuthUser != null)
+            p.proxyauth(proxyAuthUser);
+        if(p.hasCapability("__PRELOGIN__"))
+            try
+            {
+                p.capability();
+            }
+            catch(ConnectionException cex)
+            {
+                throw cex;
+            }
+            catch(ProtocolException pex) { }
+    }
+
+    protected void preLogin(IMAPProtocol imapprotocol)
+        throws ProtocolException
+    {
+    }
+
+    public boolean isSSL()
+    {
+        return usingSSL;
+    }
+
+    public synchronized void setUsername(String user)
+    {
+        this.user = user;
+    }
+
+    public synchronized void setPassword(String password)
+    {
+        this.password = password;
+    }
+
+    IMAPProtocol getProtocol(IMAPFolder folder)
+        throws MessagingException
+    {
+        IMAPProtocol p = null;
+_L3:
+        if(p != null)
+            break MISSING_BLOCK_LABEL_364;
+        ConnectionPool connectionpool = pool;
+        JVM INSTR monitorenter ;
+        long lastUsed;
+        if(pool.authenticatedConnections.isEmpty() || pool.authenticatedConnections.size() == 1 && (pool.separateStoreConnection || pool.storeConnectionInUse))
+        {
+            logger.fine("no connections in the pool, creating a new one");
+            try
+            {
+                if(forcePasswordRefresh)
+                    refreshPassword();
+                p = newIMAPProtocol(host, port);
+                login(p, user, password);
+            }
+            catch(Exception ex1)
+            {
+                if(p != null)
+                    try
+                    {
+                        p.disconnect();
+                    }
+                    catch(Exception ex2) { }
+                p = null;
+            }
+            if(p == null)
+                throw new MessagingException("connection failure");
+            break MISSING_BLOCK_LABEL_305;
+        }
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("connection available -- size: ").append(pool.authenticatedConnections.size()).toString());
+        p = (IMAPProtocol)pool.authenticatedConnections.lastElement();
+        pool.authenticatedConnections.removeElement(p);
+        lastUsed = System.currentTimeMillis() - p.getTimestamp();
+        if(lastUsed <= pool.serverTimeoutInterval) goto _L2; else goto _L1
+_L1:
+        p.removeResponseHandler(this);
+        p.addResponseHandler(nonStoreResponseHandler);
+        p.noop();
+        p.removeResponseHandler(nonStoreResponseHandler);
+        p.addResponseHandler(this);
+          goto _L2
+        ProtocolException pex;
+        pex;
+        p.removeResponseHandler(nonStoreResponseHandler);
+        p.disconnect();
+        p = null;
+          goto _L3
+        Exception exception;
+        exception;
+        p = null;
+        connectionpool;
+        JVM INSTR monitorexit ;
+          goto _L3
+_L2:
+        p.removeResponseHandler(this);
+        timeoutConnections();
+        if(folder != null)
+        {
+            if(pool.folders == null)
+                pool.folders = new Vector();
+            pool.folders.addElement(folder);
+        }
+        connectionpool;
+        JVM INSTR monitorexit ;
+          goto _L3
+        Exception exception1;
+        exception1;
+        throw exception1;
+        return p;
+    }
+
+    private IMAPProtocol getStoreProtocol()
+        throws ProtocolException
+    {
+        IMAPProtocol p;
+        for(p = null; p == null;)
+            synchronized(pool)
+            {
+                waitIfIdle();
+                if(pool.authenticatedConnections.isEmpty())
+                {
+                    pool.logger.fine("getStoreProtocol() - no connections in the pool, creating a new one");
+                    try
+                    {
+                        if(forcePasswordRefresh)
+                            refreshPassword();
+                        p = newIMAPProtocol(host, port);
+                        login(p, user, password);
+                    }
+                    catch(Exception ex1)
+                    {
+                        if(p != null)
+                            try
+                            {
+                                p.logout();
+                            }
+                            catch(Exception ex2) { }
+                        p = null;
+                    }
+                    if(p == null)
+                        throw new ConnectionException("failed to create new store connection");
+                    p.addResponseHandler(this);
+                    pool.authenticatedConnections.addElement(p);
+                } else
+                {
+                    if(pool.logger.isLoggable(Level.FINE))
+                        pool.logger.fine((new StringBuilder()).append("getStoreProtocol() - connection available -- size: ").append(pool.authenticatedConnections.size()).toString());
+                    p = (IMAPProtocol)pool.authenticatedConnections.firstElement();
+                }
+                if(pool.storeConnectionInUse)
+                {
+                    try
+                    {
+                        p = null;
+                        pool.wait();
+                    }
+                    catch(InterruptedException ex) { }
+                } else
+                {
+                    pool.storeConnectionInUse = true;
+                    pool.logger.fine("getStoreProtocol() -- storeConnectionInUse");
+                }
+                timeoutConnections();
+            }
+
+        return p;
+    }
+
+    IMAPProtocol getFolderStoreProtocol()
+        throws ProtocolException
+    {
+        IMAPProtocol p = getStoreProtocol();
+        p.removeResponseHandler(this);
+        p.addResponseHandler(nonStoreResponseHandler);
+        return p;
+    }
+
+    private void refreshPassword()
+    {
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("refresh password, user: ").append(traceUser(user)).toString());
+        InetAddress addr;
+        try
+        {
+            addr = InetAddress.getByName(host);
+        }
+        catch(UnknownHostException e)
+        {
+            addr = null;
+        }
+        PasswordAuthentication pa = session.requestPasswordAuthentication(addr, port, name, null, user);
+        if(pa != null)
+        {
+            user = pa.getUserName();
+            password = pa.getPassword();
+        }
+    }
+
+    boolean allowReadOnlySelect()
+    {
+        return PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".allowreadonlyselect").toString(), false);
+    }
+
+    boolean hasSeparateStoreConnection()
+    {
+        return pool.separateStoreConnection;
+    }
+
+    MailLogger getConnectionPoolLogger()
+    {
+        return pool.logger;
+    }
+
+    boolean getMessageCacheDebug()
+    {
+        return messageCacheDebug;
+    }
+
+    boolean isConnectionPoolFull()
+    {
+        ConnectionPool connectionpool = pool;
+        JVM INSTR monitorenter ;
+        if(pool.logger.isLoggable(Level.FINE))
+            pool.logger.fine((new StringBuilder()).append("connection pool current size: ").append(pool.authenticatedConnections.size()).append("   pool size: ").append(pool.poolSize).toString());
+        return pool.authenticatedConnections.size() >= pool.poolSize;
+        Exception exception;
+        exception;
+        throw exception;
+    }
+
+    void releaseProtocol(IMAPFolder folder, IMAPProtocol protocol)
+    {
+        synchronized(pool)
+        {
+            if(protocol != null)
+                if(!isConnectionPoolFull())
+                {
+                    protocol.addResponseHandler(this);
+                    pool.authenticatedConnections.addElement(protocol);
+                    if(logger.isLoggable(Level.FINE))
+                        logger.fine((new StringBuilder()).append("added an Authenticated connection -- size: ").append(pool.authenticatedConnections.size()).toString());
+                } else
+                {
+                    logger.fine("pool is full, not adding an Authenticated connection");
+                    try
+                    {
+                        protocol.logout();
+                    }
+                    catch(ProtocolException pex) { }
+                }
+            if(pool.folders != null)
+                pool.folders.removeElement(folder);
+            timeoutConnections();
+        }
+    }
+
+    private void releaseStoreProtocol(IMAPProtocol protocol)
+    {
+        if(protocol == null)
+        {
+            cleanup();
+            return;
+        }
+        boolean failed;
+        synchronized(connectionFailedLock)
+        {
+            failed = connectionFailed;
+            connectionFailed = false;
+        }
+        synchronized(pool)
+        {
+            pool.storeConnectionInUse = false;
+            pool.notifyAll();
+            pool.logger.fine("releaseStoreProtocol()");
+            timeoutConnections();
+        }
+        if(!$assertionsDisabled && Thread.holdsLock(pool))
+            throw new AssertionError();
+        if(failed)
+            cleanup();
+    }
+
+    void releaseFolderStoreProtocol(IMAPProtocol protocol)
+    {
+        if(protocol == null)
+            return;
+        protocol.removeResponseHandler(nonStoreResponseHandler);
+        protocol.addResponseHandler(this);
+        synchronized(pool)
+        {
+            pool.storeConnectionInUse = false;
+            pool.notifyAll();
+            pool.logger.fine("releaseFolderStoreProtocol()");
+            timeoutConnections();
+        }
+    }
+
+    private void emptyConnectionPool(boolean force)
+    {
+        synchronized(pool)
+        {
+            for(int index = pool.authenticatedConnections.size() - 1; index >= 0; index--)
+                try
+                {
+                    IMAPProtocol p = (IMAPProtocol)pool.authenticatedConnections.elementAt(index);
+                    p.removeResponseHandler(this);
+                    if(force)
+                        p.disconnect();
+                    else
+                        p.logout();
+                }
+                catch(ProtocolException pex) { }
+
+            pool.authenticatedConnections.removeAllElements();
+        }
+        pool.logger.fine("removed all authenticated connections from pool");
+    }
+
+    private void timeoutConnections()
+    {
+        synchronized(pool)
+        {
+            if(System.currentTimeMillis() - pool.lastTimePruned > pool.pruningInterval && pool.authenticatedConnections.size() > 1)
+            {
+                if(pool.logger.isLoggable(Level.FINE))
+                {
+                    pool.logger.fine((new StringBuilder()).append("checking for connections to prune: ").append(System.currentTimeMillis() - pool.lastTimePruned).toString());
+                    pool.logger.fine((new StringBuilder()).append("clientTimeoutInterval: ").append(pool.clientTimeoutInterval).toString());
+                }
+                for(int index = pool.authenticatedConnections.size() - 1; index > 0; index--)
+                {
+                    IMAPProtocol p = (IMAPProtocol)pool.authenticatedConnections.elementAt(index);
+                    if(pool.logger.isLoggable(Level.FINE))
+                        pool.logger.fine((new StringBuilder()).append("protocol last used: ").append(System.currentTimeMillis() - p.getTimestamp()).toString());
+                    if(System.currentTimeMillis() - p.getTimestamp() <= pool.clientTimeoutInterval)
+                        continue;
+                    pool.logger.fine("authenticated connection timed out, logging out the connection");
+                    p.removeResponseHandler(this);
+                    pool.authenticatedConnections.removeElementAt(index);
+                    try
+                    {
+                        p.logout();
+                    }
+                    catch(ProtocolException pex) { }
+                }
+
+                pool.lastTimePruned = System.currentTimeMillis();
+            }
+        }
+    }
+
+    int getFetchBlockSize()
+    {
+        return blksize;
+    }
+
+    boolean ignoreBodyStructureSize()
+    {
+        return ignoreSize;
+    }
+
+    Session getSession()
+    {
+        return session;
+    }
+
+    int getStatusCacheTimeout()
+    {
+        return statusCacheTimeout;
+    }
+
+    int getAppendBufferSize()
+    {
+        return appendBufferSize;
+    }
+
+    int getMinIdleTime()
+    {
+        return minIdleTime;
+    }
+
+    public synchronized boolean hasCapability(String capability)
+        throws MessagingException
+    {
+        IMAPProtocol p = null;
+        boolean flag;
+        try
+        {
+            p = getStoreProtocol();
+            flag = p.hasCapability(capability);
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(p);
+        return flag;
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+    }
+
+    public synchronized boolean isConnected()
+    {
+        IMAPProtocol p;
+        if(!super.isConnected())
+            return false;
+        p = null;
+        try
+        {
+            p = getStoreProtocol();
+            p.noop();
+        }
+        catch(ProtocolException pex)
+        {
+            releaseStoreProtocol(p);
+            break MISSING_BLOCK_LABEL_45;
+        }
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_45;
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        return super.isConnected();
+    }
+
+    public synchronized void close()
+        throws MessagingException
+    {
+        IMAPProtocol protocol;
+        if(!super.isConnected())
+            return;
+        protocol = null;
+        boolean isEmpty;
+        synchronized(pool)
+        {
+            isEmpty = pool.authenticatedConnections.isEmpty();
+        }
+        if(!isEmpty)
+            break MISSING_BLOCK_LABEL_67;
+        pool.logger.fine("close() - no connections ");
+        cleanup();
+        releaseStoreProtocol(protocol);
+        return;
+        try
+        {
+            protocol = getStoreProtocol();
+            synchronized(pool)
+            {
+                pool.authenticatedConnections.removeElement(protocol);
+            }
+            protocol.logout();
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(protocol);
+        break MISSING_BLOCK_LABEL_139;
+        Exception exception2;
+        exception2;
+        releaseStoreProtocol(protocol);
+        throw exception2;
+    }
+
+    protected void finalize()
+        throws Throwable
+    {
+        super.finalize();
+        close();
+    }
+
+    private synchronized void cleanup()
+    {
+        if(!super.isConnected())
+        {
+            logger.fine("IMAPStore cleanup, not connected");
+            return;
+        }
+        boolean force;
+        synchronized(connectionFailedLock)
+        {
+            force = forceClose;
+            forceClose = false;
+            connectionFailed = false;
+        }
+        if(logger.isLoggable(Level.FINE))
+            logger.fine((new StringBuilder()).append("IMAPStore cleanup, force ").append(force).toString());
+        Vector foldersCopy = null;
+        boolean done = true;
+        do
+        {
+            synchronized(pool)
+            {
+                if(pool.folders != null)
+                {
+                    done = false;
+                    foldersCopy = pool.folders;
+                    pool.folders = null;
+                } else
+                {
+                    done = true;
+                }
+            }
+            if(done)
+                break;
+            int i = 0;
+            int fsize = foldersCopy.size();
+            while(i < fsize) 
+            {
+                IMAPFolder f = (IMAPFolder)foldersCopy.elementAt(i);
+                try
+                {
+                    if(force)
+                    {
+                        logger.fine("force folder to close");
+                        f.forceClose();
+                    } else
+                    {
+                        logger.fine("close folder");
+                        f.close(false);
+                    }
+                }
+                catch(MessagingException mex) { }
+                catch(IllegalStateException ex) { }
+                i++;
+            }
+        } while(true);
+        synchronized(pool)
+        {
+            emptyConnectionPool(force);
+        }
+        try
+        {
+            super.close();
+        }
+        catch(MessagingException mex) { }
+        logger.fine("IMAPStore cleanup done");
+    }
+
+    public synchronized Folder getDefaultFolder()
+        throws MessagingException
+    {
+        checkConnected();
+        return new DefaultFolder(this);
+    }
+
+    public synchronized Folder getFolder(String name)
+        throws MessagingException
+    {
+        checkConnected();
+        return newIMAPFolder(name, '\uFFFF');
+    }
+
+    public synchronized Folder getFolder(URLName url)
+        throws MessagingException
+    {
+        checkConnected();
+        return newIMAPFolder(url.getFile(), '\uFFFF');
+    }
+
+    protected IMAPFolder newIMAPFolder(String fullName, char separator, Boolean isNamespace)
+    {
+        IMAPFolder f = null;
+        if(folderConstructor != null)
+            try
+            {
+                Object o[] = {
+                    fullName, new Character(separator), this, isNamespace
+                };
+                f = (IMAPFolder)folderConstructor.newInstance(o);
+            }
+            catch(Exception ex)
+            {
+                logger.log(Level.FINE, "exception creating IMAPFolder class", ex);
+            }
+        if(f == null)
+            f = new IMAPFolder(fullName, separator, this, isNamespace);
+        return f;
+    }
+
+    protected IMAPFolder newIMAPFolder(String fullName, char separator)
+    {
+        return newIMAPFolder(fullName, separator, null);
+    }
+
+    protected IMAPFolder newIMAPFolder(ListInfo li)
+    {
+        IMAPFolder f = null;
+        if(folderConstructorLI != null)
+            try
+            {
+                Object o[] = {
+                    li, this
+                };
+                f = (IMAPFolder)folderConstructorLI.newInstance(o);
+            }
+            catch(Exception ex)
+            {
+                logger.log(Level.FINE, "exception creating IMAPFolder class LI", ex);
+            }
+        if(f == null)
+            f = new IMAPFolder(li, this);
+        return f;
+    }
+
+    public Folder[] getPersonalNamespaces()
+        throws MessagingException
+    {
+        Namespaces ns = getNamespaces();
+        if(ns == null || ns.personal == null)
+            return super.getPersonalNamespaces();
+        else
+            return namespaceToFolders(ns.personal, null);
+    }
+
+    public Folder[] getUserNamespaces(String user)
+        throws MessagingException
+    {
+        Namespaces ns = getNamespaces();
+        if(ns == null || ns.otherUsers == null)
+            return super.getUserNamespaces(user);
+        else
+            return namespaceToFolders(ns.otherUsers, user);
+    }
+
+    public Folder[] getSharedNamespaces()
+        throws MessagingException
+    {
+        Namespaces ns = getNamespaces();
+        if(ns == null || ns.shared == null)
+            return super.getSharedNamespaces();
+        else
+            return namespaceToFolders(ns.shared, null);
+    }
+
+    private synchronized Namespaces getNamespaces()
+        throws MessagingException
+    {
+        IMAPProtocol p;
+        checkConnected();
+        p = null;
+        if(namespaces != null)
+            break MISSING_BLOCK_LABEL_79;
+        try
+        {
+            p = getStoreProtocol();
+            namespaces = p.namespace();
+        }
+        catch(BadCommandException bex)
+        {
+            releaseStoreProtocol(p);
+            break MISSING_BLOCK_LABEL_79;
+        }
+        catch(ConnectionException cex)
+        {
+            throw new StoreClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_79;
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        return namespaces;
+    }
+
+    private Folder[] namespaceToFolders(com.sun.mail.imap.protocol.Namespaces.Namespace ns[], String user)
+    {
+        Folder fa[] = new Folder[ns.length];
+        for(int i = 0; i < fa.length; i++)
+        {
+            String name = ns[i].prefix;
+            if(user == null)
+            {
+                int len = name.length();
+                if(len > 0 && name.charAt(len - 1) == ns[i].delimiter)
+                    name = name.substring(0, len - 1);
+            } else
+            {
+                name = (new StringBuilder()).append(name).append(user).toString();
+            }
+            fa[i] = newIMAPFolder(name, ns[i].delimiter, Boolean.valueOf(user == null));
+        }
+
+        return fa;
+    }
+
+    public synchronized Quota[] getQuota(String root)
+        throws MessagingException
+    {
+        Quota qa[];
+        IMAPProtocol p;
+        checkConnected();
+        qa = null;
+        p = null;
+        try
+        {
+            p = getStoreProtocol();
+            qa = p.getQuotaRoot(root);
+        }
+        catch(BadCommandException bex)
+        {
+            throw new MessagingException("QUOTA not supported", bex);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new StoreClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_85;
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+        return qa;
+    }
+
+    public synchronized void setQuota(Quota quota)
+        throws MessagingException
+    {
+        IMAPProtocol p;
+        checkConnected();
+        p = null;
+        try
+        {
+            p = getStoreProtocol();
+            p.setQuota(quota);
+        }
+        catch(BadCommandException bex)
+        {
+            throw new MessagingException("QUOTA not supported", bex);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new StoreClosedException(this, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_75;
+        Exception exception;
+        exception;
+        releaseStoreProtocol(p);
+        throw exception;
+    }
+
+    private void checkConnected()
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        if(!super.isConnected())
+            throw new IllegalStateException("Not connected");
+        else
+            return;
+    }
+
+    public void handleResponse(Response r)
+    {
+        if(r.isOK() || r.isNO() || r.isBAD() || r.isBYE())
+            handleResponseCode(r);
+        if(r.isBYE())
+        {
+            logger.fine("IMAPStore connection dead");
+            synchronized(connectionFailedLock)
+            {
+                connectionFailed = true;
+                if(r.isSynthetic())
+                    forceClose = true;
+            }
+            return;
+        } else
+        {
+            return;
+        }
+    }
+
+    public void idle()
+        throws MessagingException
+    {
+        IMAPProtocol p;
+        boolean needNotification;
+        p = null;
+        if(!$assertionsDisabled && Thread.holdsLock(pool))
+            throw new AssertionError();
+        synchronized(this)
+        {
+            checkConnected();
+        }
+        needNotification = false;
+label0:
+        {
+            synchronized(pool)
+            {
+                p = getStoreProtocol();
+                if(pool.idleState == 0)
+                    break label0;
+                try
+                {
+                    pool.wait();
+                }
+                catch(InterruptedException ex) { }
+            }
+            if(needNotification)
+                synchronized(pool)
+                {
+                    pool.idleState = 0;
+                    pool.idleProtocol = null;
+                    pool.notifyAll();
+                }
+            releaseStoreProtocol(p);
+            return;
+        }
+        p.idleStart();
+        needNotification = true;
+        pool.idleState = 1;
+        pool.idleProtocol = p;
+        connectionpool;
+        JVM INSTR monitorexit ;
+        break MISSING_BLOCK_LABEL_175;
+_L2:
+        Response r;
+label1:
+        {
+            r = p.readIdleResponse();
+            synchronized(pool)
+            {
+                if(r != null && p.processIdleResponse(r))
+                    break label1;
+                pool.idleState = 0;
+                pool.idleProtocol = null;
+                pool.notifyAll();
+                needNotification = false;
+            }
+            break; /* Loop/switch isn't completed */
+        }
+        connectionpool3;
+        JVM INSTR monitorexit ;
+        if(enableImapEvents && r.isUnTagged())
+            notifyStoreListeners(1000, r.toString());
+        if(true) goto _L2; else goto _L1
+_L1:
+        int minidle = getMinIdleTime();
+        if(minidle > 0)
+            try
+            {
+                Thread.sleep(minidle);
+            }
+            catch(InterruptedException ex) { }
+        if(needNotification)
+            synchronized(pool)
+            {
+                pool.idleState = 0;
+                pool.idleProtocol = null;
+                pool.notifyAll();
+            }
+        releaseStoreProtocol(p);
+        break MISSING_BLOCK_LABEL_452;
+        BadCommandException bex;
+        bex;
+        throw new MessagingException("IDLE not supported", bex);
+        ConnectionException cex;
+        cex;
+        throw new StoreClosedException(this, cex.getMessage());
+        ProtocolException pex;
+        pex;
+        throw new MessagingException(pex.getMessage(), pex);
+        Exception exception5;
+        exception5;
+        if(needNotification)
+            synchronized(pool)
+            {
+                pool.idleState = 0;
+                pool.idleProtocol = null;
+                pool.notifyAll();
+            }
+        releaseStoreProtocol(p);
+        throw exception5;
+    }
+
+    private void waitIfIdle()
+        throws ProtocolException
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(pool))
+            throw new AssertionError();
+        while(pool.idleState != 0) 
+        {
+            if(pool.idleState == 1)
+            {
+                pool.idleProtocol.idleAbort();
+                pool.idleState = 2;
+            }
+            try
+            {
+                pool.wait();
+            }
+            catch(InterruptedException ex) { }
+        }
+    }
+
+    void handleResponseCode(Response r)
+    {
+        String s = r.getRest();
+        boolean isAlert = false;
+        if(s.startsWith("["))
+        {
+            int i = s.indexOf(']');
+            if(i > 0 && s.substring(0, i + 1).equalsIgnoreCase("[ALERT]"))
+                isAlert = true;
+            s = s.substring(i + 1).trim();
+        }
+        if(isAlert)
+            notifyStoreListeners(1, s);
+        else
+        if(r.isUnTagged() && s.length() > 0)
+            notifyStoreListeners(2, s);
+    }
+
+    private String traceUser(String user)
+    {
+        return debugusername ? user : "<user name suppressed>";
+    }
+
+    private String tracePassword(String password)
+    {
+        return debugpassword ? password : password != null ? "<non-null>" : "<null>";
+    }
+
+    public static final int RESPONSE = 1000;
+    protected final String name;
+    protected final int defaultPort;
+    protected final boolean isSSL;
+    private final int blksize;
+    private boolean ignoreSize;
+    private final int statusCacheTimeout;
+    private final int appendBufferSize;
+    private final int minIdleTime;
+    private volatile int port;
+    protected String host;
+    protected String user;
+    protected String password;
+    protected String proxyAuthUser;
+    protected String authorizationID;
+    protected String saslRealm;
+    private Namespaces namespaces;
+    private boolean disableAuthLogin;
+    private boolean disableAuthPlain;
+    private boolean disableAuthNtlm;
+    private boolean enableStartTLS;
+    private boolean requireStartTLS;
+    private boolean usingSSL;
+    private boolean enableSASL;
+    private String saslMechanisms[];
+    private boolean forcePasswordRefresh;
+    private boolean enableImapEvents;
+    private String guid;
+    private volatile boolean connectionFailed;
+    private volatile boolean forceClose;
+    private final Object connectionFailedLock;
+    private boolean debugusername;
+    private boolean debugpassword;
+    protected MailLogger logger;
+    private boolean messageCacheDebug;
+    private volatile Constructor folderConstructor;
+    private volatile Constructor folderConstructorLI;
+    private final ConnectionPool pool;
+    private ResponseHandler nonStoreResponseHandler = new ResponseHandler() {
+
+        public void handleResponse(Response r)
+        {
+            if(r.isOK() || r.isNO() || r.isBAD() || r.isBYE())
+                handleResponseCode(r);
+            if(r.isBYE())
+                logger.fine("IMAPStore non-store connection dead");
+        }
+
+        final IMAPStore this$0;
+
+            
+            {
+                this$0 = IMAPStore.this;
+                super();
+            }
+    }
+;
+    static final boolean $assertionsDisabled = !com/sun/mail/imap/IMAPStore.desiredAssertionStatus();
+
+}

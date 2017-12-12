@@ -1,0 +1,48 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Point2D.java
+
+package co.com.pdf.awt.geom;
+
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            Point2D
+
+public static class Point2D$Double extends Point2D
+{
+
+    public double getX()
+    {
+        return x;
+    }
+
+    public double getY()
+    {
+        return y;
+    }
+
+    public void setLocation(double x, double y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append(getClass().getName()).append("[x=").append(x).append(",y=").append(y).append("]").toString();
+    }
+
+    public double x;
+    public double y;
+
+    public Point2D$Double()
+    {
+    }
+
+    public Point2D$Double(double x, double y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}

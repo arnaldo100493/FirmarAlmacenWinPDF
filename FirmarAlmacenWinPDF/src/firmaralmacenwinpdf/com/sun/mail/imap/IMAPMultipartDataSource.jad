@@ -1,0 +1,42 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPMultipartDataSource.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.imap.protocol.BODYSTRUCTURE;
+import java.util.Vector;
+import javax.mail.*;
+import javax.mail.internet.MimePart;
+import javax.mail.internet.MimePartDataSource;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPBodyPart, IMAPMessage
+
+public class IMAPMultipartDataSource extends MimePartDataSource
+    implements MultipartDataSource
+{
+
+    protected IMAPMultipartDataSource(MimePart part, BODYSTRUCTURE bs[], String sectionId, IMAPMessage msg)
+    {
+        super(part);
+        parts = new Vector(bs.length);
+        for(int i = 0; i < bs.length; i++)
+            parts.addElement(new IMAPBodyPart(bs[i], sectionId != null ? (new StringBuilder()).append(sectionId).append(".").append(Integer.toString(i + 1)).toString() : Integer.toString(i + 1), msg));
+
+    }
+
+    public int getCount()
+    {
+        return parts.size();
+    }
+
+    public BodyPart getBodyPart(int index)
+        throws MessagingException
+    {
+        return (BodyPart)parts.elementAt(index);
+    }
+
+    private Vector parts;
+}

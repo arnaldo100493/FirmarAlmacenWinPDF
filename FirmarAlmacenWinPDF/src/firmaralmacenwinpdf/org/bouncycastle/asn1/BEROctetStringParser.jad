@@ -1,0 +1,49 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BEROctetStringParser.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+import java.io.InputStream;
+import org.bouncycastle.util.io.Streams;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ConstructedOctetStream, BERConstructedOctetString, ASN1ParsingException, ASN1OctetStringParser, 
+//            ASN1StreamParser, DERObject
+
+public class BEROctetStringParser
+    implements ASN1OctetStringParser
+{
+
+    BEROctetStringParser(ASN1StreamParser parser)
+    {
+        _parser = parser;
+    }
+
+    public InputStream getOctetStream()
+    {
+        return new ConstructedOctetStream(_parser);
+    }
+
+    public DERObject getLoadedObject()
+        throws IOException
+    {
+        return new BERConstructedOctetString(Streams.readAll(getOctetStream()));
+    }
+
+    public DERObject getDERObject()
+    {
+        try
+        {
+            return getLoadedObject();
+        }
+        catch(IOException e)
+        {
+            throw new ASN1ParsingException((new StringBuilder()).append("IOException converting stream to byte array: ").append(e.getMessage()).toString(), e);
+        }
+    }
+
+    private ASN1StreamParser _parser;
+}

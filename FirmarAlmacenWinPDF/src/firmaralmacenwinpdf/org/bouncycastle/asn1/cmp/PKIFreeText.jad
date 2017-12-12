@@ -1,0 +1,77 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PKIFreeText.java
+
+package org.bouncycastle.asn1.cmp;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+public class PKIFreeText extends ASN1Encodable
+{
+
+    public static PKIFreeText getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static PKIFreeText getInstance(Object obj)
+    {
+        if(obj instanceof PKIFreeText)
+            return (PKIFreeText)obj;
+        if(obj instanceof ASN1Sequence)
+            return new PKIFreeText((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public PKIFreeText(ASN1Sequence seq)
+    {
+        for(Enumeration e = seq.getObjects(); e.hasMoreElements();)
+            if(!(e.nextElement() instanceof DERUTF8String))
+                throw new IllegalArgumentException("attempt to insert non UTF8 STRING into PKIFreeText");
+
+        strings = seq;
+    }
+
+    public PKIFreeText(DERUTF8String p)
+    {
+        strings = new DERSequence(p);
+    }
+
+    public PKIFreeText(DERUTF8String strs[])
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        for(int i = 0; i < strs.length; i++)
+            v.add(strs[i]);
+
+        strings = new DERSequence(v);
+    }
+
+    public PKIFreeText(String strs[])
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        for(int i = 0; i < strs.length; i++)
+            v.add(new DERUTF8String(strs[i]));
+
+        strings = new DERSequence(v);
+    }
+
+    public int size()
+    {
+        return strings.size();
+    }
+
+    public DERUTF8String getStringAt(int i)
+    {
+        return (DERUTF8String)strings.getObjectAt(i);
+    }
+
+    public DERObject toASN1Object()
+    {
+        return strings;
+    }
+
+    ASN1Sequence strings;
+}

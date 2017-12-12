@@ -1,0 +1,84 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   message_rfc822.java
+
+package com.sun.mail.handlers;
+
+import java.awt.datatransfer.DataFlavor;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Properties;
+import javax.activation.*;
+import javax.mail.*;
+import javax.mail.internet.MimeMessage;
+
+public class message_rfc822
+    implements DataContentHandler
+{
+
+    public message_rfc822()
+    {
+        ourDataFlavor = new ActivationDataFlavor(javax/mail/Message, "message/rfc822", "Message");
+    }
+
+    public DataFlavor[] getTransferDataFlavors()
+    {
+        return (new DataFlavor[] {
+            ourDataFlavor
+        });
+    }
+
+    public Object getTransferData(DataFlavor df, DataSource ds)
+        throws IOException
+    {
+        if(ourDataFlavor.equals(df))
+            return getContent(ds);
+        else
+            return null;
+    }
+
+    public Object getContent(DataSource ds)
+        throws IOException
+    {
+        try
+        {
+            Session session;
+            if(ds instanceof MessageAware)
+            {
+                MessageContext mc = ((MessageAware)ds).getMessageContext();
+                session = mc.getSession();
+            } else
+            {
+                session = Session.getDefaultInstance(new Properties(), null);
+            }
+            return new MimeMessage(session, ds.getInputStream());
+        }
+        catch(MessagingException me)
+        {
+            throw new IOException((new StringBuilder()).append("Exception creating MimeMessage in message/rfc822 DataContentHandler: ").append(me.toString()).toString());
+        }
+    }
+
+    public void writeTo(Object obj, String mimeType, OutputStream os)
+        throws IOException
+    {
+        if(obj instanceof Message)
+        {
+            Message m = (Message)obj;
+            try
+            {
+                m.writeTo(os);
+            }
+            catch(MessagingException me)
+            {
+                throw new IOException(me.toString());
+            }
+        } else
+        {
+            throw new IOException("unsupported object");
+        }
+    }
+
+    ActivationDataFlavor ourDataFlavor;
+}

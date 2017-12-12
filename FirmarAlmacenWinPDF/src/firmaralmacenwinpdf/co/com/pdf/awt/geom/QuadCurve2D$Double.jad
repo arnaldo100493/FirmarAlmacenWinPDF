@@ -1,0 +1,94 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   QuadCurve2D.java
+
+package co.com.pdf.awt.geom;
+
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            QuadCurve2D, Point2D, Rectangle2D
+
+public static class QuadCurve2D$Double extends QuadCurve2D
+{
+
+    public double getX1()
+    {
+        return x1;
+    }
+
+    public double getY1()
+    {
+        return y1;
+    }
+
+    public double getCtrlX()
+    {
+        return ctrlx;
+    }
+
+    public double getCtrlY()
+    {
+        return ctrly;
+    }
+
+    public double getX2()
+    {
+        return x2;
+    }
+
+    public double getY2()
+    {
+        return y2;
+    }
+
+    public Point2D getP1()
+    {
+        return new Point2D.Double(x1, y1);
+    }
+
+    public Point2D getCtrlPt()
+    {
+        return new Point2D.Double(ctrlx, ctrly);
+    }
+
+    public Point2D getP2()
+    {
+        return new Point2D.Double(x2, y2);
+    }
+
+    public void setCurve(double x1, double y1, double ctrlx, double ctrly, double x2, double y2)
+    {
+        this.x1 = x1;
+        this.y1 = y1;
+        this.ctrlx = ctrlx;
+        this.ctrly = ctrly;
+        this.x2 = x2;
+        this.y2 = y2;
+    }
+
+    public Rectangle2D getBounds2D()
+    {
+        double rx0 = Math.min(Math.min(x1, x2), ctrlx);
+        double ry0 = Math.min(Math.min(y1, y2), ctrly);
+        double rx1 = Math.max(Math.max(x1, x2), ctrlx);
+        double ry1 = Math.max(Math.max(y1, y2), ctrly);
+        return new Rectangle2D$Double(rx0, ry0, rx1 - rx0, ry1 - ry0);
+    }
+
+    public double x1;
+    public double y1;
+    public double ctrlx;
+    public double ctrly;
+    public double x2;
+    public double y2;
+
+    public QuadCurve2D$Double()
+    {
+    }
+
+    public QuadCurve2D$Double(double x1, double y1, double ctrlx, double ctrly, double x2, double y2)
+    {
+        setCurve(x1, y1, ctrlx, ctrly, x2, y2);
+    }
+}

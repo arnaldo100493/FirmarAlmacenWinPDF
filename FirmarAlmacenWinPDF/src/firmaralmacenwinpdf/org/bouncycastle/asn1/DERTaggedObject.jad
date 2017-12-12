@@ -1,0 +1,59 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERTaggedObject.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1TaggedObject, DERSequence, DEREncodable, DERObject, 
+//            DEROutputStream
+
+public class DERTaggedObject extends ASN1TaggedObject
+{
+
+    public DERTaggedObject(int tagNo, DEREncodable obj)
+    {
+        super(tagNo, obj);
+    }
+
+    public DERTaggedObject(boolean explicit, int tagNo, DEREncodable obj)
+    {
+        super(explicit, tagNo, obj);
+    }
+
+    public DERTaggedObject(int tagNo)
+    {
+        super(false, tagNo, new DERSequence());
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        if(!empty)
+        {
+            byte bytes[] = obj.getDERObject().getEncoded("DER");
+            if(explicit)
+            {
+                out.writeEncoded(160, tagNo, bytes);
+            } else
+            {
+                int flags;
+                if((bytes[0] & 0x20) != 0)
+                    flags = 160;
+                else
+                    flags = 128;
+                out.writeTag(flags, tagNo);
+                out.write(bytes, 1, bytes.length - 1);
+            }
+        } else
+        {
+            out.writeEncoded(160, tagNo, ZERO_BYTES);
+        }
+    }
+
+    private static final byte ZERO_BYTES[] = new byte[0];
+
+}

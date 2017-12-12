@@ -1,0 +1,63 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MQVuserKeyingMaterial.java
+
+package org.bouncycastle.asn1.cms.ecc;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.OriginatorPublicKey;
+
+public class MQVuserKeyingMaterial extends ASN1Encodable
+{
+
+    public MQVuserKeyingMaterial(OriginatorPublicKey ephemeralPublicKey, ASN1OctetString addedukm)
+    {
+        this.ephemeralPublicKey = ephemeralPublicKey;
+        this.addedukm = addedukm;
+    }
+
+    private MQVuserKeyingMaterial(ASN1Sequence seq)
+    {
+        ephemeralPublicKey = OriginatorPublicKey.getInstance(seq.getObjectAt(0));
+        if(seq.size() > 1)
+            addedukm = ASN1OctetString.getInstance((ASN1TaggedObject)seq.getObjectAt(1), true);
+    }
+
+    public static MQVuserKeyingMaterial getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static MQVuserKeyingMaterial getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof MQVuserKeyingMaterial))
+            return (MQVuserKeyingMaterial)obj;
+        if(obj instanceof ASN1Sequence)
+            return new MQVuserKeyingMaterial((ASN1Sequence)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid MQVuserKeyingMaterial: ").append(obj.getClass().getName()).toString());
+    }
+
+    public OriginatorPublicKey getEphemeralPublicKey()
+    {
+        return ephemeralPublicKey;
+    }
+
+    public ASN1OctetString getAddedukm()
+    {
+        return addedukm;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(ephemeralPublicKey);
+        if(addedukm != null)
+            v.add(new DERTaggedObject(true, 0, addedukm));
+        return new DERSequence(v);
+    }
+
+    private OriginatorPublicKey ephemeralPublicKey;
+    private ASN1OctetString addedukm;
+}

@@ -1,0 +1,60 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TimeStampAndCRL.java
+
+package org.bouncycastle.asn1.cms;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.CertificateList;
+
+// Referenced classes of package org.bouncycastle.asn1.cms:
+//            ContentInfo
+
+public class TimeStampAndCRL extends ASN1Encodable
+{
+
+    public TimeStampAndCRL(ContentInfo timeStamp)
+    {
+        this.timeStamp = timeStamp;
+    }
+
+    private TimeStampAndCRL(ASN1Sequence seq)
+    {
+        timeStamp = ContentInfo.getInstance(seq.getObjectAt(0));
+        if(seq.size() == 2)
+            crl = CertificateList.getInstance(seq.getObjectAt(1));
+    }
+
+    public static TimeStampAndCRL getInstance(Object obj)
+    {
+        if(obj instanceof TimeStampAndCRL)
+            return (TimeStampAndCRL)obj;
+        if(obj != null)
+            return new TimeStampAndCRL(ASN1Sequence.getInstance(obj));
+        else
+            return null;
+    }
+
+    public ContentInfo getTimeStampToken()
+    {
+        return timeStamp;
+    }
+
+    public CertificateList getCertificateList()
+    {
+        return crl;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(timeStamp);
+        if(crl != null)
+            v.add(crl);
+        return new DERSequence(v);
+    }
+
+    private ContentInfo timeStamp;
+    private CertificateList crl;
+}

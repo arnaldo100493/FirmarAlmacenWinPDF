@@ -1,0 +1,51 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKAlgorithmParameterGenerator.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import org.bouncycastle.crypto.generators.GOST3410ParametersGenerator;
+import org.bouncycastle.crypto.params.GOST3410Parameters;
+import org.bouncycastle.jce.spec.GOST3410ParameterSpec;
+import org.bouncycastle.jce.spec.GOST3410PublicKeyParameterSetSpec;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKAlgorithmParameterGenerator, BouncyCastleProvider
+
+public static class JDKAlgorithmParameterGenerator$GOST3410 extends JDKAlgorithmParameterGenerator
+{
+
+    protected void engineInit(AlgorithmParameterSpec genParamSpec, SecureRandom random)
+        throws InvalidAlgorithmParameterException
+    {
+        throw new InvalidAlgorithmParameterException("No supported AlgorithmParameterSpec for GOST3410 parameter generation.");
+    }
+
+    protected AlgorithmParameters engineGenerateParameters()
+    {
+        GOST3410ParametersGenerator pGen = new GOST3410ParametersGenerator();
+        if(random != null)
+            pGen.init(strength, 2, random);
+        else
+            pGen.init(strength, 2, new SecureRandom());
+        GOST3410Parameters p = pGen.generateParameters();
+        AlgorithmParameters params;
+        try
+        {
+            params = AlgorithmParameters.getInstance("GOST3410", BouncyCastleProvider.PROVIDER_NAME);
+            params.init(new GOST3410ParameterSpec(new GOST3410PublicKeyParameterSetSpec(p.getP(), p.getQ(), p.getA())));
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e.getMessage());
+        }
+        return params;
+    }
+
+    public JDKAlgorithmParameterGenerator$GOST3410()
+    {
+    }
+}

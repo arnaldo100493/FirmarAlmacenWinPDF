@@ -1,0 +1,29 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKMessageDigest.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.crypto.digests.MD5Digest;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKMessageDigest
+
+public static class JDKMessageDigest$MD5 extends JDKMessageDigest
+    implements Cloneable
+{
+
+    public Object clone()
+        throws CloneNotSupportedException
+    {
+        JDKMessageDigest$MD5 d = (JDKMessageDigest$MD5)super.clone();
+        d.digest = new MD5Digest((MD5Digest)digest);
+        return d;
+    }
+
+    public JDKMessageDigest$MD5()
+    {
+        super(new MD5Digest());
+    }
+}

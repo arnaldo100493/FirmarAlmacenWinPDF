@@ -1,0 +1,27 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GOST3410KeyParameters.java
+
+package co.org.bouncy.crypto.params;
+
+
+// Referenced classes of package co.org.bouncy.crypto.params:
+//            AsymmetricKeyParameter, GOST3410Parameters
+
+public class GOST3410KeyParameters extends AsymmetricKeyParameter
+{
+
+    public GOST3410KeyParameters(boolean isPrivate, GOST3410Parameters params)
+    {
+        super(isPrivate);
+        this.params = params;
+    }
+
+    public GOST3410Parameters getParameters()
+    {
+        return params;
+    }
+
+    private GOST3410Parameters params;
+}

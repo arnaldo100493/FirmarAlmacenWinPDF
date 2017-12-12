@@ -1,0 +1,663 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Chunk.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.error_messages.MessageLocalization;
+import co.com.pdf.text.pdf.BaseFont;
+import co.com.pdf.text.pdf.HyphenationEvent;
+import co.com.pdf.text.pdf.PdfAction;
+import co.com.pdf.text.pdf.PdfAnnotation;
+import co.com.pdf.text.pdf.PdfName;
+import co.com.pdf.text.pdf.PdfObject;
+import co.com.pdf.text.pdf.PdfString;
+import co.com.pdf.text.pdf.draw.DrawInterface;
+import co.com.pdf.text.pdf.interfaces.IAccessibleElement;
+import java.net.URL;
+import java.util.*;
+
+// Referenced classes of package co.com.pdf.text:
+//            Font, DocumentException, Image, AccessibleElementId, 
+//            Element, TabSplitCharacter, ElementListener, Utilities, 
+//            BaseColor, SplitCharacter
+
+public class Chunk
+    implements Element, IAccessibleElement
+{
+
+    public Chunk()
+    {
+        content = null;
+        font = null;
+        attributes = null;
+        role = null;
+        accessibleAttributes = null;
+        id = null;
+        contentWithNoTabs = null;
+        content = new StringBuffer();
+        font = new Font();
+        role = PdfName.SPAN;
+    }
+
+    public Chunk(Chunk ck)
+    {
+        content = null;
+        font = null;
+        attributes = null;
+        role = null;
+        accessibleAttributes = null;
+        id = null;
+        contentWithNoTabs = null;
+        if(ck.content != null)
+            content = new StringBuffer(ck.content.toString());
+        if(ck.font != null)
+            font = new Font(ck.font);
+        if(ck.attributes != null)
+            attributes = new HashMap(ck.attributes);
+        role = ck.role;
+        if(ck.accessibleAttributes != null)
+            accessibleAttributes = new HashMap(ck.accessibleAttributes);
+        id = ck.getId();
+    }
+
+    public Chunk(String content, Font font)
+    {
+        this.content = null;
+        this.font = null;
+        attributes = null;
+        role = null;
+        accessibleAttributes = null;
+        id = null;
+        contentWithNoTabs = null;
+        this.content = new StringBuffer(content);
+        this.font = font;
+        role = PdfName.SPAN;
+    }
+
+    public Chunk(String content)
+    {
+        this(content, new Font());
+    }
+
+    public Chunk(char c, Font font)
+    {
+        content = null;
+        this.font = null;
+        attributes = null;
+        role = null;
+        accessibleAttributes = null;
+        id = null;
+        contentWithNoTabs = null;
+        content = new StringBuffer();
+        content.append(c);
+        this.font = font;
+        role = PdfName.SPAN;
+    }
+
+    public Chunk(char c)
+    {
+        this(c, new Font());
+    }
+
+    public Chunk(Image image, float offsetX, float offsetY)
+    {
+        this("\uFFFC", new Font());
+        Image copyImage = Image.getInstance(image);
+        copyImage.setAbsolutePosition((0.0F / 0.0F), (0.0F / 0.0F));
+        setAttribute("IMAGE", ((Object) (new Object[] {
+            copyImage, new Float(offsetX), new Float(offsetY), Boolean.FALSE
+        })));
+        role = null;
+    }
+
+    public Chunk(DrawInterface separator)
+    {
+        this(separator, false);
+    }
+
+    public Chunk(DrawInterface separator, boolean vertical)
+    {
+        this("\uFFFC", new Font());
+        setAttribute("SEPARATOR", ((Object) (new Object[] {
+            separator, Boolean.valueOf(vertical)
+        })));
+        role = null;
+    }
+
+    /**
+     * @deprecated Method Chunk is deprecated
+     */
+
+    public Chunk(DrawInterface separator, float tabPosition)
+    {
+        this(separator, tabPosition, false);
+    }
+
+    /**
+     * @deprecated Method Chunk is deprecated
+     */
+
+    public Chunk(DrawInterface separator, float tabPosition, boolean newline)
+    {
+        this("\uFFFC", new Font());
+        if(tabPosition < 0.0F)
+        {
+            throw new IllegalArgumentException(MessageLocalization.getComposedMessage("a.tab.position.may.not.be.lower.than.0.yours.is.1", new Object[] {
+                String.valueOf(tabPosition)
+            }));
+        } else
+        {
+            setAttribute("TAB", ((Object) (new Object[] {
+                separator, new Float(tabPosition), Boolean.valueOf(newline), new Float(0.0F)
+            })));
+            role = null;
+            return;
+        }
+    }
+
+    private Chunk(Float tabInterval, boolean isWhitespace)
+    {
+        this("\uFFFC", new Font());
+        if(tabInterval.floatValue() < 0.0F)
+        {
+            throw new IllegalArgumentException(MessageLocalization.getComposedMessage("a.tab.position.may.not.be.lower.than.0.yours.is.1", new Object[] {
+                String.valueOf(tabInterval)
+            }));
+        } else
+        {
+            setAttribute("TAB", ((Object) (new Object[] {
+                tabInterval, Boolean.valueOf(isWhitespace)
+            })));
+            setAttribute("SPLITCHARACTER", TabSplitCharacter.TAB);
+            setAttribute("TABSETTINGS", null);
+            role = null;
+            return;
+        }
+    }
+
+    public Chunk(Image image, float offsetX, float offsetY, boolean changeLeading)
+    {
+        this("\uFFFC", new Font());
+        setAttribute("IMAGE", ((Object) (new Object[] {
+            image, new Float(offsetX), new Float(offsetY), Boolean.valueOf(changeLeading)
+        })));
+        role = null;
+    }
+
+    public boolean process(ElementListener listener)
+    {
+        try
+        {
+            return listener.add(this);
+        }
+        catch(DocumentException de)
+        {
+            return false;
+        }
+    }
+
+    public int type()
+    {
+        return 10;
+    }
+
+    public List getChunks()
+    {
+        List tmp = new ArrayList();
+        tmp.add(this);
+        return tmp;
+    }
+
+    public StringBuffer append(String string)
+    {
+        contentWithNoTabs = null;
+        return content.append(string);
+    }
+
+    public void setFont(Font font)
+    {
+        this.font = font;
+    }
+
+    public Font getFont()
+    {
+        return font;
+    }
+
+    public String getContent()
+    {
+        if(contentWithNoTabs == null)
+            contentWithNoTabs = content.toString().replaceAll("\t", "");
+        return contentWithNoTabs;
+    }
+
+    public String toString()
+    {
+        return getContent();
+    }
+
+    public boolean isEmpty()
+    {
+        return content.toString().trim().length() == 0 && content.toString().indexOf("\n") == -1 && attributes == null;
+    }
+
+    public float getWidthPoint()
+    {
+        if(getImage() != null)
+            return getImage().getScaledWidth();
+        else
+            return font.getCalculatedBaseFont(true).getWidthPoint(getContent(), font.getCalculatedSize()) * getHorizontalScaling();
+    }
+
+    public boolean hasAttributes()
+    {
+        return attributes != null;
+    }
+
+    public HashMap getAttributes()
+    {
+        return attributes;
+    }
+
+    public void setAttributes(HashMap attributes)
+    {
+        this.attributes = attributes;
+    }
+
+    private Chunk setAttribute(String name, Object obj)
+    {
+        if(attributes == null)
+            attributes = new HashMap();
+        attributes.put(name, obj);
+        return this;
+    }
+
+    public Chunk setHorizontalScaling(float scale)
+    {
+        return setAttribute("HSCALE", new Float(scale));
+    }
+
+    public float getHorizontalScaling()
+    {
+        if(attributes == null)
+            return 1.0F;
+        Float f = (Float)attributes.get("HSCALE");
+        if(f == null)
+            return 1.0F;
+        else
+            return f.floatValue();
+    }
+
+    public Chunk setUnderline(float thickness, float yPosition)
+    {
+        return setUnderline(null, thickness, 0.0F, yPosition, 0.0F, 0);
+    }
+
+    public Chunk setUnderline(BaseColor color, float thickness, float thicknessMul, float yPosition, float yPositionMul, int cap)
+    {
+        if(attributes == null)
+            attributes = new HashMap();
+        Object obj[] = {
+            color, new float[] {
+                thickness, thicknessMul, yPosition, yPositionMul, (float)cap
+            }
+        };
+        Object unders[][] = Utilities.addToArray((Object[][])(Object[][])attributes.get("UNDERLINE"), obj);
+        return setAttribute("UNDERLINE", ((Object) (unders)));
+    }
+
+    public Chunk setTextRise(float rise)
+    {
+        return setAttribute("SUBSUPSCRIPT", new Float(rise));
+    }
+
+    public float getTextRise()
+    {
+        if(attributes != null && attributes.containsKey("SUBSUPSCRIPT"))
+        {
+            Float f = (Float)attributes.get("SUBSUPSCRIPT");
+            return f.floatValue();
+        } else
+        {
+            return 0.0F;
+        }
+    }
+
+    public Chunk setSkew(float alpha, float beta)
+    {
+        alpha = (float)Math.tan(((double)alpha * 3.1415926535897931D) / 180D);
+        beta = (float)Math.tan(((double)beta * 3.1415926535897931D) / 180D);
+        return setAttribute("SKEW", new float[] {
+            alpha, beta
+        });
+    }
+
+    public Chunk setBackground(BaseColor color)
+    {
+        return setBackground(color, 0.0F, 0.0F, 0.0F, 0.0F);
+    }
+
+    public Chunk setBackground(BaseColor color, float extraLeft, float extraBottom, float extraRight, float extraTop)
+    {
+        return setAttribute("BACKGROUND", ((Object) (new Object[] {
+            color, new float[] {
+                extraLeft, extraBottom, extraRight, extraTop
+            }
+        })));
+    }
+
+    public Chunk setTextRenderMode(int mode, float strokeWidth, BaseColor strokeColor)
+    {
+        return setAttribute("TEXTRENDERMODE", ((Object) (new Object[] {
+            Integer.valueOf(mode), new Float(strokeWidth), strokeColor
+        })));
+    }
+
+    public Chunk setSplitCharacter(SplitCharacter splitCharacter)
+    {
+        return setAttribute("SPLITCHARACTER", splitCharacter);
+    }
+
+    public Chunk setHyphenation(HyphenationEvent hyphenation)
+    {
+        return setAttribute("HYPHENATION", hyphenation);
+    }
+
+    public Chunk setRemoteGoto(String filename, String name)
+    {
+        return setAttribute("REMOTEGOTO", ((Object) (new Object[] {
+            filename, name
+        })));
+    }
+
+    public Chunk setRemoteGoto(String filename, int page)
+    {
+        return setAttribute("REMOTEGOTO", ((Object) (new Object[] {
+            filename, Integer.valueOf(page)
+        })));
+    }
+
+    public Chunk setLocalGoto(String name)
+    {
+        return setAttribute("LOCALGOTO", name);
+    }
+
+    public Chunk setLocalDestination(String name)
+    {
+        return setAttribute("LOCALDESTINATION", name);
+    }
+
+    public Chunk setGenericTag(String text)
+    {
+        return setAttribute("GENERICTAG", text);
+    }
+
+    public Chunk setLineHeight(float lineheight)
+    {
+        return setAttribute("LINEHEIGHT", Float.valueOf(lineheight));
+    }
+
+    public Image getImage()
+    {
+        if(attributes == null)
+            return null;
+        Object obj[] = (Object[])(Object[])attributes.get("IMAGE");
+        if(obj == null)
+            return null;
+        else
+            return (Image)obj[0];
+    }
+
+    public Chunk setAction(PdfAction action)
+    {
+        setRole(PdfName.LINK);
+        return setAttribute("ACTION", action);
+    }
+
+    public Chunk setAnchor(URL url)
+    {
+        setRole(PdfName.LINK);
+        return setAttribute("ACTION", new PdfAction(url.toExternalForm()));
+    }
+
+    public Chunk setAnchor(String url)
+    {
+        setRole(PdfName.LINK);
+        return setAttribute("ACTION", new PdfAction(url));
+    }
+
+    public Chunk setNewPage()
+    {
+        return setAttribute("NEWPAGE", null);
+    }
+
+    public Chunk setAnnotation(PdfAnnotation annotation)
+    {
+        return setAttribute("PDFANNOTATION", annotation);
+    }
+
+    public boolean isContent()
+    {
+        return true;
+    }
+
+    public boolean isNestable()
+    {
+        return true;
+    }
+
+    public HyphenationEvent getHyphenation()
+    {
+        if(attributes == null)
+            return null;
+        else
+            return (HyphenationEvent)attributes.get("HYPHENATION");
+    }
+
+    public Chunk setCharacterSpacing(float charSpace)
+    {
+        return setAttribute("CHAR_SPACING", new Float(charSpace));
+    }
+
+    public float getCharacterSpacing()
+    {
+        if(attributes != null && attributes.containsKey("CHAR_SPACING"))
+        {
+            Float f = (Float)attributes.get("CHAR_SPACING");
+            return f.floatValue();
+        } else
+        {
+            return 0.0F;
+        }
+    }
+
+    public Chunk setWordSpacing(float wordSpace)
+    {
+        return setAttribute("WORD_SPACING", new Float(wordSpace));
+    }
+
+    public float getWordSpacing()
+    {
+        if(attributes != null && attributes.containsKey("WORD_SPACING"))
+        {
+            Float f = (Float)attributes.get("WORD_SPACING");
+            return f.floatValue();
+        } else
+        {
+            return 0.0F;
+        }
+    }
+
+    public static Chunk createWhitespace(String content)
+    {
+        return createWhitespace(content, false);
+    }
+
+    public static Chunk createWhitespace(String content, boolean preserve)
+    {
+        Chunk whitespace = null;
+        if(!preserve)
+        {
+            whitespace = new Chunk(' ');
+            whitespace.setAttribute("WHITESPACE", content);
+        } else
+        {
+            whitespace = new Chunk(content);
+        }
+        return whitespace;
+    }
+
+    public boolean isWhitespace()
+    {
+        return attributes != null && attributes.containsKey("WHITESPACE");
+    }
+
+    /**
+     * @deprecated Method createTabspace is deprecated
+     */
+
+    public static Chunk createTabspace()
+    {
+        return createTabspace(60F);
+    }
+
+    /**
+     * @deprecated Method createTabspace is deprecated
+     */
+
+    public static Chunk createTabspace(float spacing)
+    {
+        Chunk tabspace = new Chunk(Float.valueOf(spacing), true);
+        return tabspace;
+    }
+
+    /**
+     * @deprecated Method isTabspace is deprecated
+     */
+
+    public boolean isTabspace()
+    {
+        return attributes != null && attributes.containsKey("TAB");
+    }
+
+    public PdfObject getAccessibleAttribute(PdfName key)
+    {
+        if(getImage() != null)
+            return getImage().getAccessibleAttribute(key);
+        if(accessibleAttributes != null)
+            return (PdfObject)accessibleAttributes.get(key);
+        else
+            return null;
+    }
+
+    public void setAccessibleAttribute(PdfName key, PdfObject value)
+    {
+        if(getImage() != null)
+        {
+            getImage().setAccessibleAttribute(key, value);
+        } else
+        {
+            if(accessibleAttributes == null)
+                accessibleAttributes = new HashMap();
+            accessibleAttributes.put(key, value);
+        }
+    }
+
+    public HashMap getAccessibleAttributes()
+    {
+        if(getImage() != null)
+            return getImage().getAccessibleAttributes();
+        else
+            return accessibleAttributes;
+    }
+
+    public PdfName getRole()
+    {
+        if(getImage() != null)
+            return getImage().getRole();
+        else
+            return role;
+    }
+
+    public void setRole(PdfName role)
+    {
+        if(getImage() != null)
+            getImage().setRole(role);
+        else
+            this.role = role;
+    }
+
+    public AccessibleElementId getId()
+    {
+        if(id == null)
+            id = new AccessibleElementId();
+        return id;
+    }
+
+    public void setId(AccessibleElementId id)
+    {
+        this.id = id;
+    }
+
+    public String getTextExpansion()
+    {
+        PdfObject o = getAccessibleAttribute(PdfName.E);
+        if(o instanceof PdfString)
+            return ((PdfString)o).toUnicodeString();
+        else
+            return null;
+    }
+
+    public void setTextExpansion(String value)
+    {
+        setAccessibleAttribute(PdfName.E, new PdfString(value));
+    }
+
+    public static final String OBJECT_REPLACEMENT_CHARACTER = "\uFFFC";
+    public static final Chunk NEWLINE;
+    public static final Chunk NEXTPAGE;
+    public static final Chunk TABBING = new Chunk(Float.valueOf((0.0F / 0.0F)), false);
+    public static final Chunk SPACETABBING = new Chunk(Float.valueOf((0.0F / 0.0F)), true);
+    protected StringBuffer content;
+    protected Font font;
+    protected HashMap attributes;
+    protected PdfName role;
+    protected HashMap accessibleAttributes;
+    private AccessibleElementId id;
+    public static final String SEPARATOR = "SEPARATOR";
+    public static final String TAB = "TAB";
+    public static final String TABSETTINGS = "TABSETTINGS";
+    private String contentWithNoTabs;
+    public static final String HSCALE = "HSCALE";
+    public static final String UNDERLINE = "UNDERLINE";
+    public static final String SUBSUPSCRIPT = "SUBSUPSCRIPT";
+    public static final String SKEW = "SKEW";
+    public static final String BACKGROUND = "BACKGROUND";
+    public static final String TEXTRENDERMODE = "TEXTRENDERMODE";
+    public static final String SPLITCHARACTER = "SPLITCHARACTER";
+    public static final String HYPHENATION = "HYPHENATION";
+    public static final String REMOTEGOTO = "REMOTEGOTO";
+    public static final String LOCALGOTO = "LOCALGOTO";
+    public static final String LOCALDESTINATION = "LOCALDESTINATION";
+    public static final String GENERICTAG = "GENERICTAG";
+    public static final String LINEHEIGHT = "LINEHEIGHT";
+    public static final String IMAGE = "IMAGE";
+    public static final String ACTION = "ACTION";
+    public static final String NEWPAGE = "NEWPAGE";
+    public static final String PDFANNOTATION = "PDFANNOTATION";
+    public static final String COLOR = "COLOR";
+    public static final String ENCODING = "ENCODING";
+    public static final String CHAR_SPACING = "CHAR_SPACING";
+    public static final String WORD_SPACING = "WORD_SPACING";
+    public static final String WHITESPACE = "WHITESPACE";
+
+    static 
+    {
+        NEWLINE = new Chunk("\n");
+        NEWLINE.setRole(PdfName.P);
+        NEXTPAGE = new Chunk("");
+        NEXTPAGE.setNewPage();
+    }
+}

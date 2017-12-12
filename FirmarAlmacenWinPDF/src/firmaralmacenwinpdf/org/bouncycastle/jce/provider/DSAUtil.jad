@@ -1,0 +1,44 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DSAUtil.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.*;
+import java.security.interfaces.*;
+import org.bouncycastle.crypto.params.*;
+
+public class DSAUtil
+{
+
+    public DSAUtil()
+    {
+    }
+
+    public static AsymmetricKeyParameter generatePublicKeyParameter(PublicKey key)
+        throws InvalidKeyException
+    {
+        if(key instanceof DSAPublicKey)
+        {
+            DSAPublicKey k = (DSAPublicKey)key;
+            return new DSAPublicKeyParameters(k.getY(), new DSAParameters(k.getParams().getP(), k.getParams().getQ(), k.getParams().getG()));
+        } else
+        {
+            throw new InvalidKeyException((new StringBuilder()).append("can't identify DSA public key: ").append(key.getClass().getName()).toString());
+        }
+    }
+
+    public static AsymmetricKeyParameter generatePrivateKeyParameter(PrivateKey key)
+        throws InvalidKeyException
+    {
+        if(key instanceof DSAPrivateKey)
+        {
+            DSAPrivateKey k = (DSAPrivateKey)key;
+            return new DSAPrivateKeyParameters(k.getX(), new DSAParameters(k.getParams().getP(), k.getParams().getQ(), k.getParams().getG()));
+        } else
+        {
+            throw new InvalidKeyException("can't identify DSA private key.");
+        }
+    }
+}

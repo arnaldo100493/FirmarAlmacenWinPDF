@@ -1,0 +1,30 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GOST3410KeyGenerationParameters.java
+
+package co.org.bouncy.crypto.params;
+
+import co.org.bouncy.crypto.KeyGenerationParameters;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+// Referenced classes of package co.org.bouncy.crypto.params:
+//            GOST3410Parameters
+
+public class GOST3410KeyGenerationParameters extends KeyGenerationParameters
+{
+
+    public GOST3410KeyGenerationParameters(SecureRandom random, GOST3410Parameters params)
+    {
+        super(random, params.getP().bitLength() - 1);
+        this.params = params;
+    }
+
+    public GOST3410Parameters getParameters()
+    {
+        return params;
+    }
+
+    private GOST3410Parameters params;
+}

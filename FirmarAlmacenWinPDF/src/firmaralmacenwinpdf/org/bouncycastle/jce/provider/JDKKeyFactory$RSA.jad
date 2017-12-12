@@ -1,0 +1,60 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKKeyFactory.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.*;
+import org.bouncycastle.asn1.ASN1Object;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.pkcs.RSAPrivateKeyStructure;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKKeyFactory, JCERSAPrivateCrtKey, JCERSAPrivateKey, JCERSAPublicKey
+
+public static class JDKKeyFactory$RSA extends JDKKeyFactory
+{
+
+    protected PrivateKey engineGeneratePrivate(KeySpec keySpec)
+        throws InvalidKeySpecException
+    {
+        if(keySpec instanceof PKCS8EncodedKeySpec)
+        {
+            try
+            {
+                return JDKKeyFactory.createPrivateKeyFromDERStream(((PKCS8EncodedKeySpec)keySpec).getEncoded());
+            }
+            catch(Exception e) { }
+            try
+            {
+                return new JCERSAPrivateCrtKey(new RSAPrivateKeyStructure((ASN1Sequence)ASN1Object.fromByteArray(((PKCS8EncodedKeySpec)keySpec).getEncoded())));
+            }
+            catch(Exception ex)
+            {
+                throw new InvalidKeySpecException(ex.toString());
+            }
+        }
+        if(keySpec instanceof RSAPrivateCrtKeySpec)
+            return new JCERSAPrivateCrtKey((RSAPrivateCrtKeySpec)keySpec);
+        if(keySpec instanceof RSAPrivateKeySpec)
+            return new JCERSAPrivateKey((RSAPrivateKeySpec)keySpec);
+        else
+            throw new InvalidKeySpecException((new StringBuilder()).append("Unknown KeySpec type: ").append(keySpec.getClass().getName()).toString());
+    }
+
+    protected PublicKey engineGeneratePublic(KeySpec keySpec)
+        throws InvalidKeySpecException
+    {
+        if(keySpec instanceof RSAPublicKeySpec)
+            return new JCERSAPublicKey((RSAPublicKeySpec)keySpec);
+        else
+            return super.engineGeneratePublic(keySpec);
+    }
+
+    public JDKKeyFactory$RSA()
+    {
+    }
+}

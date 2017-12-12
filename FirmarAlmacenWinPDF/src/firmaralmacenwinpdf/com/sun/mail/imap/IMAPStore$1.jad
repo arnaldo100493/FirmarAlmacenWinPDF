@@ -1,0 +1,34 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPStore.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.Response;
+import com.sun.mail.iap.ResponseHandler;
+import com.sun.mail.util.MailLogger;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPStore
+
+class IMAPStore$1
+    implements ResponseHandler
+{
+
+    public void handleResponse(Response r)
+    {
+        if(r.isOK() || r.isNO() || r.isBAD() || r.isBYE())
+            handleResponseCode(r);
+        if(r.isBYE())
+            logger.fine("IMAPStore non-store connection dead");
+    }
+
+    final IMAPStore this$0;
+
+    IMAPStore$1()
+    {
+        this$0 = IMAPStore.this;
+        super();
+    }
+}

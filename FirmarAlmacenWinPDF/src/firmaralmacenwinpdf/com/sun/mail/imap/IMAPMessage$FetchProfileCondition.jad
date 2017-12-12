@@ -1,0 +1,87 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPMessage.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.imap.protocol.FetchItem;
+import java.util.*;
+import javax.mail.FetchProfile;
+import javax.mail.UIDFolder;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPMessage, Utility, IMAPFolder
+
+public static class IMAPMessage$FetchProfileCondition
+    implements Utility.Condition
+{
+
+    public boolean test(IMAPMessage m)
+    {
+        if(needEnvelope && IMAPMessage.access$000(m) == null)
+            return true;
+        if(needFlags && IMAPMessage.access$100(m) == null)
+            return true;
+        if(needBodyStructure && IMAPMessage.access$200(m) == null)
+            return true;
+        if(needUID && m.getUID() == -1L)
+            return true;
+        if(needHeaders && !IMAPMessage.access$300(m))
+            return true;
+        if(needSize && IMAPMessage.access$400(m) == -1)
+            return true;
+        for(int i = 0; i < hdrs.length; i++)
+            if(!IMAPMessage.access$500(m, hdrs[i]))
+                return true;
+
+        for(Iterator it = need.iterator(); it.hasNext();)
+        {
+            FetchItem fitem = (FetchItem)it.next();
+            if(m.items == null || m.items.get(fitem.getName()) == null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private boolean needEnvelope;
+    private boolean needFlags;
+    private boolean needBodyStructure;
+    private boolean needUID;
+    private boolean needHeaders;
+    private boolean needSize;
+    private String hdrs[];
+    private Set need;
+
+    public IMAPMessage$FetchProfileCondition(FetchProfile fp, FetchItem fitems[])
+    {
+        needEnvelope = false;
+        needFlags = false;
+        needBodyStructure = false;
+        needUID = false;
+        needHeaders = false;
+        needSize = false;
+        hdrs = null;
+        need = new HashSet();
+        if(fp.contains(javax.mail.FetchProfile.Item.ENVELOPE))
+            needEnvelope = true;
+        if(fp.contains(javax.mail.FetchProfile.Item.FLAGS))
+            needFlags = true;
+        if(fp.contains(javax.mail.FetchProfile.Item.CONTENT_INFO))
+            needBodyStructure = true;
+        if(fp.contains(javax.mail.FetchProfile.Item.SIZE))
+            needSize = true;
+        if(fp.contains(javax.mail.UIDFolder.FetchProfileItem.UID))
+            needUID = true;
+        if(fp.contains(IMAPFolder.FetchProfileItem.HEADERS))
+            needHeaders = true;
+        if(fp.contains(IMAPFolder.FetchProfileItem.SIZE))
+            needSize = true;
+        hdrs = fp.getHeaderNames();
+        for(int i = 0; i < fitems.length; i++)
+            if(fp.contains(fitems[i].getFetchProfileItem()))
+                need.add(fitems[i]);
+
+    }
+}

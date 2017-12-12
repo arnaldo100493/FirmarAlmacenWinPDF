@@ -1,0 +1,76 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   NameConstraints.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+import java.util.Vector;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            GeneralSubtree
+
+public class NameConstraints extends ASN1Encodable
+{
+
+    public NameConstraints(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        do
+        {
+            if(!e.hasMoreElements())
+                break;
+            ASN1TaggedObject o = ASN1TaggedObject.getInstance(e.nextElement());
+            switch(o.getTagNo())
+            {
+            case 0: // '\0'
+                permitted = ASN1Sequence.getInstance(o, false);
+                break;
+
+            case 1: // '\001'
+                excluded = ASN1Sequence.getInstance(o, false);
+                break;
+            }
+        } while(true);
+    }
+
+    public NameConstraints(Vector permitted, Vector excluded)
+    {
+        if(permitted != null)
+            this.permitted = createSequence(permitted);
+        if(excluded != null)
+            this.excluded = createSequence(excluded);
+    }
+
+    private DERSequence createSequence(Vector subtree)
+    {
+        ASN1EncodableVector vec = new ASN1EncodableVector();
+        for(Enumeration e = subtree.elements(); e.hasMoreElements(); vec.add((GeneralSubtree)e.nextElement()));
+        return new DERSequence(vec);
+    }
+
+    public ASN1Sequence getPermittedSubtrees()
+    {
+        return permitted;
+    }
+
+    public ASN1Sequence getExcludedSubtrees()
+    {
+        return excluded;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(permitted != null)
+            v.add(new DERTaggedObject(false, 0, permitted));
+        if(excluded != null)
+            v.add(new DERTaggedObject(false, 1, excluded));
+        return new DERSequence(v);
+    }
+
+    private ASN1Sequence permitted;
+    private ASN1Sequence excluded;
+}

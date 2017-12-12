@@ -1,0 +1,311 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509Extensions.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.*;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            X509Extension
+
+public class X509Extensions extends ASN1Encodable
+{
+
+    public static X509Extensions getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static X509Extensions getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof X509Extensions))
+            return (X509Extensions)obj;
+        if(obj instanceof ASN1Sequence)
+            return new X509Extensions((ASN1Sequence)obj);
+        if(obj instanceof ASN1TaggedObject)
+            return getInstance(((ASN1TaggedObject)obj).getObject());
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("illegal object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public X509Extensions(ASN1Sequence seq)
+    {
+        extensions = new Hashtable();
+        ordering = new Vector();
+        ASN1Sequence s;
+        for(Enumeration e = seq.getObjects(); e.hasMoreElements(); ordering.addElement(s.getObjectAt(0)))
+        {
+            s = ASN1Sequence.getInstance(e.nextElement());
+            if(s.size() == 3)
+            {
+                extensions.put(s.getObjectAt(0), new X509Extension(DERBoolean.getInstance(s.getObjectAt(1)), ASN1OctetString.getInstance(s.getObjectAt(2))));
+                continue;
+            }
+            if(s.size() == 2)
+                extensions.put(s.getObjectAt(0), new X509Extension(false, ASN1OctetString.getInstance(s.getObjectAt(1))));
+            else
+                throw new IllegalArgumentException((new StringBuilder()).append("Bad sequence size: ").append(s.size()).toString());
+        }
+
+    }
+
+    public X509Extensions(Hashtable extensions)
+    {
+        this(null, extensions);
+    }
+
+    public X509Extensions(Vector ordering, Hashtable extensions)
+    {
+        this.extensions = new Hashtable();
+        this.ordering = new Vector();
+        Enumeration e;
+        if(ordering == null)
+            e = extensions.keys();
+        else
+            e = ordering.elements();
+        for(; e.hasMoreElements(); this.ordering.addElement(new ASN1ObjectIdentifier(((DERObjectIdentifier)e.nextElement()).getId())));
+        ASN1ObjectIdentifier oid;
+        X509Extension ext;
+        for(e = this.ordering.elements(); e.hasMoreElements(); this.extensions.put(oid, ext))
+        {
+            oid = new ASN1ObjectIdentifier(((DERObjectIdentifier)e.nextElement()).getId());
+            ext = (X509Extension)extensions.get(oid);
+        }
+
+    }
+
+    public X509Extensions(Vector objectIDs, Vector values)
+    {
+        extensions = new Hashtable();
+        ordering = new Vector();
+        for(Enumeration e = objectIDs.elements(); e.hasMoreElements(); ordering.addElement(e.nextElement()));
+        int count = 0;
+        for(Enumeration e = ordering.elements(); e.hasMoreElements();)
+        {
+            ASN1ObjectIdentifier oid = (ASN1ObjectIdentifier)e.nextElement();
+            X509Extension ext = (X509Extension)values.elementAt(count);
+            extensions.put(oid, ext);
+            count++;
+        }
+
+    }
+
+    public Enumeration oids()
+    {
+        return ordering.elements();
+    }
+
+    public X509Extension getExtension(ASN1ObjectIdentifier oid)
+    {
+        return (X509Extension)extensions.get(oid);
+    }
+
+    /**
+     * @deprecated Method getExtension is deprecated
+     */
+
+    public X509Extension getExtension(DERObjectIdentifier oid)
+    {
+        return (X509Extension)extensions.get(oid);
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector vec = new ASN1EncodableVector();
+        ASN1EncodableVector v;
+        for(Enumeration e = ordering.elements(); e.hasMoreElements(); vec.add(new DERSequence(v)))
+        {
+            ASN1ObjectIdentifier oid = (ASN1ObjectIdentifier)e.nextElement();
+            X509Extension ext = (X509Extension)extensions.get(oid);
+            v = new ASN1EncodableVector();
+            v.add(oid);
+            if(ext.isCritical())
+                v.add(new DERBoolean(true));
+            v.add(ext.getValue());
+        }
+
+        return new DERSequence(vec);
+    }
+
+    public boolean equivalent(X509Extensions other)
+    {
+        if(extensions.size() != other.extensions.size())
+            return false;
+        for(Enumeration e1 = extensions.keys(); e1.hasMoreElements();)
+        {
+            Object key = e1.nextElement();
+            if(!extensions.get(key).equals(other.extensions.get(key)))
+                return false;
+        }
+
+        return true;
+    }
+
+    public ASN1ObjectIdentifier[] getExtensionOIDs()
+    {
+        return toOidArray(ordering);
+    }
+
+    public ASN1ObjectIdentifier[] getNonCriticalExtensionOIDs()
+    {
+        return getExtensionOIDs(false);
+    }
+
+    public ASN1ObjectIdentifier[] getCriticalExtensionOIDs()
+    {
+        return getExtensionOIDs(true);
+    }
+
+    private ASN1ObjectIdentifier[] getExtensionOIDs(boolean isCritical)
+    {
+        Vector oidVec = new Vector();
+        for(int i = 0; i != ordering.size(); i++)
+        {
+            Object oid = ordering.elementAt(i);
+            if(((X509Extension)extensions.get(oid)).isCritical() == isCritical)
+                oidVec.addElement(oid);
+        }
+
+        return toOidArray(oidVec);
+    }
+
+    private ASN1ObjectIdentifier[] toOidArray(Vector oidVec)
+    {
+        ASN1ObjectIdentifier oids[] = new ASN1ObjectIdentifier[oidVec.size()];
+        for(int i = 0; i != oids.length; i++)
+            oids[i] = (ASN1ObjectIdentifier)oidVec.elementAt(i);
+
+        return oids;
+    }
+
+    /**
+     * @deprecated Field SubjectDirectoryAttributes is deprecated
+     */
+    public static final ASN1ObjectIdentifier SubjectDirectoryAttributes = new ASN1ObjectIdentifier("2.5.29.9");
+    /**
+     * @deprecated Field SubjectKeyIdentifier is deprecated
+     */
+    public static final ASN1ObjectIdentifier SubjectKeyIdentifier = new ASN1ObjectIdentifier("2.5.29.14");
+    /**
+     * @deprecated Field KeyUsage is deprecated
+     */
+    public static final ASN1ObjectIdentifier KeyUsage = new ASN1ObjectIdentifier("2.5.29.15");
+    /**
+     * @deprecated Field PrivateKeyUsagePeriod is deprecated
+     */
+    public static final ASN1ObjectIdentifier PrivateKeyUsagePeriod = new ASN1ObjectIdentifier("2.5.29.16");
+    /**
+     * @deprecated Field SubjectAlternativeName is deprecated
+     */
+    public static final ASN1ObjectIdentifier SubjectAlternativeName = new ASN1ObjectIdentifier("2.5.29.17");
+    /**
+     * @deprecated Field IssuerAlternativeName is deprecated
+     */
+    public static final ASN1ObjectIdentifier IssuerAlternativeName = new ASN1ObjectIdentifier("2.5.29.18");
+    /**
+     * @deprecated Field BasicConstraints is deprecated
+     */
+    public static final ASN1ObjectIdentifier BasicConstraints = new ASN1ObjectIdentifier("2.5.29.19");
+    /**
+     * @deprecated Field CRLNumber is deprecated
+     */
+    public static final ASN1ObjectIdentifier CRLNumber = new ASN1ObjectIdentifier("2.5.29.20");
+    /**
+     * @deprecated Field ReasonCode is deprecated
+     */
+    public static final ASN1ObjectIdentifier ReasonCode = new ASN1ObjectIdentifier("2.5.29.21");
+    /**
+     * @deprecated Field InstructionCode is deprecated
+     */
+    public static final ASN1ObjectIdentifier InstructionCode = new ASN1ObjectIdentifier("2.5.29.23");
+    /**
+     * @deprecated Field InvalidityDate is deprecated
+     */
+    public static final ASN1ObjectIdentifier InvalidityDate = new ASN1ObjectIdentifier("2.5.29.24");
+    /**
+     * @deprecated Field DeltaCRLIndicator is deprecated
+     */
+    public static final ASN1ObjectIdentifier DeltaCRLIndicator = new ASN1ObjectIdentifier("2.5.29.27");
+    /**
+     * @deprecated Field IssuingDistributionPoint is deprecated
+     */
+    public static final ASN1ObjectIdentifier IssuingDistributionPoint = new ASN1ObjectIdentifier("2.5.29.28");
+    /**
+     * @deprecated Field CertificateIssuer is deprecated
+     */
+    public static final ASN1ObjectIdentifier CertificateIssuer = new ASN1ObjectIdentifier("2.5.29.29");
+    /**
+     * @deprecated Field NameConstraints is deprecated
+     */
+    public static final ASN1ObjectIdentifier NameConstraints = new ASN1ObjectIdentifier("2.5.29.30");
+    /**
+     * @deprecated Field CRLDistributionPoints is deprecated
+     */
+    public static final ASN1ObjectIdentifier CRLDistributionPoints = new ASN1ObjectIdentifier("2.5.29.31");
+    /**
+     * @deprecated Field CertificatePolicies is deprecated
+     */
+    public static final ASN1ObjectIdentifier CertificatePolicies = new ASN1ObjectIdentifier("2.5.29.32");
+    /**
+     * @deprecated Field PolicyMappings is deprecated
+     */
+    public static final ASN1ObjectIdentifier PolicyMappings = new ASN1ObjectIdentifier("2.5.29.33");
+    /**
+     * @deprecated Field AuthorityKeyIdentifier is deprecated
+     */
+    public static final ASN1ObjectIdentifier AuthorityKeyIdentifier = new ASN1ObjectIdentifier("2.5.29.35");
+    /**
+     * @deprecated Field PolicyConstraints is deprecated
+     */
+    public static final ASN1ObjectIdentifier PolicyConstraints = new ASN1ObjectIdentifier("2.5.29.36");
+    /**
+     * @deprecated Field ExtendedKeyUsage is deprecated
+     */
+    public static final ASN1ObjectIdentifier ExtendedKeyUsage = new ASN1ObjectIdentifier("2.5.29.37");
+    /**
+     * @deprecated Field FreshestCRL is deprecated
+     */
+    public static final ASN1ObjectIdentifier FreshestCRL = new ASN1ObjectIdentifier("2.5.29.46");
+    /**
+     * @deprecated Field InhibitAnyPolicy is deprecated
+     */
+    public static final ASN1ObjectIdentifier InhibitAnyPolicy = new ASN1ObjectIdentifier("2.5.29.54");
+    /**
+     * @deprecated Field AuthorityInfoAccess is deprecated
+     */
+    public static final ASN1ObjectIdentifier AuthorityInfoAccess = new ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.1");
+    /**
+     * @deprecated Field SubjectInfoAccess is deprecated
+     */
+    public static final ASN1ObjectIdentifier SubjectInfoAccess = new ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.11");
+    /**
+     * @deprecated Field LogoType is deprecated
+     */
+    public static final ASN1ObjectIdentifier LogoType = new ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.12");
+    /**
+     * @deprecated Field BiometricInfo is deprecated
+     */
+    public static final ASN1ObjectIdentifier BiometricInfo = new ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.2");
+    /**
+     * @deprecated Field QCStatements is deprecated
+     */
+    public static final ASN1ObjectIdentifier QCStatements = new ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.3");
+    /**
+     * @deprecated Field AuditIdentity is deprecated
+     */
+    public static final ASN1ObjectIdentifier AuditIdentity = new ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.4");
+    /**
+     * @deprecated Field NoRevAvail is deprecated
+     */
+    public static final ASN1ObjectIdentifier NoRevAvail = new ASN1ObjectIdentifier("2.5.29.56");
+    /**
+     * @deprecated Field TargetInformation is deprecated
+     */
+    public static final ASN1ObjectIdentifier TargetInformation = new ASN1ObjectIdentifier("2.5.29.55");
+    private Hashtable extensions;
+    private Vector ordering;
+
+}

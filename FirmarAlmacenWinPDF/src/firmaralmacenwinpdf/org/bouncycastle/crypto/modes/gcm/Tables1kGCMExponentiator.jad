@@ -1,0 +1,51 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Tables1kGCMExponentiator.java
+
+package org.bouncycastle.crypto.modes.gcm;
+
+import org.bouncycastle.util.Arrays;
+
+// Referenced classes of package org.bouncycastle.crypto.modes.gcm:
+//            GCMExponentiator, GCMUtil
+
+public class Tables1kGCMExponentiator
+    implements GCMExponentiator
+{
+
+    public Tables1kGCMExponentiator()
+    {
+        lookupPowX2 = new byte[64][];
+    }
+
+    public void init(byte x[])
+    {
+        lookupPowX2[0] = new byte[16];
+        lookupPowX2[0][0] = -128;
+        lookupPowX2[1] = Arrays.clone(x);
+        for(int i = 2; i != 64; i++)
+        {
+            byte tmp[] = Arrays.clone(lookupPowX2[i - 1]);
+            GCMUtil.multiply(tmp, tmp);
+            lookupPowX2[i] = tmp;
+        }
+
+    }
+
+    public void exponentiateX(long pow, byte output[])
+    {
+        byte y[] = GCMUtil.oneAsBytes();
+        int powX2 = 1;
+        for(; pow > 0L; pow >>>= 1)
+        {
+            if((pow & 1L) != 0L)
+                GCMUtil.multiply(y, lookupPowX2[powX2]);
+            powX2++;
+        }
+
+        System.arraycopy(y, 0, output, 0, 16);
+    }
+
+    byte lookupPowX2[][];
+}

@@ -1,0 +1,36 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   NaccacheSternPrivateKeyParameters.java
+
+package co.org.bouncy.crypto.params;
+
+import java.math.BigInteger;
+import java.util.Vector;
+
+// Referenced classes of package co.org.bouncy.crypto.params:
+//            NaccacheSternKeyParameters
+
+public class NaccacheSternPrivateKeyParameters extends NaccacheSternKeyParameters
+{
+
+    public NaccacheSternPrivateKeyParameters(BigInteger g, BigInteger n, int lowerSigmaBound, Vector smallPrimes, BigInteger phi_n)
+    {
+        super(true, g, n, lowerSigmaBound);
+        this.smallPrimes = smallPrimes;
+        this.phi_n = phi_n;
+    }
+
+    public BigInteger getPhi_n()
+    {
+        return phi_n;
+    }
+
+    public Vector getSmallPrimes()
+    {
+        return smallPrimes;
+    }
+
+    private BigInteger phi_n;
+    private Vector smallPrimes;
+}

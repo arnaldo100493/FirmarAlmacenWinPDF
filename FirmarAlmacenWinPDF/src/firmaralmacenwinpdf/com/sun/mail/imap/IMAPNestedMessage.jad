@@ -1,0 +1,86 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPNestedMessage.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.ProtocolException;
+import com.sun.mail.imap.protocol.BODYSTRUCTURE;
+import com.sun.mail.imap.protocol.ENVELOPE;
+import com.sun.mail.imap.protocol.IMAPProtocol;
+import javax.mail.*;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPMessage
+
+public class IMAPNestedMessage extends IMAPMessage
+{
+
+    IMAPNestedMessage(IMAPMessage m, BODYSTRUCTURE b, ENVELOPE e, String sid)
+    {
+        super(m._getSession());
+        msg = m;
+        bs = b;
+        envelope = e;
+        sectionId = sid;
+        setPeek(m.getPeek());
+    }
+
+    protected IMAPProtocol getProtocol()
+        throws ProtocolException, FolderClosedException
+    {
+        return msg.getProtocol();
+    }
+
+    protected boolean isREV1()
+        throws FolderClosedException
+    {
+        return msg.isREV1();
+    }
+
+    protected Object getMessageCacheLock()
+    {
+        return msg.getMessageCacheLock();
+    }
+
+    protected int getSequenceNumber()
+    {
+        return msg.getSequenceNumber();
+    }
+
+    protected void checkExpunged()
+        throws MessageRemovedException
+    {
+        msg.checkExpunged();
+    }
+
+    public boolean isExpunged()
+    {
+        return msg.isExpunged();
+    }
+
+    protected int getFetchBlockSize()
+    {
+        return msg.getFetchBlockSize();
+    }
+
+    protected boolean ignoreBodyStructureSize()
+    {
+        return msg.ignoreBodyStructureSize();
+    }
+
+    public int getSize()
+        throws MessagingException
+    {
+        return bs.size;
+    }
+
+    public synchronized void setFlags(Flags flag, boolean set)
+        throws MessagingException
+    {
+        throw new MethodNotSupportedException("Cannot set flags on this nested message");
+    }
+
+    private IMAPMessage msg;
+}

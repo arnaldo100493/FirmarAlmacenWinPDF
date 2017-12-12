@@ -1,0 +1,32 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X500NameStyle.java
+
+package co.org.bouncy.asn1.x500;
+
+import co.org.bouncy.asn1.ASN1Encodable;
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+
+// Referenced classes of package co.org.bouncy.asn1.x500:
+//            RDN, X500Name
+
+public interface X500NameStyle
+{
+
+    public abstract ASN1Encodable stringToValue(ASN1ObjectIdentifier asn1objectidentifier, String s);
+
+    public abstract ASN1ObjectIdentifier attrNameToOID(String s);
+
+    public abstract RDN[] fromString(String s);
+
+    public abstract boolean areEqual(X500Name x500name, X500Name x500name1);
+
+    public abstract int calculateHashCode(X500Name x500name);
+
+    public abstract String toString(X500Name x500name);
+
+    public abstract String oidToDisplayName(ASN1ObjectIdentifier asn1objectidentifier);
+
+    public abstract String[] oidToAttrNames(ASN1ObjectIdentifier asn1objectidentifier);
+}

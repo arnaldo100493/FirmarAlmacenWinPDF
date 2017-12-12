@@ -1,0 +1,50 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PdfPrinterGraphics2D.java
+
+package co.com.pdf.awt;
+
+import co.com.pdf.text.pdf.PdfContentByte;
+import java.awt.print.PrinterGraphics;
+import java.awt.print.PrinterJob;
+
+// Referenced classes of package co.com.pdf.awt:
+//            PdfGraphics2D, FontMapper
+
+public class PdfPrinterGraphics2D extends PdfGraphics2D
+    implements PrinterGraphics
+{
+
+    public PdfPrinterGraphics2D(PdfContentByte cb, float width, float height, PrinterJob printerJob)
+    {
+        super(cb, width, height);
+        this.printerJob = printerJob;
+    }
+
+    public PdfPrinterGraphics2D(PdfContentByte cb, float width, float height, boolean onlyShapes, PrinterJob printerJob)
+    {
+        super(cb, width, height, onlyShapes);
+        this.printerJob = printerJob;
+    }
+
+    public PdfPrinterGraphics2D(PdfContentByte cb, float width, float height, FontMapper fontMapper, PrinterJob printerJob)
+    {
+        super(cb, width, height, fontMapper, false, false, 0.0F);
+        this.printerJob = printerJob;
+    }
+
+    public PdfPrinterGraphics2D(PdfContentByte cb, float width, float height, FontMapper fontMapper, boolean onlyShapes, boolean convertImagesToJPEG, float quality, 
+            PrinterJob printerJob)
+    {
+        super(cb, width, height, fontMapper, onlyShapes, convertImagesToJPEG, quality);
+        this.printerJob = printerJob;
+    }
+
+    public PrinterJob getPrinterJob()
+    {
+        return printerJob;
+    }
+
+    private PrinterJob printerJob;
+}

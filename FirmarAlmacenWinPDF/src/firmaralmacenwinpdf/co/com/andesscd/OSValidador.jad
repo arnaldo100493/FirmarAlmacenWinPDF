@@ -1,0 +1,95 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:42 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   OSValidador.java
+
+package co.com.andesscd;
+
+
+public class OSValidador
+{
+    public static final class OSTYPE extends Enum
+    {
+
+        public static OSTYPE[] values()
+        {
+            return (OSTYPE[])$VALUES.clone();
+        }
+
+        public static OSTYPE valueOf(String name)
+        {
+            return (OSTYPE)Enum.valueOf(co/com/andesscd/OSValidador$OSTYPE, name);
+        }
+
+        public static final OSTYPE WINDOWS;
+        public static final OSTYPE MAC;
+        public static final OSTYPE UNIX;
+        public static final OSTYPE SOLARIS;
+        public static final OSTYPE NO_DEFINIDO;
+        private static final OSTYPE $VALUES[];
+
+        static 
+        {
+            WINDOWS = new OSTYPE("WINDOWS", 0);
+            MAC = new OSTYPE("MAC", 1);
+            UNIX = new OSTYPE("UNIX", 2);
+            SOLARIS = new OSTYPE("SOLARIS", 3);
+            NO_DEFINIDO = new OSTYPE("NO_DEFINIDO", 4);
+            $VALUES = (new OSTYPE[] {
+                WINDOWS, MAC, UNIX, SOLARIS, NO_DEFINIDO
+            });
+        }
+
+        private OSTYPE(String s, int i)
+        {
+            super(s, i);
+        }
+    }
+
+
+    public OSValidador()
+    {
+    }
+
+    public static OSTYPE getOS()
+    {
+        OSTYPE os;
+        if(isWindows())
+            os = OSTYPE.WINDOWS;
+        else
+        if(isMac())
+            os = OSTYPE.MAC;
+        else
+        if(isUnix())
+            os = OSTYPE.UNIX;
+        else
+        if(isSolaris())
+            os = OSTYPE.SOLARIS;
+        else
+            os = OSTYPE.NO_DEFINIDO;
+        return os;
+    }
+
+    public static boolean isWindows()
+    {
+        return OS.indexOf("win") >= 0;
+    }
+
+    public static boolean isMac()
+    {
+        return OS.indexOf("mac") >= 0;
+    }
+
+    public static boolean isUnix()
+    {
+        return OS.indexOf("nix") >= 0 || OS.indexOf("nux") >= 0 || OS.indexOf("aix") > 0;
+    }
+
+    public static boolean isSolaris()
+    {
+        return OS.indexOf("sunos") >= 0;
+    }
+
+    private static final String OS = System.getProperty("os.name").toLowerCase();
+
+}

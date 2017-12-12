@@ -1,0 +1,347 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   X509LDAPCertStoreParameters.java
+
+package org.bouncycastle.jce;
+
+
+// Referenced classes of package org.bouncycastle.jce:
+//            X509LDAPCertStoreParameters
+
+public static class X509LDAPCertStoreParameters$Builder
+{
+
+    public X509LDAPCertStoreParameters$Builder setUserCertificateAttribute(String userCertificateAttribute)
+    {
+        this.userCertificateAttribute = userCertificateAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setCACertificateAttribute(String cACertificateAttribute)
+    {
+        this.cACertificateAttribute = cACertificateAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setCrossCertificateAttribute(String crossCertificateAttribute)
+    {
+        this.crossCertificateAttribute = crossCertificateAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setCertificateRevocationListAttribute(String certificateRevocationListAttribute)
+    {
+        this.certificateRevocationListAttribute = certificateRevocationListAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setDeltaRevocationListAttribute(String deltaRevocationListAttribute)
+    {
+        this.deltaRevocationListAttribute = deltaRevocationListAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAuthorityRevocationListAttribute(String authorityRevocationListAttribute)
+    {
+        this.authorityRevocationListAttribute = authorityRevocationListAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeCertificateAttributeAttribute(String attributeCertificateAttributeAttribute)
+    {
+        this.attributeCertificateAttributeAttribute = attributeCertificateAttributeAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAACertificateAttribute(String aACertificateAttribute)
+    {
+        this.aACertificateAttribute = aACertificateAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeDescriptorCertificateAttribute(String attributeDescriptorCertificateAttribute)
+    {
+        this.attributeDescriptorCertificateAttribute = attributeDescriptorCertificateAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeCertificateRevocationListAttribute(String attributeCertificateRevocationListAttribute)
+    {
+        this.attributeCertificateRevocationListAttribute = attributeCertificateRevocationListAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeAuthorityRevocationListAttribute(String attributeAuthorityRevocationListAttribute)
+    {
+        this.attributeAuthorityRevocationListAttribute = attributeAuthorityRevocationListAttribute;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapUserCertificateAttributeName(String ldapUserCertificateAttributeName)
+    {
+        this.ldapUserCertificateAttributeName = ldapUserCertificateAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapCACertificateAttributeName(String ldapCACertificateAttributeName)
+    {
+        this.ldapCACertificateAttributeName = ldapCACertificateAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapCrossCertificateAttributeName(String ldapCrossCertificateAttributeName)
+    {
+        this.ldapCrossCertificateAttributeName = ldapCrossCertificateAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapCertificateRevocationListAttributeName(String ldapCertificateRevocationListAttributeName)
+    {
+        this.ldapCertificateRevocationListAttributeName = ldapCertificateRevocationListAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapDeltaRevocationListAttributeName(String ldapDeltaRevocationListAttributeName)
+    {
+        this.ldapDeltaRevocationListAttributeName = ldapDeltaRevocationListAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapAuthorityRevocationListAttributeName(String ldapAuthorityRevocationListAttributeName)
+    {
+        this.ldapAuthorityRevocationListAttributeName = ldapAuthorityRevocationListAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapAttributeCertificateAttributeAttributeName(String ldapAttributeCertificateAttributeAttributeName)
+    {
+        this.ldapAttributeCertificateAttributeAttributeName = ldapAttributeCertificateAttributeAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapAACertificateAttributeName(String ldapAACertificateAttributeName)
+    {
+        this.ldapAACertificateAttributeName = ldapAACertificateAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapAttributeDescriptorCertificateAttributeName(String ldapAttributeDescriptorCertificateAttributeName)
+    {
+        this.ldapAttributeDescriptorCertificateAttributeName = ldapAttributeDescriptorCertificateAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapAttributeCertificateRevocationListAttributeName(String ldapAttributeCertificateRevocationListAttributeName)
+    {
+        this.ldapAttributeCertificateRevocationListAttributeName = ldapAttributeCertificateRevocationListAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setLdapAttributeAuthorityRevocationListAttributeName(String ldapAttributeAuthorityRevocationListAttributeName)
+    {
+        this.ldapAttributeAuthorityRevocationListAttributeName = ldapAttributeAuthorityRevocationListAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setUserCertificateSubjectAttributeName(String userCertificateSubjectAttributeName)
+    {
+        this.userCertificateSubjectAttributeName = userCertificateSubjectAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setCACertificateSubjectAttributeName(String cACertificateSubjectAttributeName)
+    {
+        this.cACertificateSubjectAttributeName = cACertificateSubjectAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setCrossCertificateSubjectAttributeName(String crossCertificateSubjectAttributeName)
+    {
+        this.crossCertificateSubjectAttributeName = crossCertificateSubjectAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setCertificateRevocationListIssuerAttributeName(String certificateRevocationListIssuerAttributeName)
+    {
+        this.certificateRevocationListIssuerAttributeName = certificateRevocationListIssuerAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setDeltaRevocationListIssuerAttributeName(String deltaRevocationListIssuerAttributeName)
+    {
+        this.deltaRevocationListIssuerAttributeName = deltaRevocationListIssuerAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAuthorityRevocationListIssuerAttributeName(String authorityRevocationListIssuerAttributeName)
+    {
+        this.authorityRevocationListIssuerAttributeName = authorityRevocationListIssuerAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeCertificateAttributeSubjectAttributeName(String attributeCertificateAttributeSubjectAttributeName)
+    {
+        this.attributeCertificateAttributeSubjectAttributeName = attributeCertificateAttributeSubjectAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAACertificateSubjectAttributeName(String aACertificateSubjectAttributeName)
+    {
+        this.aACertificateSubjectAttributeName = aACertificateSubjectAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeDescriptorCertificateSubjectAttributeName(String attributeDescriptorCertificateSubjectAttributeName)
+    {
+        this.attributeDescriptorCertificateSubjectAttributeName = attributeDescriptorCertificateSubjectAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeCertificateRevocationListIssuerAttributeName(String attributeCertificateRevocationListIssuerAttributeName)
+    {
+        this.attributeCertificateRevocationListIssuerAttributeName = attributeCertificateRevocationListIssuerAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setAttributeAuthorityRevocationListIssuerAttributeName(String attributeAuthorityRevocationListIssuerAttributeName)
+    {
+        this.attributeAuthorityRevocationListIssuerAttributeName = attributeAuthorityRevocationListIssuerAttributeName;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters$Builder setSearchForSerialNumberIn(String searchForSerialNumberIn)
+    {
+        this.searchForSerialNumberIn = searchForSerialNumberIn;
+        return this;
+    }
+
+    public X509LDAPCertStoreParameters build()
+    {
+        if(ldapUserCertificateAttributeName == null || ldapCACertificateAttributeName == null || ldapCrossCertificateAttributeName == null || ldapCertificateRevocationListAttributeName == null || ldapDeltaRevocationListAttributeName == null || ldapAuthorityRevocationListAttributeName == null || ldapAttributeCertificateAttributeAttributeName == null || ldapAACertificateAttributeName == null || ldapAttributeDescriptorCertificateAttributeName == null || ldapAttributeCertificateRevocationListAttributeName == null || ldapAttributeAuthorityRevocationListAttributeName == null || userCertificateSubjectAttributeName == null || cACertificateSubjectAttributeName == null || crossCertificateSubjectAttributeName == null || certificateRevocationListIssuerAttributeName == null || deltaRevocationListIssuerAttributeName == null || authorityRevocationListIssuerAttributeName == null || attributeCertificateAttributeSubjectAttributeName == null || aACertificateSubjectAttributeName == null || attributeDescriptorCertificateSubjectAttributeName == null || attributeCertificateRevocationListIssuerAttributeName == null || attributeAuthorityRevocationListIssuerAttributeName == null)
+            throw new IllegalArgumentException("Necessary parameters not specified.");
+        else
+            return new X509LDAPCertStoreParameters(this, null);
+    }
+
+    private String ldapURL;
+    private String baseDN;
+    private String userCertificateAttribute;
+    private String cACertificateAttribute;
+    private String crossCertificateAttribute;
+    private String certificateRevocationListAttribute;
+    private String deltaRevocationListAttribute;
+    private String authorityRevocationListAttribute;
+    private String attributeCertificateAttributeAttribute;
+    private String aACertificateAttribute;
+    private String attributeDescriptorCertificateAttribute;
+    private String attributeCertificateRevocationListAttribute;
+    private String attributeAuthorityRevocationListAttribute;
+    private String ldapUserCertificateAttributeName;
+    private String ldapCACertificateAttributeName;
+    private String ldapCrossCertificateAttributeName;
+    private String ldapCertificateRevocationListAttributeName;
+    private String ldapDeltaRevocationListAttributeName;
+    private String ldapAuthorityRevocationListAttributeName;
+    private String ldapAttributeCertificateAttributeAttributeName;
+    private String ldapAACertificateAttributeName;
+    private String ldapAttributeDescriptorCertificateAttributeName;
+    private String ldapAttributeCertificateRevocationListAttributeName;
+    private String ldapAttributeAuthorityRevocationListAttributeName;
+    private String userCertificateSubjectAttributeName;
+    private String cACertificateSubjectAttributeName;
+    private String crossCertificateSubjectAttributeName;
+    private String certificateRevocationListIssuerAttributeName;
+    private String deltaRevocationListIssuerAttributeName;
+    private String authorityRevocationListIssuerAttributeName;
+    private String attributeCertificateAttributeSubjectAttributeName;
+    private String aACertificateSubjectAttributeName;
+    private String attributeDescriptorCertificateSubjectAttributeName;
+    private String attributeCertificateRevocationListIssuerAttributeName;
+    private String attributeAuthorityRevocationListIssuerAttributeName;
+    private String searchForSerialNumberIn;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public X509LDAPCertStoreParameters$Builder()
+    {
+        this("ldap://localhost:389", "");
+    }
+
+    public X509LDAPCertStoreParameters$Builder(String ldapURL, String baseDN)
+    {
+        this.ldapURL = ldapURL;
+        if(baseDN == null)
+            this.baseDN = "";
+        else
+            this.baseDN = baseDN;
+        userCertificateAttribute = "userCertificate";
+        cACertificateAttribute = "cACertificate";
+        crossCertificateAttribute = "crossCertificatePair";
+        certificateRevocationListAttribute = "certificateRevocationList";
+        deltaRevocationListAttribute = "deltaRevocationList";
+        authorityRevocationListAttribute = "authorityRevocationList";
+        attributeCertificateAttributeAttribute = "attributeCertificateAttribute";
+        aACertificateAttribute = "aACertificate";
+        attributeDescriptorCertificateAttribute = "attributeDescriptorCertificate";
+        attributeCertificateRevocationListAttribute = "attributeCertificateRevocationList";
+        attributeAuthorityRevocationListAttribute = "attributeAuthorityRevocationList";
+        ldapUserCertificateAttributeName = "cn";
+        ldapCACertificateAttributeName = "cn ou o";
+        ldapCrossCertificateAttributeName = "cn ou o";
+        ldapCertificateRevocationListAttributeName = "cn ou o";
+        ldapDeltaRevocationListAttributeName = "cn ou o";
+        ldapAuthorityRevocationListAttributeName = "cn ou o";
+        ldapAttributeCertificateAttributeAttributeName = "cn";
+        ldapAACertificateAttributeName = "cn o ou";
+        ldapAttributeDescriptorCertificateAttributeName = "cn o ou";
+        ldapAttributeCertificateRevocationListAttributeName = "cn o ou";
+        ldapAttributeAuthorityRevocationListAttributeName = "cn o ou";
+        userCertificateSubjectAttributeName = "cn";
+        cACertificateSubjectAttributeName = "o ou";
+        crossCertificateSubjectAttributeName = "o ou";
+        certificateRevocationListIssuerAttributeName = "o ou";
+        deltaRevocationListIssuerAttributeName = "o ou";
+        authorityRevocationListIssuerAttributeName = "o ou";
+        attributeCertificateAttributeSubjectAttributeName = "cn";
+        aACertificateSubjectAttributeName = "o ou";
+        attributeDescriptorCertificateSubjectAttributeName = "o ou";
+        attributeCertificateRevocationListIssuerAttributeName = "o ou";
+        attributeAuthorityRevocationListIssuerAttributeName = "o ou";
+        searchForSerialNumberIn = "uid serialNumber cn";
+    }
+}

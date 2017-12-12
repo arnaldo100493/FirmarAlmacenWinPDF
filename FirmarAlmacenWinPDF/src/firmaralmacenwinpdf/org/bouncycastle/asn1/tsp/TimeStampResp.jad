@@ -1,0 +1,61 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TimeStampResp.java
+
+package org.bouncycastle.asn1.tsp;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cmp.PKIStatusInfo;
+import org.bouncycastle.asn1.cms.ContentInfo;
+
+public class TimeStampResp extends ASN1Encodable
+{
+
+    public static TimeStampResp getInstance(Object o)
+    {
+        if(o == null || (o instanceof TimeStampResp))
+            return (TimeStampResp)o;
+        if(o instanceof ASN1Sequence)
+            return new TimeStampResp((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in 'TimeStampResp' factory : ").append(o.getClass().getName()).append(".").toString());
+    }
+
+    public TimeStampResp(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        pkiStatusInfo = PKIStatusInfo.getInstance(e.nextElement());
+        if(e.hasMoreElements())
+            timeStampToken = ContentInfo.getInstance(e.nextElement());
+    }
+
+    public TimeStampResp(PKIStatusInfo pkiStatusInfo, ContentInfo timeStampToken)
+    {
+        this.pkiStatusInfo = pkiStatusInfo;
+        this.timeStampToken = timeStampToken;
+    }
+
+    public PKIStatusInfo getStatus()
+    {
+        return pkiStatusInfo;
+    }
+
+    public ContentInfo getTimeStampToken()
+    {
+        return timeStampToken;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(pkiStatusInfo);
+        if(timeStampToken != null)
+            v.add(timeStampToken);
+        return new DERSequence(v);
+    }
+
+    PKIStatusInfo pkiStatusInfo;
+    ContentInfo timeStampToken;
+}

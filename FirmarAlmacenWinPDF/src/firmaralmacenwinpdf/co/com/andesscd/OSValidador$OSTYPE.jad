@@ -1,0 +1,48 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:42 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   OSValidador.java
+
+package co.com.andesscd;
+
+
+// Referenced classes of package co.com.andesscd:
+//            OSValidador
+
+public static final class OSValidador$OSTYPE extends Enum
+{
+
+    public static OSValidador$OSTYPE[] values()
+    {
+        return (OSValidador$OSTYPE[])$VALUES.clone();
+    }
+
+    public static OSValidador$OSTYPE valueOf(String name)
+    {
+        return (OSValidador$OSTYPE)Enum.valueOf(co/com/andesscd/OSValidador$OSTYPE, name);
+    }
+
+    public static final OSValidador$OSTYPE WINDOWS;
+    public static final OSValidador$OSTYPE MAC;
+    public static final OSValidador$OSTYPE UNIX;
+    public static final OSValidador$OSTYPE SOLARIS;
+    public static final OSValidador$OSTYPE NO_DEFINIDO;
+    private static final OSValidador$OSTYPE $VALUES[];
+
+    static 
+    {
+        WINDOWS = new OSValidador$OSTYPE("WINDOWS", 0);
+        MAC = new OSValidador$OSTYPE("MAC", 1);
+        UNIX = new OSValidador$OSTYPE("UNIX", 2);
+        SOLARIS = new OSValidador$OSTYPE("SOLARIS", 3);
+        NO_DEFINIDO = new OSValidador$OSTYPE("NO_DEFINIDO", 4);
+        $VALUES = (new OSValidador$OSTYPE[] {
+            WINDOWS, MAC, UNIX, SOLARIS, NO_DEFINIDO
+        });
+    }
+
+    private OSValidador$OSTYPE(String s, int i)
+    {
+        super(s, i);
+    }
+}

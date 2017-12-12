@@ -1,0 +1,55 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertId.java
+
+package org.bouncycastle.asn1.crmf;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.GeneralName;
+
+public class CertId extends ASN1Encodable
+{
+
+    private CertId(ASN1Sequence seq)
+    {
+        issuer = GeneralName.getInstance(seq.getObjectAt(0));
+        serialNumber = DERInteger.getInstance(seq.getObjectAt(1));
+    }
+
+    public static CertId getInstance(Object o)
+    {
+        if(o instanceof CertId)
+            return (CertId)o;
+        if(o instanceof ASN1Sequence)
+            return new CertId((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid object: ").append(o.getClass().getName()).toString());
+    }
+
+    public static CertId getInstance(ASN1TaggedObject obj, boolean isExplicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, isExplicit));
+    }
+
+    public GeneralName getIssuer()
+    {
+        return issuer;
+    }
+
+    public DERInteger getSerialNumber()
+    {
+        return serialNumber;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(issuer);
+        v.add(serialNumber);
+        return new DERSequence(v);
+    }
+
+    private GeneralName issuer;
+    private DERInteger serialNumber;
+}

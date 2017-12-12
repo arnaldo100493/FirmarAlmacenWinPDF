@@ -1,0 +1,162 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERPrintableString.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, DERString, DERObject, ASN1TaggedObject, 
+//            ASN1OctetString, DEROutputStream
+
+public class DERPrintableString extends ASN1Object
+    implements DERString
+{
+
+    public static DERPrintableString getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof DERPrintableString))
+            return (DERPrintableString)obj;
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("illegal object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public static DERPrintableString getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        DERObject o = obj.getObject();
+        if(explicit || (o instanceof DERPrintableString))
+            return getInstance(o);
+        else
+            return new DERPrintableString(ASN1OctetString.getInstance(o).getOctets());
+    }
+
+    public DERPrintableString(byte string[])
+    {
+        char cs[] = new char[string.length];
+        for(int i = 0; i != cs.length; i++)
+            cs[i] = (char)(string[i] & 0xff);
+
+        this.string = new String(cs);
+    }
+
+    public DERPrintableString(String string)
+    {
+        this(string, false);
+    }
+
+    public DERPrintableString(String string, boolean validate)
+    {
+        if(validate && !isPrintableString(string))
+        {
+            throw new IllegalArgumentException("string contains illegal characters");
+        } else
+        {
+            this.string = string;
+            return;
+        }
+    }
+
+    public String getString()
+    {
+        return string;
+    }
+
+    public byte[] getOctets()
+    {
+        char cs[] = string.toCharArray();
+        byte bs[] = new byte[cs.length];
+        for(int i = 0; i != cs.length; i++)
+            bs[i] = (byte)cs[i];
+
+        return bs;
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        out.writeEncoded(19, getOctets());
+    }
+
+    public int hashCode()
+    {
+        return getString().hashCode();
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof DERPrintableString))
+        {
+            return false;
+        } else
+        {
+            DERPrintableString s = (DERPrintableString)o;
+            return getString().equals(s.getString());
+        }
+    }
+
+    public String toString()
+    {
+        return string;
+    }
+
+    public static boolean isPrintableString(String str)
+    {
+        int i = str.length() - 1;
+        do
+            if(i >= 0)
+            {
+                char ch = str.charAt(i);
+                if(ch > '\177')
+                    return false;
+                if(('a' > ch || ch > 'z') && ('A' > ch || ch > 'Z') && ('0' > ch || ch > '9'))
+                    switch(ch)
+                    {
+                    case 33: // '!'
+                    case 34: // '"'
+                    case 35: // '#'
+                    case 36: // '$'
+                    case 37: // '%'
+                    case 38: // '&'
+                    case 42: // '*'
+                    case 48: // '0'
+                    case 49: // '1'
+                    case 50: // '2'
+                    case 51: // '3'
+                    case 52: // '4'
+                    case 53: // '5'
+                    case 54: // '6'
+                    case 55: // '7'
+                    case 56: // '8'
+                    case 57: // '9'
+                    case 59: // ';'
+                    case 60: // '<'
+                    case 62: // '>'
+                    default:
+                        return false;
+
+                    case 32: // ' '
+                    case 39: // '\''
+                    case 40: // '('
+                    case 41: // ')'
+                    case 43: // '+'
+                    case 44: // ','
+                    case 45: // '-'
+                    case 46: // '.'
+                    case 47: // '/'
+                    case 58: // ':'
+                    case 61: // '='
+                    case 63: // '?'
+                        break;
+                    }
+                i--;
+            } else
+            {
+                return true;
+            }
+        while(true);
+    }
+
+    String string;
+}

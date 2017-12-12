@@ -1,0 +1,314 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKMessageDigest.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.MessageDigest;
+import org.bouncycastle.crypto.Digest;
+import org.bouncycastle.crypto.digests.*;
+
+public class JDKMessageDigest extends MessageDigest
+{
+    public static class Whirlpool extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            Whirlpool d = (Whirlpool)clone();
+            d.digest = new WhirlpoolDigest((WhirlpoolDigest)digest);
+            return d;
+        }
+
+        public Whirlpool()
+        {
+            super(new WhirlpoolDigest());
+        }
+    }
+
+    public static class GOST3411 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            GOST3411 d = (GOST3411)clone();
+            d.digest = new GOST3411Digest((GOST3411Digest)digest);
+            return d;
+        }
+
+        public GOST3411()
+        {
+            super(new GOST3411Digest());
+        }
+    }
+
+    public static class Tiger extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            Tiger d = (Tiger)clone();
+            d.digest = new TigerDigest((TigerDigest)digest);
+            return d;
+        }
+
+        public Tiger()
+        {
+            super(new TigerDigest());
+        }
+    }
+
+    public static class RIPEMD320 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            RIPEMD320 d = (RIPEMD320)clone();
+            d.digest = new RIPEMD320Digest((RIPEMD320Digest)digest);
+            return d;
+        }
+
+        public RIPEMD320()
+        {
+            super(new RIPEMD320Digest());
+        }
+    }
+
+    public static class RIPEMD256 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            RIPEMD256 d = (RIPEMD256)clone();
+            d.digest = new RIPEMD256Digest((RIPEMD256Digest)digest);
+            return d;
+        }
+
+        public RIPEMD256()
+        {
+            super(new RIPEMD256Digest());
+        }
+    }
+
+    public static class RIPEMD160 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            RIPEMD160 d = (RIPEMD160)clone();
+            d.digest = new RIPEMD160Digest((RIPEMD160Digest)digest);
+            return d;
+        }
+
+        public RIPEMD160()
+        {
+            super(new RIPEMD160Digest());
+        }
+    }
+
+    public static class RIPEMD128 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            RIPEMD128 d = (RIPEMD128)clone();
+            d.digest = new RIPEMD128Digest((RIPEMD128Digest)digest);
+            return d;
+        }
+
+        public RIPEMD128()
+        {
+            super(new RIPEMD128Digest());
+        }
+    }
+
+    public static class MD5 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            MD5 d = (MD5)clone();
+            d.digest = new MD5Digest((MD5Digest)digest);
+            return d;
+        }
+
+        public MD5()
+        {
+            super(new MD5Digest());
+        }
+    }
+
+    public static class MD4 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            MD4 d = (MD4)clone();
+            d.digest = new MD4Digest((MD4Digest)digest);
+            return d;
+        }
+
+        public MD4()
+        {
+            super(new MD4Digest());
+        }
+    }
+
+    public static class MD2 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            MD2 d = (MD2)clone();
+            d.digest = new MD2Digest((MD2Digest)digest);
+            return d;
+        }
+
+        public MD2()
+        {
+            super(new MD2Digest());
+        }
+    }
+
+    public static class SHA512 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            SHA512 d = (SHA512)clone();
+            d.digest = new SHA512Digest((SHA512Digest)digest);
+            return d;
+        }
+
+        public SHA512()
+        {
+            super(new SHA512Digest());
+        }
+    }
+
+    public static class SHA384 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            SHA384 d = (SHA384)clone();
+            d.digest = new SHA384Digest((SHA384Digest)digest);
+            return d;
+        }
+
+        public SHA384()
+        {
+            super(new SHA384Digest());
+        }
+    }
+
+    public static class SHA256 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            SHA256 d = (SHA256)clone();
+            d.digest = new SHA256Digest((SHA256Digest)digest);
+            return d;
+        }
+
+        public SHA256()
+        {
+            super(new SHA256Digest());
+        }
+    }
+
+    public static class SHA224 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            SHA224 d = (SHA224)clone();
+            d.digest = new SHA224Digest((SHA224Digest)digest);
+            return d;
+        }
+
+        public SHA224()
+        {
+            super(new SHA224Digest());
+        }
+    }
+
+    public static class SHA1 extends JDKMessageDigest
+        implements Cloneable
+    {
+
+        public Object clone()
+            throws CloneNotSupportedException
+        {
+            SHA1 d = (SHA1)clone();
+            d.digest = new SHA1Digest((SHA1Digest)digest);
+            return d;
+        }
+
+        public SHA1()
+        {
+            super(new SHA1Digest());
+        }
+    }
+
+
+    protected JDKMessageDigest(Digest digest)
+    {
+        super(digest.getAlgorithmName());
+        this.digest = digest;
+    }
+
+    public void engineReset()
+    {
+        digest.reset();
+    }
+
+    public void engineUpdate(byte input)
+    {
+        digest.update(input);
+    }
+
+    public void engineUpdate(byte input[], int offset, int len)
+    {
+        digest.update(input, offset, len);
+    }
+
+    public byte[] engineDigest()
+    {
+        byte digestBytes[] = new byte[digest.getDigestSize()];
+        digest.doFinal(digestBytes, 0);
+        return digestBytes;
+    }
+
+    Digest digest;
+}

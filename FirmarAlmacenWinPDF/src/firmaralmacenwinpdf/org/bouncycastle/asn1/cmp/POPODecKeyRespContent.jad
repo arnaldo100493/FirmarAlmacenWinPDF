@@ -1,0 +1,43 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   POPODecKeyRespContent.java
+
+package org.bouncycastle.asn1.cmp;
+
+import org.bouncycastle.asn1.*;
+
+public class POPODecKeyRespContent extends ASN1Encodable
+{
+
+    private POPODecKeyRespContent(ASN1Sequence seq)
+    {
+        content = seq;
+    }
+
+    public static POPODecKeyRespContent getInstance(Object o)
+    {
+        if(o instanceof POPODecKeyRespContent)
+            return (POPODecKeyRespContent)o;
+        if(o instanceof ASN1Sequence)
+            return new POPODecKeyRespContent((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid object: ").append(o.getClass().getName()).toString());
+    }
+
+    public DERInteger[] toDERIntegerArray()
+    {
+        DERInteger result[] = new DERInteger[content.size()];
+        for(int i = 0; i != result.length; i++)
+            result[i] = DERInteger.getInstance(content.getObjectAt(i));
+
+        return result;
+    }
+
+    public DERObject toASN1Object()
+    {
+        return content;
+    }
+
+    private ASN1Sequence content;
+}

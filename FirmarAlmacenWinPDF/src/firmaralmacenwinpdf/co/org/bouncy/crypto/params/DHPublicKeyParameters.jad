@@ -1,0 +1,45 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DHPublicKeyParameters.java
+
+package co.org.bouncy.crypto.params;
+
+import java.math.BigInteger;
+
+// Referenced classes of package co.org.bouncy.crypto.params:
+//            DHKeyParameters, DHParameters
+
+public class DHPublicKeyParameters extends DHKeyParameters
+{
+
+    public DHPublicKeyParameters(BigInteger y, DHParameters params)
+    {
+        super(false, params);
+        this.y = y;
+    }
+
+    public BigInteger getY()
+    {
+        return y;
+    }
+
+    public int hashCode()
+    {
+        return y.hashCode() ^ super.hashCode();
+    }
+
+    public boolean equals(Object obj)
+    {
+        if(!(obj instanceof DHPublicKeyParameters))
+        {
+            return false;
+        } else
+        {
+            DHPublicKeyParameters other = (DHPublicKeyParameters)obj;
+            return other.getY().equals(y) && super.equals(obj);
+        }
+    }
+
+    private BigInteger y;
+}

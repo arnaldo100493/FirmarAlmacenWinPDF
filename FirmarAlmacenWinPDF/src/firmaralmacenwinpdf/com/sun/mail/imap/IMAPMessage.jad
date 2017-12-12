@@ -1,0 +1,1224 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   IMAPMessage.java
+
+package com.sun.mail.imap;
+
+import com.sun.mail.iap.ConnectionException;
+import com.sun.mail.iap.ProtocolException;
+import com.sun.mail.imap.protocol.BODY;
+import com.sun.mail.imap.protocol.BODYSTRUCTURE;
+import com.sun.mail.imap.protocol.ENVELOPE;
+import com.sun.mail.imap.protocol.FetchItem;
+import com.sun.mail.imap.protocol.FetchResponse;
+import com.sun.mail.imap.protocol.IMAPProtocol;
+import com.sun.mail.imap.protocol.INTERNALDATE;
+import com.sun.mail.imap.protocol.Item;
+import com.sun.mail.imap.protocol.RFC822DATA;
+import com.sun.mail.imap.protocol.RFC822SIZE;
+import com.sun.mail.imap.protocol.UID;
+import com.sun.mail.util.ReadableMime;
+import java.io.*;
+import java.util.*;
+import javax.activation.DataHandler;
+import javax.mail.*;
+import javax.mail.internet.*;
+
+// Referenced classes of package com.sun.mail.imap:
+//            IMAPFolder, IMAPStore, IMAPInputStream, IMAPMultipartDataSource, 
+//            IMAPNestedMessage, MessageCache, Utility
+
+public class IMAPMessage extends MimeMessage
+    implements ReadableMime
+{
+    public static class FetchProfileCondition
+        implements Utility.Condition
+    {
+
+        public boolean test(IMAPMessage m)
+        {
+            if(needEnvelope && m._getEnvelope() == null)
+                return true;
+            if(needFlags && m._getFlags() == null)
+                return true;
+            if(needBodyStructure && m._getBodyStructure() == null)
+                return true;
+            if(needUID && m.getUID() == -1L)
+                return true;
+            if(needHeaders && !m.areHeadersLoaded())
+                return true;
+            if(needSize && m.size == -1)
+                return true;
+            for(int i = 0; i < hdrs.length; i++)
+                if(!m.isHeaderLoaded(hdrs[i]))
+                    return true;
+
+            for(Iterator it = need.iterator(); it.hasNext();)
+            {
+                FetchItem fitem = (FetchItem)it.next();
+                if(m.items == null || m.items.get(fitem.getName()) == null)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private boolean needEnvelope;
+        private boolean needFlags;
+        private boolean needBodyStructure;
+        private boolean needUID;
+        private boolean needHeaders;
+        private boolean needSize;
+        private String hdrs[];
+        private Set need;
+
+        public FetchProfileCondition(FetchProfile fp, FetchItem fitems[])
+        {
+            needEnvelope = false;
+            needFlags = false;
+            needBodyStructure = false;
+            needUID = false;
+            needHeaders = false;
+            needSize = false;
+            hdrs = null;
+            need = new HashSet();
+            if(fp.contains(javax.mail.FetchProfile.Item.ENVELOPE))
+                needEnvelope = true;
+            if(fp.contains(javax.mail.FetchProfile.Item.FLAGS))
+                needFlags = true;
+            if(fp.contains(javax.mail.FetchProfile.Item.CONTENT_INFO))
+                needBodyStructure = true;
+            if(fp.contains(javax.mail.FetchProfile.Item.SIZE))
+                needSize = true;
+            if(fp.contains(javax.mail.UIDFolder.FetchProfileItem.UID))
+                needUID = true;
+            if(fp.contains(IMAPFolder.FetchProfileItem.HEADERS))
+                needHeaders = true;
+            if(fp.contains(IMAPFolder.FetchProfileItem.SIZE))
+                needSize = true;
+            hdrs = fp.getHeaderNames();
+            for(int i = 0; i < fitems.length; i++)
+                if(fp.contains(fitems[i].getFetchProfileItem()))
+                    need.add(fitems[i]);
+
+        }
+    }
+
+
+    protected IMAPMessage(IMAPFolder folder, int msgnum)
+    {
+        super(folder, msgnum);
+        size = -1;
+        uid = -1L;
+        headersLoaded = false;
+        loadedHeaders = new Hashtable(1);
+        flags = null;
+    }
+
+    protected IMAPMessage(Session session)
+    {
+        super(session);
+        size = -1;
+        uid = -1L;
+        headersLoaded = false;
+        loadedHeaders = new Hashtable(1);
+    }
+
+    protected IMAPProtocol getProtocol()
+        throws ProtocolException, FolderClosedException
+    {
+        ((IMAPFolder)folder).waitIfIdle();
+        IMAPProtocol p = ((IMAPFolder)folder).protocol;
+        if(p == null)
+            throw new FolderClosedException(folder);
+        else
+            return p;
+    }
+
+    protected boolean isREV1()
+        throws FolderClosedException
+    {
+        IMAPProtocol p = ((IMAPFolder)folder).protocol;
+        if(p == null)
+            throw new FolderClosedException(folder);
+        else
+            return p.isREV1();
+    }
+
+    protected Object getMessageCacheLock()
+    {
+        return ((IMAPFolder)folder).messageCacheLock;
+    }
+
+    protected int getSequenceNumber()
+    {
+        return ((IMAPFolder)folder).messageCache.seqnumOf(getMessageNumber());
+    }
+
+    protected void setMessageNumber(int msgnum)
+    {
+        super.setMessageNumber(msgnum);
+    }
+
+    protected long getUID()
+    {
+        return uid;
+    }
+
+    protected void setUID(long uid)
+    {
+        this.uid = uid;
+    }
+
+    protected void setExpunged(boolean set)
+    {
+        super.setExpunged(set);
+    }
+
+    protected void checkExpunged()
+        throws MessageRemovedException
+    {
+        if(expunged)
+            throw new MessageRemovedException();
+        else
+            return;
+    }
+
+    protected void forceCheckExpunged()
+        throws MessageRemovedException, FolderClosedException
+    {
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                getProtocol().noop();
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex) { }
+        }
+        if(expunged)
+            throw new MessageRemovedException();
+        else
+            return;
+    }
+
+    protected int getFetchBlockSize()
+    {
+        return ((IMAPStore)folder.getStore()).getFetchBlockSize();
+    }
+
+    protected boolean ignoreBodyStructureSize()
+    {
+        return ((IMAPStore)folder.getStore()).ignoreBodyStructureSize();
+    }
+
+    public Address[] getFrom()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        InternetAddress a[] = envelope.from;
+        if(a == null || a.length == 0)
+            a = envelope.sender;
+        return aaclone(a);
+    }
+
+    public void setFrom(Address address)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public void addFrom(Address addresses[])
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Address getSender()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        if(envelope.sender != null)
+            return envelope.sender[0];
+        else
+            return null;
+    }
+
+    public void setSender(Address address)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Address[] getRecipients(javax.mail.Message.RecipientType type)
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        if(type == javax.mail.Message.RecipientType.TO)
+            return aaclone(envelope.to);
+        if(type == javax.mail.Message.RecipientType.CC)
+            return aaclone(envelope.cc);
+        if(type == javax.mail.Message.RecipientType.BCC)
+            return aaclone(envelope.bcc);
+        else
+            return super.getRecipients(type);
+    }
+
+    public void setRecipients(javax.mail.Message.RecipientType type, Address addresses[])
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public void addRecipients(javax.mail.Message.RecipientType type, Address addresses[])
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Address[] getReplyTo()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        if(envelope.replyTo == null || envelope.replyTo.length == 0)
+            return getFrom();
+        else
+            return aaclone(envelope.replyTo);
+    }
+
+    public void setReplyTo(Address addresses[])
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public String getSubject()
+        throws MessagingException
+    {
+        checkExpunged();
+        if(subject != null)
+            return subject;
+        loadEnvelope();
+        if(envelope.subject == null)
+            return null;
+        try
+        {
+            subject = MimeUtility.decodeText(MimeUtility.unfold(envelope.subject));
+        }
+        catch(UnsupportedEncodingException ex)
+        {
+            subject = envelope.subject;
+        }
+        return subject;
+    }
+
+    public void setSubject(String subject, String charset)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Date getSentDate()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        if(envelope.date == null)
+            return null;
+        else
+            return new Date(envelope.date.getTime());
+    }
+
+    public void setSentDate(Date d)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Date getReceivedDate()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        if(receivedDate == null)
+            return null;
+        else
+            return new Date(receivedDate.getTime());
+    }
+
+    public int getSize()
+        throws MessagingException
+    {
+        checkExpunged();
+        if(size == -1)
+            loadEnvelope();
+        return size;
+    }
+
+    public int getLineCount()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadBODYSTRUCTURE();
+        return bs.lines;
+    }
+
+    public String[] getContentLanguage()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadBODYSTRUCTURE();
+        if(bs.language != null)
+            return (String[])(String[])bs.language.clone();
+        else
+            return null;
+    }
+
+    public void setContentLanguage(String languages[])
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public String getInReplyTo()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        return envelope.inReplyTo;
+    }
+
+    public synchronized String getContentType()
+        throws MessagingException
+    {
+        checkExpunged();
+        if(type == null)
+        {
+            loadBODYSTRUCTURE();
+            ContentType ct = new ContentType(bs.type, bs.subtype, bs.cParams);
+            type = ct.toString();
+        }
+        return type;
+    }
+
+    public String getDisposition()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadBODYSTRUCTURE();
+        return bs.disposition;
+    }
+
+    public void setDisposition(String disposition)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public String getEncoding()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadBODYSTRUCTURE();
+        return bs.encoding;
+    }
+
+    public String getContentID()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadBODYSTRUCTURE();
+        return bs.id;
+    }
+
+    public void setContentID(String cid)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public String getContentMD5()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadBODYSTRUCTURE();
+        return bs.md5;
+    }
+
+    public void setContentMD5(String md5)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public String getDescription()
+        throws MessagingException
+    {
+        checkExpunged();
+        if(description != null)
+            return description;
+        loadBODYSTRUCTURE();
+        if(bs.description == null)
+            return null;
+        try
+        {
+            description = MimeUtility.decodeText(bs.description);
+        }
+        catch(UnsupportedEncodingException ex)
+        {
+            description = bs.description;
+        }
+        return description;
+    }
+
+    public void setDescription(String description, String charset)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public String getMessageID()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadEnvelope();
+        return envelope.messageId;
+    }
+
+    public String getFileName()
+        throws MessagingException
+    {
+        checkExpunged();
+        String filename = null;
+        loadBODYSTRUCTURE();
+        if(bs.dParams != null)
+            filename = bs.dParams.get("filename");
+        if(filename == null && bs.cParams != null)
+            filename = bs.cParams.get("name");
+        return filename;
+    }
+
+    public void setFileName(String filename)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    protected InputStream getContentStream()
+        throws MessagingException
+    {
+        InputStream is = null;
+        boolean pk = getPeek();
+        Object obj = getMessageCacheLock();
+        JVM INSTR monitorenter ;
+        IMAPProtocol p;
+        p = getProtocol();
+        checkExpunged();
+        if(p.isREV1() && getFetchBlockSize() != -1)
+            return new IMAPInputStream(this, toSection("TEXT"), bs == null || ignoreBodyStructureSize() ? -1 : bs.size, pk);
+        try
+        {
+            if(p.isREV1())
+            {
+                BODY b;
+                if(pk)
+                    b = p.peekBody(getSequenceNumber(), toSection("TEXT"));
+                else
+                    b = p.fetchBody(getSequenceNumber(), toSection("TEXT"));
+                if(b != null)
+                    is = b.getByteArrayInputStream();
+            } else
+            {
+                RFC822DATA rd = p.fetchRFC822(getSequenceNumber(), "TEXT");
+                if(rd != null)
+                    is = rd.getByteArrayInputStream();
+            }
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(folder, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            forceCheckExpunged();
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        obj;
+        JVM INSTR monitorexit ;
+          goto _L1
+        Exception exception;
+        exception;
+        throw exception;
+_L1:
+        if(is == null)
+            throw new MessagingException("No content");
+        else
+            return is;
+    }
+
+    public synchronized DataHandler getDataHandler()
+        throws MessagingException
+    {
+        checkExpunged();
+        if(dh == null)
+        {
+            loadBODYSTRUCTURE();
+            if(type == null)
+            {
+                ContentType ct = new ContentType(bs.type, bs.subtype, bs.cParams);
+                type = ct.toString();
+            }
+            if(bs.isMulti())
+                dh = new DataHandler(new IMAPMultipartDataSource(this, bs.bodies, sectionId, this));
+            else
+            if(bs.isNested() && isREV1() && bs.envelope != null)
+                dh = new DataHandler(new IMAPNestedMessage(this, bs.bodies[0], bs.envelope, sectionId != null ? (new StringBuilder()).append(sectionId).append(".1").toString() : "1"), type);
+        }
+        return super.getDataHandler();
+    }
+
+    public void setDataHandler(DataHandler content)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public InputStream getMimeStream()
+        throws MessagingException
+    {
+        InputStream is = null;
+        boolean pk = getPeek();
+        Object obj = getMessageCacheLock();
+        JVM INSTR monitorenter ;
+        IMAPProtocol p;
+        p = getProtocol();
+        checkExpunged();
+        if(p.isREV1() && getFetchBlockSize() != -1)
+            return new IMAPInputStream(this, sectionId, -1, pk);
+        try
+        {
+            if(p.isREV1())
+            {
+                BODY b;
+                if(pk)
+                    b = p.peekBody(getSequenceNumber(), sectionId);
+                else
+                    b = p.fetchBody(getSequenceNumber(), sectionId);
+                if(b != null)
+                    is = b.getByteArrayInputStream();
+            } else
+            {
+                RFC822DATA rd = p.fetchRFC822(getSequenceNumber(), null);
+                if(rd != null)
+                    is = rd.getByteArrayInputStream();
+            }
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(folder, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            forceCheckExpunged();
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        obj;
+        JVM INSTR monitorexit ;
+          goto _L1
+        Exception exception;
+        exception;
+        throw exception;
+_L1:
+        if(is == null)
+        {
+            forceCheckExpunged();
+            throw new MessagingException("No content");
+        } else
+        {
+            return is;
+        }
+    }
+
+    public void writeTo(OutputStream os)
+        throws IOException, MessagingException
+    {
+        InputStream is = getMimeStream();
+        byte bytes[] = new byte[16384];
+        int count;
+        while((count = is.read(bytes)) != -1) 
+            os.write(bytes, 0, count);
+        is.close();
+        break MISSING_BLOCK_LABEL_50;
+        Exception exception;
+        exception;
+        is.close();
+        throw exception;
+    }
+
+    public String[] getHeader(String name)
+        throws MessagingException
+    {
+        checkExpunged();
+        if(isHeaderLoaded(name))
+            return headers.getHeader(name);
+        InputStream is = null;
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                checkExpunged();
+                if(p.isREV1())
+                {
+                    BODY b = p.peekBody(getSequenceNumber(), toSection((new StringBuilder()).append("HEADER.FIELDS (").append(name).append(")").toString()));
+                    if(b != null)
+                        is = b.getByteArrayInputStream();
+                } else
+                {
+                    RFC822DATA rd = p.fetchRFC822(getSequenceNumber(), (new StringBuilder()).append("HEADER.LINES (").append(name).append(")").toString());
+                    if(rd != null)
+                        is = rd.getByteArrayInputStream();
+                }
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                forceCheckExpunged();
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        if(is == null)
+            return null;
+        if(headers == null)
+            headers = new InternetHeaders();
+        headers.load(is);
+        setHeaderLoaded(name);
+        return headers.getHeader(name);
+    }
+
+    public String getHeader(String name, String delimiter)
+        throws MessagingException
+    {
+        checkExpunged();
+        if(getHeader(name) == null)
+            return null;
+        else
+            return headers.getHeader(name, delimiter);
+    }
+
+    public void setHeader(String name, String value)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public void addHeader(String name, String value)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public void removeHeader(String name)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Enumeration getAllHeaders()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadHeaders();
+        return super.getAllHeaders();
+    }
+
+    public Enumeration getMatchingHeaders(String names[])
+        throws MessagingException
+    {
+        checkExpunged();
+        loadHeaders();
+        return super.getMatchingHeaders(names);
+    }
+
+    public Enumeration getNonMatchingHeaders(String names[])
+        throws MessagingException
+    {
+        checkExpunged();
+        loadHeaders();
+        return super.getNonMatchingHeaders(names);
+    }
+
+    public void addHeaderLine(String line)
+        throws MessagingException
+    {
+        throw new IllegalWriteException("IMAPMessage is read-only");
+    }
+
+    public Enumeration getAllHeaderLines()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadHeaders();
+        return super.getAllHeaderLines();
+    }
+
+    public Enumeration getMatchingHeaderLines(String names[])
+        throws MessagingException
+    {
+        checkExpunged();
+        loadHeaders();
+        return super.getMatchingHeaderLines(names);
+    }
+
+    public Enumeration getNonMatchingHeaderLines(String names[])
+        throws MessagingException
+    {
+        checkExpunged();
+        loadHeaders();
+        return super.getNonMatchingHeaderLines(names);
+    }
+
+    public synchronized Flags getFlags()
+        throws MessagingException
+    {
+        checkExpunged();
+        loadFlags();
+        return super.getFlags();
+    }
+
+    public synchronized boolean isSet(javax.mail.Flags.Flag flag)
+        throws MessagingException
+    {
+        checkExpunged();
+        loadFlags();
+        return super.isSet(flag);
+    }
+
+    public synchronized void setFlags(Flags flag, boolean set)
+        throws MessagingException
+    {
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                checkExpunged();
+                p.storeFlags(getSequenceNumber(), flag, set);
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+    }
+
+    public synchronized void setPeek(boolean peek)
+    {
+        this.peek = peek;
+    }
+
+    public synchronized boolean getPeek()
+    {
+        return peek;
+    }
+
+    public synchronized void invalidateHeaders()
+    {
+        headersLoaded = false;
+        loadedHeaders.clear();
+        headers = null;
+        envelope = null;
+        bs = null;
+        receivedDate = null;
+        size = -1;
+        type = null;
+        subject = null;
+        description = null;
+        flags = null;
+    }
+
+    protected boolean handleFetchItem(Item item, String hdrs[], boolean allHeaders)
+        throws MessagingException
+    {
+        if(item instanceof Flags)
+            flags = (Flags)item;
+        else
+        if(item instanceof ENVELOPE)
+            envelope = (ENVELOPE)item;
+        else
+        if(item instanceof INTERNALDATE)
+            receivedDate = ((INTERNALDATE)item).getDate();
+        else
+        if(item instanceof RFC822SIZE)
+            size = ((RFC822SIZE)item).size;
+        else
+        if(item instanceof BODYSTRUCTURE)
+            bs = (BODYSTRUCTURE)item;
+        else
+        if(item instanceof UID)
+        {
+            UID u = (UID)item;
+            uid = u.uid;
+            if(((IMAPFolder)folder).uidTable == null)
+                ((IMAPFolder)folder).uidTable = new Hashtable();
+            ((IMAPFolder)folder).uidTable.put(new Long(u.uid), this);
+        } else
+        if((item instanceof RFC822DATA) || (item instanceof BODY))
+        {
+            InputStream headerStream;
+            if(item instanceof RFC822DATA)
+                headerStream = ((RFC822DATA)item).getByteArrayInputStream();
+            else
+                headerStream = ((BODY)item).getByteArrayInputStream();
+            InternetHeaders h = new InternetHeaders();
+            if(headerStream != null)
+                h.load(headerStream);
+            if(headers == null || allHeaders)
+            {
+                headers = h;
+            } else
+            {
+                Enumeration e = h.getAllHeaders();
+                do
+                {
+                    if(!e.hasMoreElements())
+                        break;
+                    Header he = (Header)e.nextElement();
+                    if(!isHeaderLoaded(he.getName()))
+                        headers.addHeader(he.getName(), he.getValue());
+                } while(true);
+            }
+            if(allHeaders)
+            {
+                setHeadersLoaded(true);
+            } else
+            {
+                for(int k = 0; k < hdrs.length; k++)
+                    setHeaderLoaded(hdrs[k]);
+
+            }
+        } else
+        {
+            return false;
+        }
+        return true;
+    }
+
+    protected void handleExtensionFetchItems(Map extensionItems)
+        throws MessagingException
+    {
+        if(items == null)
+            items = extensionItems;
+        else
+            items.putAll(extensionItems);
+    }
+
+    protected Object fetchItem(FetchItem fitem)
+        throws MessagingException
+    {
+        Object obj = getMessageCacheLock();
+        JVM INSTR monitorenter ;
+        Object robj = null;
+        try
+        {
+            IMAPProtocol p = getProtocol();
+            checkExpunged();
+            int seqnum = getSequenceNumber();
+            com.sun.mail.iap.Response r[] = p.fetch(seqnum, fitem.getName());
+            for(int i = 0; i < r.length; i++)
+            {
+                if(r[i] == null || !(r[i] instanceof FetchResponse) || ((FetchResponse)r[i]).getNumber() != seqnum)
+                    continue;
+                FetchResponse f = (FetchResponse)r[i];
+                Object o = f.getExtensionItems().get(fitem.getName());
+                if(o != null)
+                    robj = o;
+            }
+
+            p.notifyResponseHandlers(r);
+            p.handleResult(r[r.length - 1]);
+        }
+        catch(ConnectionException cex)
+        {
+            throw new FolderClosedException(folder, cex.getMessage());
+        }
+        catch(ProtocolException pex)
+        {
+            forceCheckExpunged();
+            throw new MessagingException(pex.getMessage(), pex);
+        }
+        return robj;
+        Exception exception;
+        exception;
+        throw exception;
+    }
+
+    public synchronized Object getItem(FetchItem fitem)
+        throws MessagingException
+    {
+        Object item = items != null ? items.get(fitem.getName()) : null;
+        if(item == null)
+            item = fetchItem(fitem);
+        return item;
+    }
+
+    private synchronized void loadEnvelope()
+        throws MessagingException
+    {
+        if(envelope != null)
+            return;
+        com.sun.mail.iap.Response r[] = null;
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                checkExpunged();
+                int seqnum = getSequenceNumber();
+                r = p.fetch(seqnum, "ENVELOPE INTERNALDATE RFC822.SIZE");
+                for(int i = 0; i < r.length; i++)
+                {
+                    if(r[i] == null || !(r[i] instanceof FetchResponse) || ((FetchResponse)r[i]).getNumber() != seqnum)
+                        continue;
+                    FetchResponse f = (FetchResponse)r[i];
+                    int count = f.getItemCount();
+                    for(int j = 0; j < count; j++)
+                    {
+                        Item item = f.getItem(j);
+                        if(item instanceof ENVELOPE)
+                        {
+                            envelope = (ENVELOPE)item;
+                            continue;
+                        }
+                        if(item instanceof INTERNALDATE)
+                        {
+                            receivedDate = ((INTERNALDATE)item).getDate();
+                            continue;
+                        }
+                        if(item instanceof RFC822SIZE)
+                            size = ((RFC822SIZE)item).size;
+                    }
+
+                }
+
+                p.notifyResponseHandlers(r);
+                p.handleResult(r[r.length - 1]);
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                forceCheckExpunged();
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        if(envelope == null)
+            throw new MessagingException("Failed to load IMAP envelope");
+        else
+            return;
+    }
+
+    private synchronized void loadBODYSTRUCTURE()
+        throws MessagingException
+    {
+        if(bs != null)
+            return;
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                checkExpunged();
+                bs = p.fetchBodyStructure(getSequenceNumber());
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                forceCheckExpunged();
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+            if(bs == null)
+            {
+                forceCheckExpunged();
+                throw new MessagingException("Unable to load BODYSTRUCTURE");
+            }
+        }
+    }
+
+    private synchronized void loadHeaders()
+        throws MessagingException
+    {
+        if(headersLoaded)
+            return;
+        InputStream is = null;
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                checkExpunged();
+                if(p.isREV1())
+                {
+                    BODY b = p.peekBody(getSequenceNumber(), toSection("HEADER"));
+                    if(b != null)
+                        is = b.getByteArrayInputStream();
+                } else
+                {
+                    RFC822DATA rd = p.fetchRFC822(getSequenceNumber(), "HEADER");
+                    if(rd != null)
+                        is = rd.getByteArrayInputStream();
+                }
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                forceCheckExpunged();
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+        if(is == null)
+        {
+            throw new MessagingException("Cannot load header");
+        } else
+        {
+            headers = new InternetHeaders(is);
+            headersLoaded = true;
+            return;
+        }
+    }
+
+    private synchronized void loadFlags()
+        throws MessagingException
+    {
+        if(flags != null)
+            return;
+        synchronized(getMessageCacheLock())
+        {
+            try
+            {
+                IMAPProtocol p = getProtocol();
+                checkExpunged();
+                flags = p.fetchFlags(getSequenceNumber());
+                if(flags == null)
+                    flags = new Flags();
+            }
+            catch(ConnectionException cex)
+            {
+                throw new FolderClosedException(folder, cex.getMessage());
+            }
+            catch(ProtocolException pex)
+            {
+                forceCheckExpunged();
+                throw new MessagingException(pex.getMessage(), pex);
+            }
+        }
+    }
+
+    private boolean areHeadersLoaded()
+    {
+        return headersLoaded;
+    }
+
+    private void setHeadersLoaded(boolean loaded)
+    {
+        headersLoaded = loaded;
+    }
+
+    private boolean isHeaderLoaded(String name)
+    {
+        if(headersLoaded)
+            return true;
+        else
+            return loadedHeaders.containsKey(name.toUpperCase(Locale.ENGLISH));
+    }
+
+    private void setHeaderLoaded(String name)
+    {
+        loadedHeaders.put(name.toUpperCase(Locale.ENGLISH), name);
+    }
+
+    private String toSection(String what)
+    {
+        if(sectionId == null)
+            return what;
+        else
+            return (new StringBuilder()).append(sectionId).append(".").append(what).toString();
+    }
+
+    private InternetAddress[] aaclone(InternetAddress aa[])
+    {
+        if(aa == null)
+            return null;
+        else
+            return (InternetAddress[])(InternetAddress[])aa.clone();
+    }
+
+    private Flags _getFlags()
+    {
+        return flags;
+    }
+
+    private ENVELOPE _getEnvelope()
+    {
+        return envelope;
+    }
+
+    private BODYSTRUCTURE _getBodyStructure()
+    {
+        return bs;
+    }
+
+    void _setFlags(Flags flags)
+    {
+        this.flags = flags;
+    }
+
+    Session _getSession()
+    {
+        return session;
+    }
+
+    protected BODYSTRUCTURE bs;
+    protected ENVELOPE envelope;
+    protected Map items;
+    private Date receivedDate;
+    private int size;
+    private boolean peek;
+    private long uid;
+    protected String sectionId;
+    private String type;
+    private String subject;
+    private String description;
+    private volatile boolean headersLoaded;
+    private Hashtable loadedHeaders;
+    static final String EnvelopeCmd = "ENVELOPE INTERNALDATE RFC822.SIZE";
+
+
+
+
+
+
+}

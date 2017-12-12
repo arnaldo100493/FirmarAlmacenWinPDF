@@ -1,0 +1,50 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPTransport.java
+
+package com.sun.mail.smtp;
+
+import java.io.IOException;
+import javax.mail.MessagingException;
+
+// Referenced classes of package com.sun.mail.smtp:
+//            DigestMD5, SMTPTransport
+
+private class SMTPTransport$DigestMD5Authenticator extends SMTPTransport.Authenticator
+{
+
+    private synchronized DigestMD5 getMD5()
+    {
+        if(md5support == null)
+            md5support = new DigestMD5(SMTPTransport.access$200(SMTPTransport.this));
+        return md5support;
+    }
+
+    void doAuth(String host, String authzid, String user, String passwd)
+        throws MessagingException, IOException
+    {
+        DigestMD5 md5 = getMD5();
+        if(md5 == null)
+        {
+            resp = -1;
+            return;
+        }
+        byte b[] = md5.authClient(host, user, passwd, getSASLRealm(), getLastServerResponse());
+        resp = simpleCommand(b);
+        if(resp == 334)
+            if(!md5.authServer(getLastServerResponse()))
+                resp = -1;
+            else
+                resp = simpleCommand(new byte[0]);
+    }
+
+    private DigestMD5 md5support;
+    final SMTPTransport this$0;
+
+    SMTPTransport$DigestMD5Authenticator()
+    {
+        this$0 = SMTPTransport.this;
+        super(SMTPTransport.this, "DIGEST-MD5");
+    }
+}

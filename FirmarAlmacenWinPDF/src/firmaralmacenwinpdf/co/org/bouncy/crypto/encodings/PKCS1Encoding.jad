@@ -1,0 +1,165 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PKCS1Encoding.java
+
+package co.org.bouncy.crypto.encodings;
+
+import co.org.bouncy.crypto.*;
+import co.org.bouncy.crypto.params.AsymmetricKeyParameter;
+import co.org.bouncy.crypto.params.ParametersWithRandom;
+import java.security.*;
+
+public class PKCS1Encoding
+    implements AsymmetricBlockCipher
+{
+
+    public PKCS1Encoding(AsymmetricBlockCipher cipher)
+    {
+        engine = cipher;
+        useStrictLength = useStrict();
+    }
+
+    private boolean useStrict()
+    {
+        String strict = (String)AccessController.doPrivileged(new PrivilegedAction() {
+
+            public Object run()
+            {
+                return System.getProperty("co.org.bouncy.pkcs1.strict");
+            }
+
+            final PKCS1Encoding this$0;
+
+            
+            {
+                this$0 = PKCS1Encoding.this;
+                super();
+            }
+        }
+);
+        return strict == null || strict.equals("true");
+    }
+
+    public AsymmetricBlockCipher getUnderlyingCipher()
+    {
+        return engine;
+    }
+
+    public void init(boolean forEncryption, CipherParameters param)
+    {
+        AsymmetricKeyParameter kParam;
+        if(param instanceof ParametersWithRandom)
+        {
+            ParametersWithRandom rParam = (ParametersWithRandom)param;
+            random = rParam.getRandom();
+            kParam = (AsymmetricKeyParameter)rParam.getParameters();
+        } else
+        {
+            random = new SecureRandom();
+            kParam = (AsymmetricKeyParameter)param;
+        }
+        engine.init(forEncryption, param);
+        forPrivateKey = kParam.isPrivate();
+        this.forEncryption = forEncryption;
+    }
+
+    public int getInputBlockSize()
+    {
+        int baseBlockSize = engine.getInputBlockSize();
+        if(forEncryption)
+            return baseBlockSize - 10;
+        else
+            return baseBlockSize;
+    }
+
+    public int getOutputBlockSize()
+    {
+        int baseBlockSize = engine.getOutputBlockSize();
+        if(forEncryption)
+            return baseBlockSize;
+        else
+            return baseBlockSize - 10;
+    }
+
+    public byte[] processBlock(byte in[], int inOff, int inLen)
+        throws InvalidCipherTextException
+    {
+        if(forEncryption)
+            return encodeBlock(in, inOff, inLen);
+        else
+            return decodeBlock(in, inOff, inLen);
+    }
+
+    private byte[] encodeBlock(byte in[], int inOff, int inLen)
+        throws InvalidCipherTextException
+    {
+        if(inLen > getInputBlockSize())
+            throw new IllegalArgumentException("input data too large");
+        byte block[] = new byte[engine.getInputBlockSize()];
+        if(forPrivateKey)
+        {
+            block[0] = 1;
+            for(int i = 1; i != block.length - inLen - 1; i++)
+                block[i] = -1;
+
+        } else
+        {
+            random.nextBytes(block);
+            block[0] = 2;
+            for(int i = 1; i != block.length - inLen - 1; i++)
+                for(; block[i] == 0; block[i] = (byte)random.nextInt());
+
+        }
+        block[block.length - inLen - 1] = 0;
+        System.arraycopy(in, inOff, block, block.length - inLen, inLen);
+        return engine.processBlock(block, 0, block.length);
+    }
+
+    private byte[] decodeBlock(byte in[], int inOff, int inLen)
+        throws InvalidCipherTextException
+    {
+        byte block[] = engine.processBlock(in, inOff, inLen);
+        if(block.length < getOutputBlockSize())
+            throw new InvalidCipherTextException("block truncated");
+        byte type = block[0];
+        if(forPrivateKey)
+        {
+            if(type != 2)
+                throw new InvalidCipherTextException("unknown block type");
+        } else
+        if(type != 1)
+            throw new InvalidCipherTextException("unknown block type");
+        if(useStrictLength && block.length != engine.getOutputBlockSize())
+            throw new InvalidCipherTextException("block incorrect size");
+        int start = 1;
+        do
+        {
+            if(start == block.length)
+                break;
+            byte pad = block[start];
+            if(pad == 0)
+                break;
+            if(type == 1 && pad != -1)
+                throw new InvalidCipherTextException("block padding incorrect");
+            start++;
+        } while(true);
+        if(++start > block.length || start < 10)
+        {
+            throw new InvalidCipherTextException("no data in block");
+        } else
+        {
+            byte result[] = new byte[block.length - start];
+            System.arraycopy(block, start, result, 0, result.length);
+            return result;
+        }
+    }
+
+    public static final String STRICT_LENGTH_ENABLED_PROPERTY = "co.org.bouncy.pkcs1.strict";
+    private static final int HEADER_LENGTH = 10;
+    private SecureRandom random;
+    private AsymmetricBlockCipher engine;
+    private boolean forEncryption;
+    private boolean forPrivateKey;
+    private boolean useStrictLength;
+}

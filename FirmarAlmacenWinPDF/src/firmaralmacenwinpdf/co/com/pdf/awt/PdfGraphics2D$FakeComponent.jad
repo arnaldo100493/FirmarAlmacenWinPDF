@@ -1,0 +1,26 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:47 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   PdfGraphics2D.java
+
+package co.com.pdf.awt;
+
+import java.awt.Component;
+
+// Referenced classes of package co.com.pdf.awt:
+//            PdfGraphics2D
+
+private static class PdfGraphics2D$FakeComponent extends Component
+{
+
+    private static final long serialVersionUID = 0x5983b4db5e35896eL;
+
+    private PdfGraphics2D$FakeComponent()
+    {
+    }
+
+    PdfGraphics2D$FakeComponent(PdfGraphics2D._cls1 x0)
+    {
+        this();
+    }
+}

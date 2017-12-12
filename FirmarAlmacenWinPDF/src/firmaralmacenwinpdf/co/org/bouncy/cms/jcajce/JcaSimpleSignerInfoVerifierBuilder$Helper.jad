@@ -1,0 +1,58 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JcaSimpleSignerInfoVerifierBuilder.java
+
+package co.org.bouncy.cms.jcajce;
+
+import co.org.bouncy.cert.X509CertificateHolder;
+import co.org.bouncy.operator.*;
+import co.org.bouncy.operator.jcajce.JcaContentVerifierProviderBuilder;
+import co.org.bouncy.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import java.security.PublicKey;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+
+// Referenced classes of package co.org.bouncy.cms.jcajce:
+//            JcaSimpleSignerInfoVerifierBuilder
+
+private class JcaSimpleSignerInfoVerifierBuilder$Helper
+{
+
+    ContentVerifierProvider createContentVerifierProvider(PublicKey publicKey)
+        throws OperatorCreationException
+    {
+        return (new JcaContentVerifierProviderBuilder()).build(publicKey);
+    }
+
+    ContentVerifierProvider createContentVerifierProvider(X509Certificate certificate)
+        throws OperatorCreationException
+    {
+        return (new JcaContentVerifierProviderBuilder()).build(certificate);
+    }
+
+    ContentVerifierProvider createContentVerifierProvider(X509CertificateHolder certHolder)
+        throws OperatorCreationException, CertificateException
+    {
+        return (new JcaContentVerifierProviderBuilder()).build(certHolder);
+    }
+
+    DigestCalculatorProvider createDigestCalculatorProvider()
+        throws OperatorCreationException
+    {
+        return (new JcaDigestCalculatorProviderBuilder()).build();
+    }
+
+    final JcaSimpleSignerInfoVerifierBuilder this$0;
+
+    private JcaSimpleSignerInfoVerifierBuilder$Helper()
+    {
+        this$0 = JcaSimpleSignerInfoVerifierBuilder.this;
+        super();
+    }
+
+    JcaSimpleSignerInfoVerifierBuilder$Helper(JcaSimpleSignerInfoVerifierBuilder._cls1 x1)
+    {
+        this();
+    }
+}

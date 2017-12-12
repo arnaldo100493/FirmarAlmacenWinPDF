@@ -1,0 +1,527 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   EnvelopedDataHelper.java
+
+package co.org.bouncy.cms.jcajce;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.pkcs.PKCSObjectIdentifiers;
+import co.org.bouncy.asn1.pkcs.RC2CBCParameter;
+import co.org.bouncy.asn1.x509.AlgorithmIdentifier;
+import co.org.bouncy.cms.*;
+import co.org.bouncy.operator.GenericKey;
+import co.org.bouncy.operator.SymmetricKeyUnwrapper;
+import co.org.bouncy.operator.jcajce.JceAsymmetricKeyUnwrapper;
+import java.io.IOException;
+import java.security.*;
+import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.InvalidParameterSpecException;
+import java.util.HashMap;
+import java.util.Map;
+import javax.crypto.*;
+import javax.crypto.spec.*;
+
+// Referenced classes of package co.org.bouncy.cms.jcajce:
+//            JcaJceExtHelper
+
+class EnvelopedDataHelper
+{
+    static interface JCECallback
+    {
+
+        public abstract Object doInJCE()
+            throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException;
+    }
+
+
+    EnvelopedDataHelper(JcaJceExtHelper helper)
+    {
+        this.helper = helper;
+    }
+
+    String getBaseCipherName(ASN1ObjectIdentifier algorithm)
+    {
+        String name = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(name == null)
+            return algorithm.getId();
+        else
+            return name;
+    }
+
+    Key getJceKey(GenericKey key)
+    {
+        if(key.getRepresentation() instanceof Key)
+            return (Key)key.getRepresentation();
+        if(key.getRepresentation() instanceof byte[])
+            return new SecretKeySpec((byte[])(byte[])key.getRepresentation(), "ENC");
+        else
+            throw new IllegalArgumentException("unknown generic key type");
+    }
+
+    Key getJceKey(ASN1ObjectIdentifier algorithm, GenericKey key)
+    {
+        if(key.getRepresentation() instanceof Key)
+            return (Key)key.getRepresentation();
+        if(key.getRepresentation() instanceof byte[])
+            return new SecretKeySpec((byte[])(byte[])key.getRepresentation(), getBaseCipherName(algorithm));
+        else
+            throw new IllegalArgumentException("unknown generic key type");
+    }
+
+    Cipher createCipher(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String cipherName = (String)CIPHER_ALG_NAMES.get(algorithm);
+        if(cipherName != null)
+            try
+            {
+                return helper.createCipher(cipherName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createCipher(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new CMSException((new StringBuilder()).append("cannot create cipher: ").append(e.getMessage()).toString(), e);
+    }
+
+    Mac createMac(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String macName = (String)MAC_ALG_NAMES.get(algorithm);
+        if(macName != null)
+            try
+            {
+                return helper.createMac(macName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createMac(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new CMSException((new StringBuilder()).append("cannot create mac: ").append(e.getMessage()).toString(), e);
+    }
+
+    Cipher createRFC3211Wrapper(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String cipherName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(cipherName == null)
+            throw new CMSException((new StringBuilder()).append("no name for ").append(algorithm).toString());
+        cipherName = (new StringBuilder()).append(cipherName).append("RFC3211Wrap").toString();
+        try
+        {
+            return helper.createCipher(cipherName);
+        }
+        catch(GeneralSecurityException e)
+        {
+            throw new CMSException((new StringBuilder()).append("cannot create cipher: ").append(e.getMessage()).toString(), e);
+        }
+    }
+
+    KeyAgreement createKeyAgreement(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String agreementName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(agreementName != null)
+            try
+            {
+                return helper.createKeyAgreement(agreementName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createKeyAgreement(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new CMSException((new StringBuilder()).append("cannot create key pair generator: ").append(e.getMessage()).toString(), e);
+    }
+
+    AlgorithmParameterGenerator createAlgorithmParameterGenerator(ASN1ObjectIdentifier algorithm)
+        throws GeneralSecurityException
+    {
+        String algorithmName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(algorithmName != null)
+            try
+            {
+                return helper.createAlgorithmParameterGenerator(algorithmName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createAlgorithmParameterGenerator(algorithm.getId());
+    }
+
+    Cipher createContentCipher(final Key sKey, final AlgorithmIdentifier encryptionAlgID)
+        throws CMSException
+    {
+        return (Cipher)execute(new JCECallback() {
+
+            public Object doInJCE()
+                throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException
+            {
+                Cipher cipher = createCipher(encryptionAlgID.getAlgorithm());
+                ASN1Encodable sParams = encryptionAlgID.getParameters();
+                String encAlg = encryptionAlgID.getAlgorithm().getId();
+                if(sParams != null && !(sParams instanceof ASN1Null))
+                    try
+                    {
+                        AlgorithmParameters params = createAlgorithmParameters(encryptionAlgID.getAlgorithm());
+                        try
+                        {
+                            params.init(sParams.toASN1Primitive().getEncoded(), "ASN.1");
+                        }
+                        catch(IOException e)
+                        {
+                            throw new CMSException("error decoding algorithm parameters.", e);
+                        }
+                        cipher.init(2, sKey, params);
+                    }
+                    catch(NoSuchAlgorithmException e)
+                    {
+                        if(encAlg.equals(CMSAlgorithm.DES_CBC.getId()) || encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || encAlg.equals(CMSEnvelopedDataGenerator.AES128_CBC) || encAlg.equals(CMSEnvelopedDataGenerator.AES192_CBC) || encAlg.equals(CMSEnvelopedDataGenerator.AES256_CBC))
+                            cipher.init(2, sKey, new IvParameterSpec(ASN1OctetString.getInstance(sParams).getOctets()));
+                        else
+                            throw e;
+                    }
+                else
+                if(encAlg.equals(CMSAlgorithm.DES_CBC.getId()) || encAlg.equals(CMSEnvelopedDataGenerator.DES_EDE3_CBC) || encAlg.equals("1.3.6.1.4.1.188.7.1.1.2") || encAlg.equals("1.2.840.113533.7.66.10"))
+                    cipher.init(2, sKey, new IvParameterSpec(new byte[8]));
+                else
+                    cipher.init(2, sKey);
+                return cipher;
+            }
+
+            final AlgorithmIdentifier val$encryptionAlgID;
+            final Key val$sKey;
+            final EnvelopedDataHelper this$0;
+
+            
+            {
+                this$0 = EnvelopedDataHelper.this;
+                encryptionAlgID = algorithmidentifier;
+                sKey = key;
+                super();
+            }
+        }
+);
+    }
+
+    Mac createContentMac(final Key sKey, final AlgorithmIdentifier macAlgId)
+        throws CMSException
+    {
+        return (Mac)execute(new JCECallback() {
+
+            public Object doInJCE()
+                throws CMSException, InvalidAlgorithmParameterException, InvalidKeyException, InvalidParameterSpecException, NoSuchAlgorithmException, NoSuchPaddingException, NoSuchProviderException
+            {
+                Mac mac = createMac(macAlgId.getAlgorithm());
+                ASN1Encodable sParams = macAlgId.getParameters();
+                String macAlg = macAlgId.getAlgorithm().getId();
+                if(sParams != null && !(sParams instanceof ASN1Null))
+                    try
+                    {
+                        AlgorithmParameters params = createAlgorithmParameters(macAlgId.getAlgorithm());
+                        try
+                        {
+                            params.init(sParams.toASN1Primitive().getEncoded(), "ASN.1");
+                        }
+                        catch(IOException e)
+                        {
+                            throw new CMSException("error decoding algorithm parameters.", e);
+                        }
+                        mac.init(sKey, params.getParameterSpec(javax/crypto/spec/IvParameterSpec));
+                    }
+                    catch(NoSuchAlgorithmException e)
+                    {
+                        throw e;
+                    }
+                else
+                    mac.init(sKey);
+                return mac;
+            }
+
+            final AlgorithmIdentifier val$macAlgId;
+            final Key val$sKey;
+            final EnvelopedDataHelper this$0;
+
+            
+            {
+                this$0 = EnvelopedDataHelper.this;
+                macAlgId = algorithmidentifier;
+                sKey = key;
+                super();
+            }
+        }
+);
+    }
+
+    AlgorithmParameters createAlgorithmParameters(ASN1ObjectIdentifier algorithm)
+        throws NoSuchAlgorithmException, NoSuchProviderException
+    {
+        String algorithmName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(algorithmName != null)
+            try
+            {
+                return helper.createAlgorithmParameters(algorithmName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createAlgorithmParameters(algorithm.getId());
+    }
+
+    KeyPairGenerator createKeyPairGenerator(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String cipherName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(cipherName != null)
+            try
+            {
+                return helper.createKeyPairGenerator(cipherName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createKeyPairGenerator(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new CMSException((new StringBuilder()).append("cannot create key pair generator: ").append(e.getMessage()).toString(), e);
+    }
+
+    public KeyGenerator createKeyGenerator(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String cipherName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(cipherName != null)
+            try
+            {
+                return helper.createKeyGenerator(cipherName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createKeyGenerator(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new CMSException((new StringBuilder()).append("cannot create key generator: ").append(e.getMessage()).toString(), e);
+    }
+
+    AlgorithmParameters generateParameters(ASN1ObjectIdentifier encryptionOID, SecretKey encKey, SecureRandom rand)
+        throws CMSException
+    {
+        try
+        {
+            AlgorithmParameterGenerator pGen = createAlgorithmParameterGenerator(encryptionOID);
+            if(encryptionOID.equals(CMSEnvelopedDataGenerator.RC2_CBC))
+            {
+                byte iv[] = new byte[8];
+                rand.nextBytes(iv);
+                try
+                {
+                    pGen.init(new RC2ParameterSpec(encKey.getEncoded().length * 8, iv), rand);
+                }
+                catch(InvalidAlgorithmParameterException e)
+                {
+                    throw new CMSException((new StringBuilder()).append("parameters generation error: ").append(e).toString(), e);
+                }
+            }
+            return pGen.generateParameters();
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            return null;
+        }
+        catch(GeneralSecurityException e)
+        {
+            throw new CMSException((new StringBuilder()).append("exception creating algorithm parameter generator: ").append(e).toString(), e);
+        }
+    }
+
+    AlgorithmIdentifier getAlgorithmIdentifier(ASN1ObjectIdentifier encryptionOID, AlgorithmParameters params)
+        throws CMSException
+    {
+        ASN1Encodable asn1Params;
+        if(params != null)
+            try
+            {
+                asn1Params = ASN1Primitive.fromByteArray(params.getEncoded("ASN.1"));
+            }
+            catch(IOException e)
+            {
+                throw new CMSException((new StringBuilder()).append("cannot encode parameters: ").append(e.getMessage()).toString(), e);
+            }
+        else
+            asn1Params = DERNull.INSTANCE;
+        return new AlgorithmIdentifier(encryptionOID, asn1Params);
+    }
+
+    static Object execute(JCECallback callback)
+        throws CMSException
+    {
+        try
+        {
+            return callback.doInJCE();
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            throw new CMSException("can't find algorithm.", e);
+        }
+        catch(InvalidKeyException e)
+        {
+            throw new CMSException("key invalid in message.", e);
+        }
+        catch(NoSuchProviderException e)
+        {
+            throw new CMSException("can't find provider.", e);
+        }
+        catch(NoSuchPaddingException e)
+        {
+            throw new CMSException("required padding not supported.", e);
+        }
+        catch(InvalidAlgorithmParameterException e)
+        {
+            throw new CMSException("algorithm parameters invalid.", e);
+        }
+        catch(InvalidParameterSpecException e)
+        {
+            throw new CMSException("MAC algorithm parameter spec invalid.", e);
+        }
+    }
+
+    public KeyFactory createKeyFactory(ASN1ObjectIdentifier algorithm)
+        throws CMSException
+    {
+        String cipherName = (String)BASE_CIPHER_NAMES.get(algorithm);
+        if(cipherName != null)
+            try
+            {
+                return helper.createKeyFactory(cipherName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createKeyFactory(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new CMSException((new StringBuilder()).append("cannot create key factory: ").append(e.getMessage()).toString(), e);
+    }
+
+    public JceAsymmetricKeyUnwrapper createAsymmetricUnwrapper(AlgorithmIdentifier keyEncryptionAlgorithm, PrivateKey keyEncryptionKey)
+    {
+        return helper.createAsymmetricUnwrapper(keyEncryptionAlgorithm, keyEncryptionKey);
+    }
+
+    public SymmetricKeyUnwrapper createSymmetricUnwrapper(AlgorithmIdentifier keyEncryptionAlgorithm, SecretKey keyEncryptionKey)
+    {
+        return helper.createSymmetricUnwrapper(keyEncryptionAlgorithm, keyEncryptionKey);
+    }
+
+    public AlgorithmIdentifier getAlgorithmIdentifier(ASN1ObjectIdentifier macOID, AlgorithmParameterSpec paramSpec)
+    {
+        if(paramSpec instanceof IvParameterSpec)
+            return new AlgorithmIdentifier(macOID, new DEROctetString(((IvParameterSpec)paramSpec).getIV()));
+        if(paramSpec instanceof RC2ParameterSpec)
+        {
+            RC2ParameterSpec rc2Spec = (RC2ParameterSpec)paramSpec;
+            int effKeyBits = ((RC2ParameterSpec)paramSpec).getEffectiveKeyBits();
+            if(effKeyBits != -1)
+            {
+                int parameterVersion;
+                if(effKeyBits < 256)
+                    parameterVersion = rc2Table[effKeyBits];
+                else
+                    parameterVersion = effKeyBits;
+                return new AlgorithmIdentifier(macOID, new RC2CBCParameter(parameterVersion, rc2Spec.getIV()));
+            } else
+            {
+                return new AlgorithmIdentifier(macOID, new RC2CBCParameter(rc2Spec.getIV()));
+            }
+        } else
+        {
+            throw new IllegalStateException((new StringBuilder()).append("unknown parameter spec: ").append(paramSpec).toString());
+        }
+    }
+
+    protected static final Map BASE_CIPHER_NAMES;
+    protected static final Map CIPHER_ALG_NAMES;
+    protected static final Map MAC_ALG_NAMES;
+    private static final short rc2Table[] = {
+        189, 86, 234, 242, 162, 241, 172, 42, 176, 147, 
+        209, 156, 27, 51, 253, 208, 48, 4, 182, 220, 
+        125, 223, 50, 75, 247, 203, 69, 155, 49, 187, 
+        33, 90, 65, 159, 225, 217, 74, 77, 158, 218, 
+        160, 104, 44, 195, 39, 95, 128, 54, 62, 238, 
+        251, 149, 26, 254, 206, 168, 52, 169, 19, 240, 
+        166, 63, 216, 12, 120, 36, 175, 35, 82, 193, 
+        103, 23, 245, 102, 144, 231, 232, 7, 184, 96, 
+        72, 230, 30, 83, 243, 146, 164, 114, 140, 8, 
+        21, 110, 134, 0, 132, 250, 244, 127, 138, 66, 
+        25, 246, 219, 205, 20, 141, 80, 18, 186, 60, 
+        6, 78, 236, 179, 53, 17, 161, 136, 142, 43, 
+        148, 153, 183, 113, 116, 211, 228, 191, 58, 222, 
+        150, 14, 188, 10, 237, 119, 252, 55, 107, 3, 
+        121, 137, 98, 198, 215, 192, 210, 124, 106, 139, 
+        34, 163, 91, 5, 93, 2, 117, 213, 97, 227, 
+        24, 143, 85, 81, 173, 31, 11, 94, 133, 229, 
+        194, 87, 99, 202, 61, 108, 180, 197, 204, 112, 
+        178, 145, 89, 13, 71, 32, 200, 79, 88, 224, 
+        1, 226, 22, 56, 196, 111, 59, 15, 101, 70, 
+        190, 126, 45, 123, 130, 249, 64, 181, 29, 115, 
+        248, 235, 38, 199, 135, 151, 37, 84, 177, 40, 
+        170, 152, 157, 165, 100, 109, 122, 212, 16, 129, 
+        68, 239, 73, 214, 174, 46, 221, 118, 92, 47, 
+        167, 28, 201, 9, 105, 154, 131, 207, 41, 57, 
+        185, 233, 76, 255, 67, 171
+    };
+    private static final short rc2Ekb[] = {
+        93, 190, 155, 139, 17, 153, 110, 77, 89, 243, 
+        133, 166, 63, 183, 131, 197, 228, 115, 107, 58, 
+        104, 90, 192, 71, 160, 100, 52, 12, 241, 208, 
+        82, 165, 185, 30, 150, 67, 65, 216, 212, 44, 
+        219, 248, 7, 119, 42, 202, 235, 239, 16, 28, 
+        22, 13, 56, 114, 47, 137, 193, 249, 128, 196, 
+        109, 174, 48, 61, 206, 32, 99, 254, 230, 26, 
+        199, 184, 80, 232, 36, 23, 252, 37, 111, 187, 
+        106, 163, 68, 83, 217, 162, 1, 171, 188, 182, 
+        31, 152, 238, 154, 167, 45, 79, 158, 142, 172, 
+        224, 198, 73, 70, 41, 244, 148, 138, 175, 225, 
+        91, 195, 179, 123, 87, 209, 124, 156, 237, 135, 
+        64, 140, 226, 203, 147, 20, 201, 97, 46, 229, 
+        204, 246, 94, 168, 92, 214, 117, 141, 98, 149, 
+        88, 105, 118, 161, 74, 181, 85, 9, 120, 51, 
+        130, 215, 221, 121, 245, 27, 11, 222, 38, 33, 
+        40, 116, 4, 151, 86, 223, 60, 240, 55, 57, 
+        220, 255, 6, 164, 234, 66, 8, 218, 180, 113, 
+        176, 207, 18, 122, 78, 250, 108, 29, 132, 0, 
+        200, 127, 145, 69, 170, 43, 194, 177, 143, 213, 
+        186, 242, 173, 25, 178, 103, 54, 247, 15, 10, 
+        146, 125, 227, 157, 233, 144, 62, 35, 39, 102, 
+        19, 236, 129, 21, 189, 34, 191, 159, 126, 169, 
+        81, 75, 76, 251, 2, 211, 112, 134, 49, 231, 
+        59, 5, 3, 84, 96, 72, 101, 24, 210, 205, 
+        95, 50, 136, 14, 53, 253
+    };
+    private JcaJceExtHelper helper;
+
+    static 
+    {
+        BASE_CIPHER_NAMES = new HashMap();
+        CIPHER_ALG_NAMES = new HashMap();
+        MAC_ALG_NAMES = new HashMap();
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.DES_CBC, "DES");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.DES_EDE3_CBC, "DESEDE");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.AES128_CBC, "AES");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.AES192_CBC, "AES");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.AES256_CBC, "AES");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.RC2_CBC, "RC2");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.CAST5_CBC, "CAST5");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.CAMELLIA128_CBC, "Camellia");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.CAMELLIA192_CBC, "Camellia");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.CAMELLIA256_CBC, "Camellia");
+        BASE_CIPHER_NAMES.put(CMSAlgorithm.SEED_CBC, "SEED");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.DES_CBC, "DES/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.DES_EDE3_CBC, "DESEDE/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.AES128_CBC, "AES/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.AES192_CBC, "AES/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.AES256_CBC, "AES/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(PKCSObjectIdentifiers.rsaEncryption, "RSA/ECB/PKCS1Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.CAST5_CBC, "CAST5/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.CAMELLIA128_CBC, "Camellia/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.CAMELLIA192_CBC, "Camellia/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.CAMELLIA256_CBC, "Camellia/CBC/PKCS5Padding");
+        CIPHER_ALG_NAMES.put(CMSAlgorithm.SEED_CBC, "SEED/CBC/PKCS5Padding");
+        MAC_ALG_NAMES.put(CMSAlgorithm.DES_EDE3_CBC, "DESEDEMac");
+        MAC_ALG_NAMES.put(CMSAlgorithm.AES128_CBC, "AESMac");
+        MAC_ALG_NAMES.put(CMSAlgorithm.AES192_CBC, "AESMac");
+        MAC_ALG_NAMES.put(CMSAlgorithm.AES256_CBC, "AESMac");
+        MAC_ALG_NAMES.put(CMSAlgorithm.RC2_CBC, "RC2Mac");
+    }
+}

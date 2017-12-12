@@ -1,0 +1,181 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SMTPMessage.java
+
+package com.sun.mail.smtp;
+
+import java.io.InputStream;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.internet.MimeMessage;
+
+public class SMTPMessage extends MimeMessage
+{
+
+    public SMTPMessage(Session session)
+    {
+        super(session);
+        notifyOptions = 0;
+        returnOption = 0;
+        sendPartial = false;
+        allow8bitMIME = false;
+        submitter = null;
+        extension = null;
+    }
+
+    public SMTPMessage(Session session, InputStream is)
+        throws MessagingException
+    {
+        super(session, is);
+        notifyOptions = 0;
+        returnOption = 0;
+        sendPartial = false;
+        allow8bitMIME = false;
+        submitter = null;
+        extension = null;
+    }
+
+    public SMTPMessage(MimeMessage source)
+        throws MessagingException
+    {
+        super(source);
+        notifyOptions = 0;
+        returnOption = 0;
+        sendPartial = false;
+        allow8bitMIME = false;
+        submitter = null;
+        extension = null;
+    }
+
+    public void setEnvelopeFrom(String from)
+    {
+        envelopeFrom = from;
+    }
+
+    public String getEnvelopeFrom()
+    {
+        return envelopeFrom;
+    }
+
+    public void setNotifyOptions(int options)
+    {
+        if(options < -1 || options >= 8)
+        {
+            throw new IllegalArgumentException("Bad return option");
+        } else
+        {
+            notifyOptions = options;
+            return;
+        }
+    }
+
+    public int getNotifyOptions()
+    {
+        return notifyOptions;
+    }
+
+    String getDSNNotify()
+    {
+        if(notifyOptions == 0)
+            return null;
+        if(notifyOptions == -1)
+            return "NEVER";
+        StringBuffer sb = new StringBuffer();
+        if((notifyOptions & 1) != 0)
+            sb.append("SUCCESS");
+        if((notifyOptions & 2) != 0)
+        {
+            if(sb.length() != 0)
+                sb.append(',');
+            sb.append("FAILURE");
+        }
+        if((notifyOptions & 4) != 0)
+        {
+            if(sb.length() != 0)
+                sb.append(',');
+            sb.append("DELAY");
+        }
+        return sb.toString();
+    }
+
+    public void setReturnOption(int option)
+    {
+        if(option < 0 || option > 2)
+        {
+            throw new IllegalArgumentException("Bad return option");
+        } else
+        {
+            returnOption = option;
+            return;
+        }
+    }
+
+    public int getReturnOption()
+    {
+        return returnOption;
+    }
+
+    String getDSNRet()
+    {
+        return returnOptionString[returnOption];
+    }
+
+    public void setAllow8bitMIME(boolean allow)
+    {
+        allow8bitMIME = allow;
+    }
+
+    public boolean getAllow8bitMIME()
+    {
+        return allow8bitMIME;
+    }
+
+    public void setSendPartial(boolean partial)
+    {
+        sendPartial = partial;
+    }
+
+    public boolean getSendPartial()
+    {
+        return sendPartial;
+    }
+
+    public String getSubmitter()
+    {
+        return submitter;
+    }
+
+    public void setSubmitter(String submitter)
+    {
+        this.submitter = submitter;
+    }
+
+    public String getMailExtension()
+    {
+        return extension;
+    }
+
+    public void setMailExtension(String extension)
+    {
+        this.extension = extension;
+    }
+
+    public static final int NOTIFY_NEVER = -1;
+    public static final int NOTIFY_SUCCESS = 1;
+    public static final int NOTIFY_FAILURE = 2;
+    public static final int NOTIFY_DELAY = 4;
+    public static final int RETURN_FULL = 1;
+    public static final int RETURN_HDRS = 2;
+    private static final String returnOptionString[] = {
+        null, "FULL", "HDRS"
+    };
+    private String envelopeFrom;
+    private int notifyOptions;
+    private int returnOption;
+    private boolean sendPartial;
+    private boolean allow8bitMIME;
+    private String submitter;
+    private String extension;
+
+}

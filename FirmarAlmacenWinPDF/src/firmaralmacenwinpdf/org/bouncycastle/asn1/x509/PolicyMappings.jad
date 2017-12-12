@@ -1,0 +1,44 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PolicyMappings.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.Enumeration;
+import java.util.Hashtable;
+import org.bouncycastle.asn1.*;
+
+public class PolicyMappings extends ASN1Encodable
+{
+
+    public PolicyMappings(ASN1Sequence seq)
+    {
+        this.seq = null;
+        this.seq = seq;
+    }
+
+    public PolicyMappings(Hashtable mappings)
+    {
+        seq = null;
+        ASN1EncodableVector dev = new ASN1EncodableVector();
+        ASN1EncodableVector dv;
+        for(Enumeration it = mappings.keys(); it.hasMoreElements(); dev.add(new DERSequence(dv)))
+        {
+            String idp = (String)it.nextElement();
+            String sdp = (String)mappings.get(idp);
+            dv = new ASN1EncodableVector();
+            dv.add(new DERObjectIdentifier(idp));
+            dv.add(new DERObjectIdentifier(sdp));
+        }
+
+        seq = new DERSequence(dev);
+    }
+
+    public DERObject toASN1Object()
+    {
+        return seq;
+    }
+
+    ASN1Sequence seq;
+}

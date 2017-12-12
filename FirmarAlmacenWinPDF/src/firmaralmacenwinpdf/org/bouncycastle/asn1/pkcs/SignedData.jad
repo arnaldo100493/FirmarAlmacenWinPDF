@@ -1,0 +1,124 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SignedData.java
+
+package org.bouncycastle.asn1.pkcs;
+
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.pkcs:
+//            PKCSObjectIdentifiers, ContentInfo
+
+public class SignedData extends ASN1Encodable
+    implements PKCSObjectIdentifiers
+{
+
+    public static SignedData getInstance(Object o)
+    {
+        if(o instanceof SignedData)
+            return (SignedData)o;
+        if(o instanceof ASN1Sequence)
+            return new SignedData((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(o).toString());
+    }
+
+    public SignedData(DERInteger _version, ASN1Set _digestAlgorithms, ContentInfo _contentInfo, ASN1Set _certificates, ASN1Set _crls, ASN1Set _signerInfos)
+    {
+        version = _version;
+        digestAlgorithms = _digestAlgorithms;
+        contentInfo = _contentInfo;
+        certificates = _certificates;
+        crls = _crls;
+        signerInfos = _signerInfos;
+    }
+
+    public SignedData(ASN1Sequence seq)
+    {
+        Enumeration e = seq.getObjects();
+        version = (DERInteger)e.nextElement();
+        digestAlgorithms = (ASN1Set)e.nextElement();
+        contentInfo = ContentInfo.getInstance(e.nextElement());
+        do
+        {
+            while(e.hasMoreElements()) 
+            {
+                DERObject o = (DERObject)e.nextElement();
+                if(o instanceof DERTaggedObject)
+                {
+                    DERTaggedObject tagged = (DERTaggedObject)o;
+                    switch(tagged.getTagNo())
+                    {
+                    case 0: // '\0'
+                        certificates = ASN1Set.getInstance(tagged, false);
+                        break;
+
+                    case 1: // '\001'
+                        crls = ASN1Set.getInstance(tagged, false);
+                        break;
+
+                    default:
+                        throw new IllegalArgumentException((new StringBuilder()).append("unknown tag value ").append(tagged.getTagNo()).toString());
+                    }
+                } else
+                {
+                    signerInfos = (ASN1Set)o;
+                }
+            }
+            return;
+        } while(true);
+    }
+
+    public DERInteger getVersion()
+    {
+        return version;
+    }
+
+    public ASN1Set getDigestAlgorithms()
+    {
+        return digestAlgorithms;
+    }
+
+    public ContentInfo getContentInfo()
+    {
+        return contentInfo;
+    }
+
+    public ASN1Set getCertificates()
+    {
+        return certificates;
+    }
+
+    public ASN1Set getCRLs()
+    {
+        return crls;
+    }
+
+    public ASN1Set getSignerInfos()
+    {
+        return signerInfos;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(version);
+        v.add(digestAlgorithms);
+        v.add(contentInfo);
+        if(certificates != null)
+            v.add(new DERTaggedObject(false, 0, certificates));
+        if(crls != null)
+            v.add(new DERTaggedObject(false, 1, crls));
+        v.add(signerInfos);
+        return new BERSequence(v);
+    }
+
+    private DERInteger version;
+    private ASN1Set digestAlgorithms;
+    private ContentInfo contentInfo;
+    private ASN1Set certificates;
+    private ASN1Set crls;
+    private ASN1Set signerInfos;
+}

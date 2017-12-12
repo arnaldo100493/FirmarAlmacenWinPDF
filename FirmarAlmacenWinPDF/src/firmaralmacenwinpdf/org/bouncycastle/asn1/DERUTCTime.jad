@@ -1,0 +1,145 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERUTCTime.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.SimpleTimeZone;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, ASN1OctetString, DERObject, ASN1TaggedObject, 
+//            DEROutputStream
+
+public class DERUTCTime extends ASN1Object
+{
+
+    public static DERUTCTime getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof DERUTCTime))
+            return (DERUTCTime)obj;
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("illegal object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public static DERUTCTime getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        DERObject o = obj.getObject();
+        if(explicit || (o instanceof DERUTCTime))
+            return getInstance(o);
+        else
+            return new DERUTCTime(((ASN1OctetString)o).getOctets());
+    }
+
+    public DERUTCTime(String time)
+    {
+        this.time = time;
+        try
+        {
+            getDate();
+        }
+        catch(ParseException e)
+        {
+            throw new IllegalArgumentException((new StringBuilder()).append("invalid date string: ").append(e.getMessage()).toString());
+        }
+    }
+
+    public DERUTCTime(Date time)
+    {
+        SimpleDateFormat dateF = new SimpleDateFormat("yyMMddHHmmss'Z'");
+        dateF.setTimeZone(new SimpleTimeZone(0, "Z"));
+        this.time = dateF.format(time);
+    }
+
+    DERUTCTime(byte bytes[])
+    {
+        char dateC[] = new char[bytes.length];
+        for(int i = 0; i != dateC.length; i++)
+            dateC[i] = (char)(bytes[i] & 0xff);
+
+        time = new String(dateC);
+    }
+
+    public Date getDate()
+        throws ParseException
+    {
+        SimpleDateFormat dateF = new SimpleDateFormat("yyMMddHHmmssz");
+        return dateF.parse(getTime());
+    }
+
+    public Date getAdjustedDate()
+        throws ParseException
+    {
+        SimpleDateFormat dateF = new SimpleDateFormat("yyyyMMddHHmmssz");
+        dateF.setTimeZone(new SimpleTimeZone(0, "Z"));
+        return dateF.parse(getAdjustedTime());
+    }
+
+    public String getTime()
+    {
+        if(time.indexOf('-') < 0 && time.indexOf('+') < 0)
+            if(time.length() == 11)
+                return (new StringBuilder()).append(time.substring(0, 10)).append("00GMT+00:00").toString();
+            else
+                return (new StringBuilder()).append(time.substring(0, 12)).append("GMT+00:00").toString();
+        int index = time.indexOf('-');
+        if(index < 0)
+            index = time.indexOf('+');
+        String d = time;
+        if(index == time.length() - 3)
+            d = (new StringBuilder()).append(d).append("00").toString();
+        if(index == 10)
+            return (new StringBuilder()).append(d.substring(0, 10)).append("00GMT").append(d.substring(10, 13)).append(":").append(d.substring(13, 15)).toString();
+        else
+            return (new StringBuilder()).append(d.substring(0, 12)).append("GMT").append(d.substring(12, 15)).append(":").append(d.substring(15, 17)).toString();
+    }
+
+    public String getAdjustedTime()
+    {
+        String d = getTime();
+        if(d.charAt(0) < '5')
+            return (new StringBuilder()).append("20").append(d).toString();
+        else
+            return (new StringBuilder()).append("19").append(d).toString();
+    }
+
+    private byte[] getOctets()
+    {
+        char cs[] = time.toCharArray();
+        byte bs[] = new byte[cs.length];
+        for(int i = 0; i != cs.length; i++)
+            bs[i] = (byte)cs[i];
+
+        return bs;
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        out.writeEncoded(23, getOctets());
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof DERUTCTime))
+            return false;
+        else
+            return time.equals(((DERUTCTime)o).time);
+    }
+
+    public int hashCode()
+    {
+        return time.hashCode();
+    }
+
+    public String toString()
+    {
+        return time;
+    }
+
+    String time;
+}

@@ -1,0 +1,175 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   PKMACBuilder.java
+
+package org.bouncycastle.cert.crmf;
+
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cmp.CMPObjectIdentifiers;
+import org.bouncycastle.asn1.cmp.PBMParameter;
+import org.bouncycastle.asn1.iana.IANAObjectIdentifiers;
+import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.operator.*;
+import org.bouncycastle.util.Strings;
+
+// Referenced classes of package org.bouncycastle.cert.crmf:
+//            CRMFException, PKMACValuesCalculator
+
+public class PKMACBuilder
+{
+
+    public PKMACBuilder(PKMACValuesCalculator calculator)
+    {
+        this(new AlgorithmIdentifier(OIWObjectIdentifiers.idSHA1), 1000, new AlgorithmIdentifier(IANAObjectIdentifiers.hmacSHA1, DERNull.INSTANCE), calculator);
+    }
+
+    public PKMACBuilder(PKMACValuesCalculator calculator, int maxIterations)
+    {
+        saltLength = 20;
+        this.maxIterations = maxIterations;
+        this.calculator = calculator;
+    }
+
+    private PKMACBuilder(AlgorithmIdentifier hashAlgorithm, int iterationCount, AlgorithmIdentifier macAlgorithm, PKMACValuesCalculator calculator)
+    {
+        saltLength = 20;
+        owf = hashAlgorithm;
+        this.iterationCount = iterationCount;
+        mac = macAlgorithm;
+        this.calculator = calculator;
+    }
+
+    public PKMACBuilder setSaltLength(int saltLength)
+    {
+        if(saltLength < 8)
+        {
+            throw new IllegalArgumentException("salt length must be at least 8 bytes");
+        } else
+        {
+            this.saltLength = saltLength;
+            return this;
+        }
+    }
+
+    public PKMACBuilder setIterationCount(int iterationCount)
+    {
+        if(iterationCount < 100)
+        {
+            throw new IllegalArgumentException("iteration count must be at least 100");
+        } else
+        {
+            checkIterationCountCeiling(iterationCount);
+            this.iterationCount = iterationCount;
+            return this;
+        }
+    }
+
+    public PKMACBuilder setSecureRandom(SecureRandom random)
+    {
+        this.random = random;
+        return this;
+    }
+
+    public PKMACBuilder setParameters(PBMParameter parameters)
+    {
+        checkIterationCountCeiling(parameters.getIterationCount().getValue().intValue());
+        this.parameters = parameters;
+        return this;
+    }
+
+    public MacCalculator build(char password[])
+        throws CRMFException
+    {
+        if(parameters != null)
+            return genCalculator(parameters, password);
+        byte salt[] = new byte[saltLength];
+        if(random == null)
+            random = new SecureRandom();
+        random.nextBytes(salt);
+        return genCalculator(new PBMParameter(salt, owf, iterationCount, mac), password);
+    }
+
+    private void checkIterationCountCeiling(int iterationCount)
+    {
+        if(maxIterations > 0 && iterationCount > maxIterations)
+            throw new IllegalArgumentException((new StringBuilder()).append("iteration count exceeds limit (").append(iterationCount).append(" > ").append(maxIterations).append(")").toString());
+        else
+            return;
+    }
+
+    private MacCalculator genCalculator(final PBMParameter params, char password[])
+        throws CRMFException
+    {
+        byte pw[] = Strings.toUTF8ByteArray(password);
+        byte salt[] = params.getSalt().getOctets();
+        byte K[] = new byte[pw.length + salt.length];
+        System.arraycopy(pw, 0, K, 0, pw.length);
+        System.arraycopy(salt, 0, K, pw.length, salt.length);
+        calculator.setup(params.getOwf(), params.getMac());
+        int iter = params.getIterationCount().getValue().intValue();
+        do
+            K = calculator.calculateDigest(K);
+        while(--iter > 0);
+        final byte key[] = K;
+        return new MacCalculator() {
+
+            public AlgorithmIdentifier getAlgorithmIdentifier()
+            {
+                return new AlgorithmIdentifier(CMPObjectIdentifiers.passwordBasedMac, params);
+            }
+
+            public GenericKey getKey()
+            {
+                return new GenericKey(key);
+            }
+
+            public OutputStream getOutputStream()
+            {
+                return bOut;
+            }
+
+            public byte[] getMac()
+            {
+                try
+                {
+                    return calculator.calculateMac(key, bOut.toByteArray());
+                }
+                catch(CRMFException e)
+                {
+                    throw new RuntimeOperatorException((new StringBuilder()).append("exception calculating mac: ").append(e.getMessage()).toString(), e);
+                }
+            }
+
+            ByteArrayOutputStream bOut;
+            final PBMParameter val$params;
+            final byte val$key[];
+            final PKMACBuilder this$0;
+
+            
+            {
+                this$0 = PKMACBuilder.this;
+                params = pbmparameter;
+                key = abyte0;
+                super();
+                bOut = new ByteArrayOutputStream();
+            }
+        }
+;
+    }
+
+    private AlgorithmIdentifier owf;
+    private int iterationCount;
+    private AlgorithmIdentifier mac;
+    private int saltLength;
+    private SecureRandom random;
+    private PKMACValuesCalculator calculator;
+    private PBMParameter parameters;
+    private int maxIterations;
+
+}

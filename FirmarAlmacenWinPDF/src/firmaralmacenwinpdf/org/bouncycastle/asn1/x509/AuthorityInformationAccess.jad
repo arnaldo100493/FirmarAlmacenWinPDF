@@ -1,0 +1,64 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   AuthorityInformationAccess.java
+
+package org.bouncycastle.asn1.x509;
+
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            X509Extension, AccessDescription, GeneralName
+
+public class AuthorityInformationAccess extends ASN1Encodable
+{
+
+    public static AuthorityInformationAccess getInstance(Object obj)
+    {
+        if(obj instanceof AuthorityInformationAccess)
+            return (AuthorityInformationAccess)obj;
+        if(obj instanceof ASN1Sequence)
+            return new AuthorityInformationAccess((ASN1Sequence)obj);
+        if(obj instanceof X509Extension)
+            return getInstance(X509Extension.convertValueToObject((X509Extension)obj));
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public AuthorityInformationAccess(ASN1Sequence seq)
+    {
+        if(seq.size() < 1)
+            throw new IllegalArgumentException("sequence may not be empty");
+        descriptions = new AccessDescription[seq.size()];
+        for(int i = 0; i != seq.size(); i++)
+            descriptions[i] = AccessDescription.getInstance(seq.getObjectAt(i));
+
+    }
+
+    public AuthorityInformationAccess(DERObjectIdentifier oid, GeneralName location)
+    {
+        descriptions = new AccessDescription[1];
+        descriptions[0] = new AccessDescription(oid, location);
+    }
+
+    public AccessDescription[] getAccessDescriptions()
+    {
+        return descriptions;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector vec = new ASN1EncodableVector();
+        for(int i = 0; i != descriptions.length; i++)
+            vec.add(descriptions[i]);
+
+        return new DERSequence(vec);
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append("AuthorityInformationAccess: Oid(").append(descriptions[0].getAccessMethod().getId()).append(")").toString();
+    }
+
+    private AccessDescription descriptions[];
+}

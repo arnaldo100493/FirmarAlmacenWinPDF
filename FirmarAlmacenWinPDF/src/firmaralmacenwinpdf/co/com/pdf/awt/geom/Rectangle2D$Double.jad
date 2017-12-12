@@ -1,0 +1,115 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Rectangle2D.java
+
+package co.com.pdf.awt.geom;
+
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            Rectangle2D
+
+public static class Rectangle2D$Double extends Rectangle2D
+{
+
+    public double getX()
+    {
+        return x;
+    }
+
+    public double getY()
+    {
+        return y;
+    }
+
+    public double getWidth()
+    {
+        return width;
+    }
+
+    public double getHeight()
+    {
+        return height;
+    }
+
+    public boolean isEmpty()
+    {
+        return width <= 0.0D || height <= 0.0D;
+    }
+
+    public void setRect(double x, double y, double width, double height)
+    {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    public void setRect(Rectangle2D r)
+    {
+        x = r.getX();
+        y = r.getY();
+        width = r.getWidth();
+        height = r.getHeight();
+    }
+
+    public int outcode(double px, double py)
+    {
+        int code = 0;
+        if(width <= 0.0D)
+            code |= 5;
+        else
+        if(px < x)
+            code |= 1;
+        else
+        if(px > x + width)
+            code |= 4;
+        if(height <= 0.0D)
+            code |= 0xa;
+        else
+        if(py < y)
+            code |= 2;
+        else
+        if(py > y + height)
+            code |= 8;
+        return code;
+    }
+
+    public Rectangle2D getBounds2D()
+    {
+        return new Rectangle2D$Double(x, y, width, height);
+    }
+
+    public Rectangle2D createIntersection(Rectangle2D r)
+    {
+        Rectangle2D dst = new Rectangle2D$Double();
+        Rectangle2D.intersect(this, r, dst);
+        return dst;
+    }
+
+    public Rectangle2D createUnion(Rectangle2D r)
+    {
+        Rectangle2D dest = new Rectangle2D$Double();
+        Rectangle2D.union(this, r, dest);
+        return dest;
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append(getClass().getName()).append("[x=").append(x).append(",y=").append(y).append(",width=").append(width).append(",height=").append(height).append("]").toString();
+    }
+
+    public double x;
+    public double y;
+    public double width;
+    public double height;
+
+    public Rectangle2D$Double()
+    {
+    }
+
+    public Rectangle2D$Double(double x, double y, double width, double height)
+    {
+        setRect(x, y, width, height);
+    }
+}

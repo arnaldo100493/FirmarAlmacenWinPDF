@@ -1,0 +1,93 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ExtendedKeyUsage.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.util.*;
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.x509:
+//            X509Extension, KeyPurposeId
+
+public class ExtendedKeyUsage extends ASN1Encodable
+{
+
+    public static ExtendedKeyUsage getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(ASN1Sequence.getInstance(obj, explicit));
+    }
+
+    public static ExtendedKeyUsage getInstance(Object obj)
+    {
+        if(obj instanceof ExtendedKeyUsage)
+            return (ExtendedKeyUsage)obj;
+        if(obj instanceof ASN1Sequence)
+            return new ExtendedKeyUsage((ASN1Sequence)obj);
+        if(obj instanceof X509Extension)
+            return getInstance(X509Extension.convertValueToObject((X509Extension)obj));
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid ExtendedKeyUsage: ").append(obj.getClass().getName()).toString());
+    }
+
+    public ExtendedKeyUsage(KeyPurposeId usage)
+    {
+        usageTable = new Hashtable();
+        seq = new DERSequence(usage);
+        usageTable.put(usage, usage);
+    }
+
+    public ExtendedKeyUsage(ASN1Sequence seq)
+    {
+        usageTable = new Hashtable();
+        this.seq = seq;
+        Object o;
+        for(Enumeration e = seq.getObjects(); e.hasMoreElements(); usageTable.put(o, o))
+        {
+            o = e.nextElement();
+            if(!(o instanceof DERObjectIdentifier))
+                throw new IllegalArgumentException("Only DERObjectIdentifiers allowed in ExtendedKeyUsage.");
+        }
+
+    }
+
+    public ExtendedKeyUsage(Vector usages)
+    {
+        usageTable = new Hashtable();
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        DERObject o;
+        for(Enumeration e = usages.elements(); e.hasMoreElements(); usageTable.put(o, o))
+        {
+            o = (DERObject)e.nextElement();
+            v.add(o);
+        }
+
+        seq = new DERSequence(v);
+    }
+
+    public boolean hasKeyPurposeId(KeyPurposeId keyPurposeId)
+    {
+        return usageTable.get(keyPurposeId) != null;
+    }
+
+    public Vector getUsages()
+    {
+        Vector temp = new Vector();
+        for(Enumeration it = usageTable.elements(); it.hasMoreElements(); temp.addElement(it.nextElement()));
+        return temp;
+    }
+
+    public int size()
+    {
+        return usageTable.size();
+    }
+
+    public DERObject toASN1Object()
+    {
+        return seq;
+    }
+
+    Hashtable usageTable;
+    ASN1Sequence seq;
+}

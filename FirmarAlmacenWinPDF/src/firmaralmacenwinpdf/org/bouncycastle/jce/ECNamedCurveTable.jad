@@ -1,0 +1,76 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECNamedCurveTable.java
+
+package org.bouncycastle.jce;
+
+import java.util.Enumeration;
+import java.util.Vector;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.nist.NISTNamedCurves;
+import org.bouncycastle.asn1.sec.SECNamedCurves;
+import org.bouncycastle.asn1.teletrust.TeleTrusTNamedCurves;
+import org.bouncycastle.asn1.x9.X962NamedCurves;
+import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
+
+public class ECNamedCurveTable
+{
+
+    public ECNamedCurveTable()
+    {
+    }
+
+    public static ECNamedCurveParameterSpec getParameterSpec(String name)
+    {
+        X9ECParameters ecP = X962NamedCurves.getByName(name);
+        if(ecP == null)
+            try
+            {
+                ecP = X962NamedCurves.getByOID(new DERObjectIdentifier(name));
+            }
+            catch(IllegalArgumentException e) { }
+        if(ecP == null)
+        {
+            ecP = SECNamedCurves.getByName(name);
+            if(ecP == null)
+                try
+                {
+                    ecP = SECNamedCurves.getByOID(new DERObjectIdentifier(name));
+                }
+                catch(IllegalArgumentException e) { }
+        }
+        if(ecP == null)
+        {
+            ecP = TeleTrusTNamedCurves.getByName(name);
+            if(ecP == null)
+                try
+                {
+                    ecP = TeleTrusTNamedCurves.getByOID(new DERObjectIdentifier(name));
+                }
+                catch(IllegalArgumentException e) { }
+        }
+        if(ecP == null)
+            ecP = NISTNamedCurves.getByName(name);
+        if(ecP == null)
+            return null;
+        else
+            return new ECNamedCurveParameterSpec(name, ecP.getCurve(), ecP.getG(), ecP.getN(), ecP.getH(), ecP.getSeed());
+    }
+
+    public static Enumeration getNames()
+    {
+        Vector v = new Vector();
+        addEnumeration(v, X962NamedCurves.getNames());
+        addEnumeration(v, SECNamedCurves.getNames());
+        addEnumeration(v, NISTNamedCurves.getNames());
+        addEnumeration(v, TeleTrusTNamedCurves.getNames());
+        return v.elements();
+    }
+
+    private static void addEnumeration(Vector v, Enumeration e)
+    {
+        for(; e.hasMoreElements(); v.addElement(e.nextElement()));
+    }
+}

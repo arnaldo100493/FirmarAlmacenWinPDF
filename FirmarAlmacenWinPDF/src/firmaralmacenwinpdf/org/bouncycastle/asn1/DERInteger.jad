@@ -1,0 +1,94 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERInteger.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+import java.math.BigInteger;
+import org.bouncycastle.util.Arrays;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, ASN1Integer, DERObject, ASN1TaggedObject, 
+//            ASN1OctetString, DEROutputStream
+
+public class DERInteger extends ASN1Object
+{
+
+    public static DERInteger getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof DERInteger))
+            return (DERInteger)obj;
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("illegal object in getInstance: ").append(obj.getClass().getName()).toString());
+    }
+
+    public static DERInteger getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        DERObject o = obj.getObject();
+        if(explicit || (o instanceof DERInteger))
+            return getInstance(o);
+        else
+            return new ASN1Integer(ASN1OctetString.getInstance(obj.getObject()).getOctets());
+    }
+
+    public DERInteger(int value)
+    {
+        bytes = BigInteger.valueOf(value).toByteArray();
+    }
+
+    public DERInteger(BigInteger value)
+    {
+        bytes = value.toByteArray();
+    }
+
+    public DERInteger(byte bytes[])
+    {
+        this.bytes = bytes;
+    }
+
+    public BigInteger getValue()
+    {
+        return new BigInteger(bytes);
+    }
+
+    public BigInteger getPositiveValue()
+    {
+        return new BigInteger(1, bytes);
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        out.writeEncoded(2, bytes);
+    }
+
+    public int hashCode()
+    {
+        int value = 0;
+        for(int i = 0; i != bytes.length; i++)
+            value ^= (bytes[i] & 0xff) << i % 4;
+
+        return value;
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof DERInteger))
+        {
+            return false;
+        } else
+        {
+            DERInteger other = (DERInteger)o;
+            return Arrays.areEqual(bytes, other.bytes);
+        }
+    }
+
+    public String toString()
+    {
+        return getValue().toString();
+    }
+
+    byte bytes[];
+}

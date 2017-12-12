@@ -1,0 +1,30 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BadCommandException.java
+
+package com.sun.mail.iap;
+
+
+// Referenced classes of package com.sun.mail.iap:
+//            ProtocolException, Response
+
+public class BadCommandException extends ProtocolException
+{
+
+    public BadCommandException()
+    {
+    }
+
+    public BadCommandException(String s)
+    {
+        super(s);
+    }
+
+    public BadCommandException(Response r)
+    {
+        super(r);
+    }
+
+    private static final long serialVersionUID = 0x50122c148d564b0bL;
+}

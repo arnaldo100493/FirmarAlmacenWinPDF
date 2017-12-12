@@ -1,0 +1,373 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   POP3Store.java
+
+package com.sun.mail.pop3;
+
+import com.sun.mail.util.*;
+import java.io.*;
+import java.lang.reflect.Constructor;
+import java.util.Collections;
+import java.util.Map;
+import java.util.logging.Level;
+import javax.mail.*;
+
+// Referenced classes of package com.sun.mail.pop3:
+//            Protocol, DefaultFolder, POP3Folder
+
+public class POP3Store extends Store
+{
+
+    public POP3Store(Session session, URLName url)
+    {
+        this(session, url, "pop3", false);
+    }
+
+    public POP3Store(Session session, URLName url, String name, boolean isSSL)
+    {
+        super(session, url);
+        this.name = "pop3";
+        defaultPort = 110;
+        this.isSSL = false;
+        port = null;
+        portOwner = null;
+        host = null;
+        portNum = -1;
+        user = null;
+        passwd = null;
+        useStartTLS = false;
+        requireStartTLS = false;
+        usingSSL = false;
+        messageConstructor = null;
+        rsetBeforeQuit = false;
+        disableTop = false;
+        forgetTopHeaders = false;
+        supportsUidl = true;
+        cacheWriteTo = false;
+        useFileCache = false;
+        fileCacheDir = null;
+        keepMessageContent = false;
+        if(url != null)
+            name = url.getProtocol();
+        this.name = name;
+        logger = new MailLogger(getClass(), "DEBUG POP3", session);
+        if(!isSSL)
+            isSSL = PropUtil.getBooleanSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".ssl.enable").toString(), false);
+        if(isSSL)
+            defaultPort = 995;
+        else
+            defaultPort = 110;
+        this.isSSL = isSSL;
+        rsetBeforeQuit = getBoolProp("rsetbeforequit");
+        disableTop = getBoolProp("disabletop");
+        forgetTopHeaders = getBoolProp("forgettopheaders");
+        cacheWriteTo = getBoolProp("cachewriteto");
+        useFileCache = getBoolProp("filecache.enable");
+        String dir = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".filecache.dir").toString());
+        if(dir != null && logger.isLoggable(Level.CONFIG))
+            logger.config((new StringBuilder()).append("mail.").append(name).append(".filecache.dir: ").append(dir).toString());
+        if(dir != null)
+            fileCacheDir = new File(dir);
+        keepMessageContent = getBoolProp("keepmessagecontent");
+        useStartTLS = getBoolProp("starttls.enable");
+        requireStartTLS = getBoolProp("starttls.required");
+        String s = session.getProperty((new StringBuilder()).append("mail.").append(name).append(".message.class").toString());
+        if(s != null)
+        {
+            logger.log(Level.CONFIG, "message class: {0}", s);
+            try
+            {
+                ClassLoader cl = getClass().getClassLoader();
+                Class messageClass = null;
+                try
+                {
+                    messageClass = Class.forName(s, false, cl);
+                }
+                catch(ClassNotFoundException ex1)
+                {
+                    messageClass = Class.forName(s);
+                }
+                Class c[] = {
+                    javax/mail/Folder, Integer.TYPE
+                };
+                messageConstructor = messageClass.getConstructor(c);
+            }
+            catch(Exception ex)
+            {
+                logger.log(Level.CONFIG, "failed to load message class", ex);
+            }
+        }
+    }
+
+    private final synchronized boolean getBoolProp(String prop)
+    {
+        prop = (new StringBuilder()).append("mail.").append(name).append(".").append(prop).toString();
+        boolean val = PropUtil.getBooleanSessionProperty(session, prop, false);
+        if(logger.isLoggable(Level.CONFIG))
+            logger.config((new StringBuilder()).append(prop).append(": ").append(val).toString());
+        return val;
+    }
+
+    synchronized Session getSession()
+    {
+        return session;
+    }
+
+    protected synchronized boolean protocolConnect(String host, int portNum, String user, String passwd)
+        throws MessagingException
+    {
+        if(host == null || passwd == null || user == null)
+            return false;
+        if(portNum == -1)
+            portNum = PropUtil.getIntSessionProperty(session, (new StringBuilder()).append("mail.").append(name).append(".port").toString(), -1);
+        if(portNum == -1)
+            portNum = defaultPort;
+        this.host = host;
+        this.portNum = portNum;
+        this.user = user;
+        this.passwd = passwd;
+        try
+        {
+            port = getPort(null);
+        }
+        catch(EOFException eex)
+        {
+            throw new AuthenticationFailedException(eex.getMessage());
+        }
+        catch(SocketConnectException scex)
+        {
+            throw new MailConnectException(scex);
+        }
+        catch(IOException ioex)
+        {
+            throw new MessagingException("Connect failed", ioex);
+        }
+        return true;
+    }
+
+    public synchronized boolean isConnected()
+    {
+        if(!super.isConnected())
+            return false;
+        try
+        {
+            if(port == null)
+                port = getPort(null);
+            else
+            if(!port.noop())
+                throw new IOException("NOOP failed");
+            return true;
+        }
+        catch(IOException ioex) { }
+        try
+        {
+            super.close();
+        }
+        catch(MessagingException mex)
+        {
+            return false;
+        }
+        return false;
+        Exception exception;
+        exception;
+        return false;
+    }
+
+    synchronized Protocol getPort(POP3Folder owner)
+        throws IOException
+    {
+        Protocol p;
+        if(port != null && portOwner == null)
+        {
+            portOwner = owner;
+            return port;
+        }
+        p = new Protocol(host, portNum, logger, session.getProperties(), (new StringBuilder()).append("mail.").append(name).toString(), isSSL);
+        if(!useStartTLS && !requireStartTLS)
+            break MISSING_BLOCK_LABEL_226;
+        if(!p.hasCapability("STLS"))
+            break MISSING_BLOCK_LABEL_172;
+        if(p.stls())
+        {
+            p.setCapabilities(p.capa());
+            break MISSING_BLOCK_LABEL_226;
+        }
+        if(!requireStartTLS)
+            break MISSING_BLOCK_LABEL_226;
+        logger.fine("STLS required but failed");
+        try
+        {
+            p.quit();
+        }
+        catch(IOException ioex)
+        {
+            throw new EOFException("STLS required but failed");
+        }
+        throw new EOFException("STLS required but failed");
+        Exception exception;
+        exception;
+        throw new EOFException("STLS required but failed");
+        if(!requireStartTLS)
+            break MISSING_BLOCK_LABEL_226;
+        logger.fine("STLS required but not supported");
+        try
+        {
+            p.quit();
+        }
+        catch(IOException ioex)
+        {
+            throw new EOFException("STLS required but not supported");
+        }
+        throw new EOFException("STLS required but not supported");
+        Exception exception1;
+        exception1;
+        throw new EOFException("STLS required but not supported");
+        String msg;
+        capabilities = p.getCapabilities();
+        usingSSL = p.isSSL();
+        if(!disableTop && capabilities != null && !capabilities.containsKey("TOP"))
+        {
+            disableTop = true;
+            logger.fine("server doesn't support TOP, disabling it");
+        }
+        supportsUidl = capabilities == null || capabilities.containsKey("UIDL");
+        msg = null;
+        if((msg = p.login(user, passwd)) == null)
+            break MISSING_BLOCK_LABEL_369;
+        try
+        {
+            p.quit();
+        }
+        catch(IOException ioex)
+        {
+            throw new EOFException(msg);
+        }
+        throw new EOFException(msg);
+        Exception exception2;
+        exception2;
+        throw new EOFException(msg);
+        if(port == null && owner != null)
+        {
+            port = p;
+            portOwner = owner;
+        }
+        if(portOwner == null)
+            portOwner = owner;
+        return p;
+    }
+
+    synchronized void closePort(POP3Folder owner)
+    {
+        if(portOwner == owner)
+        {
+            port = null;
+            portOwner = null;
+        }
+    }
+
+    public synchronized void close()
+        throws MessagingException
+    {
+        try
+        {
+            if(port != null)
+                port.quit();
+        }
+        catch(IOException ioex)
+        {
+            port = null;
+            super.close();
+            break MISSING_BLOCK_LABEL_52;
+        }
+        port = null;
+        super.close();
+        break MISSING_BLOCK_LABEL_52;
+        Exception exception;
+        exception;
+        port = null;
+        super.close();
+        throw exception;
+    }
+
+    public Folder getDefaultFolder()
+        throws MessagingException
+    {
+        checkConnected();
+        return new DefaultFolder(this);
+    }
+
+    public Folder getFolder(String name)
+        throws MessagingException
+    {
+        checkConnected();
+        return new POP3Folder(this, name);
+    }
+
+    public Folder getFolder(URLName url)
+        throws MessagingException
+    {
+        checkConnected();
+        return new POP3Folder(this, url.getFile());
+    }
+
+    public Map capabilities()
+        throws MessagingException
+    {
+        Map c;
+        synchronized(this)
+        {
+            c = capabilities;
+        }
+        if(c != null)
+            return Collections.unmodifiableMap(c);
+        else
+            return Collections.EMPTY_MAP;
+    }
+
+    public boolean isSSL()
+    {
+        return usingSSL;
+    }
+
+    protected void finalize()
+        throws Throwable
+    {
+        super.finalize();
+        if(port != null)
+            close();
+    }
+
+    private void checkConnected()
+        throws MessagingException
+    {
+        if(!super.isConnected())
+            throw new MessagingException("Not connected");
+        else
+            return;
+    }
+
+    private String name;
+    private int defaultPort;
+    private boolean isSSL;
+    private Protocol port;
+    private POP3Folder portOwner;
+    private String host;
+    private int portNum;
+    private String user;
+    private String passwd;
+    private boolean useStartTLS;
+    private boolean requireStartTLS;
+    private boolean usingSSL;
+    private Map capabilities;
+    private MailLogger logger;
+    volatile Constructor messageConstructor;
+    volatile boolean rsetBeforeQuit;
+    volatile boolean disableTop;
+    volatile boolean forgetTopHeaders;
+    volatile boolean supportsUidl;
+    volatile boolean cacheWriteTo;
+    volatile boolean useFileCache;
+    volatile File fileCacheDir;
+    volatile boolean keepMessageContent;
+}

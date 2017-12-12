@@ -1,0 +1,248 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   TimeStampRequest.java
+
+package org.bouncycastle.tsp;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigInteger;
+import java.security.NoSuchProviderException;
+import java.security.cert.X509Extension;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.DERBoolean;
+import org.bouncycastle.asn1.DERInteger;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.tsp.MessageImprint;
+import org.bouncycastle.asn1.tsp.TimeStampReq;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.X509Extensions;
+
+// Referenced classes of package org.bouncycastle.tsp:
+//            TSPValidationException, TSPException, TSPUtil
+
+public class TimeStampRequest
+    implements X509Extension
+{
+
+    public TimeStampRequest(TimeStampReq req)
+    {
+        this.req = req;
+        extensions = req.getExtensions();
+    }
+
+    public TimeStampRequest(byte req[])
+        throws IOException
+    {
+        this(((InputStream) (new ByteArrayInputStream(req))));
+    }
+
+    public TimeStampRequest(InputStream in)
+        throws IOException
+    {
+        try
+        {
+            req = TimeStampReq.getInstance((new ASN1InputStream(in)).readObject());
+        }
+        catch(ClassCastException e)
+        {
+            throw new IOException((new StringBuilder()).append("malformed request: ").append(e).toString());
+        }
+        catch(IllegalArgumentException e)
+        {
+            throw new IOException((new StringBuilder()).append("malformed request: ").append(e).toString());
+        }
+    }
+
+    public int getVersion()
+    {
+        return req.getVersion().getValue().intValue();
+    }
+
+    public String getMessageImprintAlgOID()
+    {
+        return req.getMessageImprint().getHashAlgorithm().getObjectId().getId();
+    }
+
+    public byte[] getMessageImprintDigest()
+    {
+        return req.getMessageImprint().getHashedMessage();
+    }
+
+    public String getReqPolicy()
+    {
+        if(req.getReqPolicy() != null)
+            return req.getReqPolicy().getId();
+        else
+            return null;
+    }
+
+    public BigInteger getNonce()
+    {
+        if(req.getNonce() != null)
+            return req.getNonce().getValue();
+        else
+            return null;
+    }
+
+    public boolean getCertReq()
+    {
+        if(req.getCertReq() != null)
+            return req.getCertReq().isTrue();
+        else
+            return false;
+    }
+
+    public void validate(Set algorithms, Set policies, Set extensions, String provider)
+        throws TSPException, NoSuchProviderException
+    {
+label0:
+        {
+            if(!algorithms.contains(getMessageImprintAlgOID()))
+                throw new TSPValidationException("request contains unknown algorithm.", 128);
+            if(policies != null && getReqPolicy() != null && !policies.contains(getReqPolicy()))
+                throw new TSPValidationException("request contains unknown policy.", 256);
+            if(getExtensions() == null || extensions == null)
+                break label0;
+            Enumeration en = getExtensions().oids();
+            String oid;
+            do
+            {
+                if(!en.hasMoreElements())
+                    break label0;
+                oid = ((DERObjectIdentifier)en.nextElement()).getId();
+            } while(extensions.contains(oid));
+            throw new TSPValidationException("request contains unknown extension.", 0x800000);
+        }
+        int digestLength = TSPUtil.getDigestLength(getMessageImprintAlgOID());
+        if(digestLength != getMessageImprintDigest().length)
+            throw new TSPValidationException("imprint digest the wrong length.", 4);
+        else
+            return;
+    }
+
+    public void validate(Set algorithms, Set policies, Set extensions)
+        throws TSPException
+    {
+label0:
+        {
+            if(!algorithms.contains(getMessageImprintAlgOID()))
+                throw new TSPValidationException("request contains unknown algorithm.", 128);
+            if(policies != null && getReqPolicy() != null && !policies.contains(getReqPolicy()))
+                throw new TSPValidationException("request contains unknown policy.", 256);
+            if(getExtensions() == null || extensions == null)
+                break label0;
+            Enumeration en = getExtensions().oids();
+            String oid;
+            do
+            {
+                if(!en.hasMoreElements())
+                    break label0;
+                oid = ((DERObjectIdentifier)en.nextElement()).getId();
+            } while(extensions.contains(oid));
+            throw new TSPValidationException("request contains unknown extension.", 0x800000);
+        }
+        int digestLength = TSPUtil.getDigestLength(getMessageImprintAlgOID());
+        if(digestLength != getMessageImprintDigest().length)
+            throw new TSPValidationException("imprint digest the wrong length.", 4);
+        else
+            return;
+    }
+
+    public byte[] getEncoded()
+        throws IOException
+    {
+        return req.getEncoded();
+    }
+
+    X509Extensions getExtensions()
+    {
+        return extensions;
+    }
+
+    public boolean hasExtensions()
+    {
+        return extensions != null;
+    }
+
+    public org.bouncycastle.asn1.x509.X509Extension getExtension(ASN1ObjectIdentifier oid)
+    {
+        if(extensions != null)
+            return extensions.getExtension(oid);
+        else
+            return null;
+    }
+
+    public List getExtensionOIDs()
+    {
+        return TSPUtil.getExtensionOIDs(extensions);
+    }
+
+    public byte[] getExtensionValue(String oid)
+    {
+        X509Extensions exts = req.getExtensions();
+        if(exts != null)
+        {
+            org.bouncycastle.asn1.x509.X509Extension ext = exts.getExtension(new DERObjectIdentifier(oid));
+            if(ext != null)
+                try
+                {
+                    return ext.getValue().getEncoded();
+                }
+                catch(Exception e)
+                {
+                    throw new RuntimeException((new StringBuilder()).append("error encoding ").append(e.toString()).toString());
+                }
+        }
+        return null;
+    }
+
+    private Set getExtensionOIDS(boolean critical)
+    {
+        Set set = new HashSet();
+        X509Extensions extensions = req.getExtensions();
+        if(extensions != null)
+        {
+            Enumeration e = extensions.oids();
+            do
+            {
+                if(!e.hasMoreElements())
+                    break;
+                DERObjectIdentifier oid = (DERObjectIdentifier)e.nextElement();
+                org.bouncycastle.asn1.x509.X509Extension ext = extensions.getExtension(oid);
+                if(ext.isCritical() == critical)
+                    set.add(oid.getId());
+            } while(true);
+            return set;
+        } else
+        {
+            return null;
+        }
+    }
+
+    public Set getNonCriticalExtensionOIDs()
+    {
+        return getExtensionOIDS(false);
+    }
+
+    public Set getCriticalExtensionOIDs()
+    {
+        return getExtensionOIDS(true);
+    }
+
+    public boolean hasUnsupportedCriticalExtension()
+    {
+        return false;
+    }
+
+    private TimeStampReq req;
+    private X509Extensions extensions;
+}

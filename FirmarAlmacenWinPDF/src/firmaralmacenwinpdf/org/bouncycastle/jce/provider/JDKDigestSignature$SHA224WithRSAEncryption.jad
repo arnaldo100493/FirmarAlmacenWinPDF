@@ -1,0 +1,23 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKDigestSignature.java
+
+package org.bouncycastle.jce.provider;
+
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
+import org.bouncycastle.crypto.digests.SHA224Digest;
+import org.bouncycastle.crypto.encodings.PKCS1Encoding;
+import org.bouncycastle.crypto.engines.RSABlindedEngine;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKDigestSignature
+
+public static class JDKDigestSignature$SHA224WithRSAEncryption extends JDKDigestSignature
+{
+
+    public JDKDigestSignature$SHA224WithRSAEncryption()
+    {
+        super(NISTObjectIdentifiers.id_sha224, new SHA224Digest(), new PKCS1Encoding(new RSABlindedEngine()));
+    }
+}

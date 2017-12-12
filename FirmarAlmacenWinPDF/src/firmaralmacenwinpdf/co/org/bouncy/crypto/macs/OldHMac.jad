@@ -1,0 +1,105 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   OldHMac.java
+
+package co.org.bouncy.crypto.macs;
+
+import co.org.bouncy.crypto.*;
+import co.org.bouncy.crypto.params.KeyParameter;
+
+public class OldHMac
+    implements Mac
+{
+
+    /**
+     * @deprecated Method OldHMac is deprecated
+     */
+
+    public OldHMac(Digest digest)
+    {
+        inputPad = new byte[64];
+        outputPad = new byte[64];
+        this.digest = digest;
+        digestSize = digest.getDigestSize();
+    }
+
+    public String getAlgorithmName()
+    {
+        return (new StringBuilder()).append(digest.getAlgorithmName()).append("/HMAC").toString();
+    }
+
+    public Digest getUnderlyingDigest()
+    {
+        return digest;
+    }
+
+    public void init(CipherParameters params)
+    {
+        digest.reset();
+        byte key[] = ((KeyParameter)params).getKey();
+        if(key.length > 64)
+        {
+            digest.update(key, 0, key.length);
+            digest.doFinal(inputPad, 0);
+            for(int i = digestSize; i < inputPad.length; i++)
+                inputPad[i] = 0;
+
+        } else
+        {
+            System.arraycopy(key, 0, inputPad, 0, key.length);
+            for(int i = key.length; i < inputPad.length; i++)
+                inputPad[i] = 0;
+
+        }
+        outputPad = new byte[inputPad.length];
+        System.arraycopy(inputPad, 0, outputPad, 0, inputPad.length);
+        for(int i = 0; i < inputPad.length; i++)
+            inputPad[i] ^= 0x36;
+
+        for(int i = 0; i < outputPad.length; i++)
+            outputPad[i] ^= 0x5c;
+
+        digest.update(inputPad, 0, inputPad.length);
+    }
+
+    public int getMacSize()
+    {
+        return digestSize;
+    }
+
+    public void update(byte in)
+    {
+        digest.update(in);
+    }
+
+    public void update(byte in[], int inOff, int len)
+    {
+        digest.update(in, inOff, len);
+    }
+
+    public int doFinal(byte out[], int outOff)
+    {
+        byte tmp[] = new byte[digestSize];
+        digest.doFinal(tmp, 0);
+        digest.update(outputPad, 0, outputPad.length);
+        digest.update(tmp, 0, tmp.length);
+        int len = digest.doFinal(out, outOff);
+        reset();
+        return len;
+    }
+
+    public void reset()
+    {
+        digest.reset();
+        digest.update(inputPad, 0, inputPad.length);
+    }
+
+    private static final int BLOCK_LENGTH = 64;
+    private static final byte IPAD = 54;
+    private static final byte OPAD = 92;
+    private Digest digest;
+    private int digestSize;
+    private byte inputPad[];
+    private byte outputPad[];
+}

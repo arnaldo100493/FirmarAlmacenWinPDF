@@ -1,0 +1,37 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DEROctetString.java
+
+package org.bouncycastle.asn1;
+
+import java.io.IOException;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1OctetString, DEROutputStream, DEREncodable
+
+public class DEROctetString extends ASN1OctetString
+{
+
+    public DEROctetString(byte string[])
+    {
+        super(string);
+    }
+
+    public DEROctetString(DEREncodable obj)
+    {
+        super(obj);
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        out.writeEncoded(4, string);
+    }
+
+    static void encode(DEROutputStream derOut, byte bytes[])
+        throws IOException
+    {
+        derOut.writeEncoded(4, bytes);
+    }
+}

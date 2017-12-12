@@ -1,0 +1,93 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Time.java
+
+package org.bouncycastle.asn1.x509;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.SimpleTimeZone;
+import org.bouncycastle.asn1.*;
+
+public class Time extends ASN1Encodable
+    implements ASN1Choice
+{
+
+    public static Time getInstance(ASN1TaggedObject obj, boolean explicit)
+    {
+        return getInstance(obj.getObject());
+    }
+
+    public Time(DERObject time)
+    {
+        if(!(time instanceof DERUTCTime) && !(time instanceof DERGeneralizedTime))
+        {
+            throw new IllegalArgumentException("unknown object passed to Time");
+        } else
+        {
+            this.time = time;
+            return;
+        }
+    }
+
+    public Time(Date date)
+    {
+        SimpleTimeZone tz = new SimpleTimeZone(0, "Z");
+        SimpleDateFormat dateF = new SimpleDateFormat("yyyyMMddHHmmss");
+        dateF.setTimeZone(tz);
+        String d = (new StringBuilder()).append(dateF.format(date)).append("Z").toString();
+        int year = Integer.parseInt(d.substring(0, 4));
+        if(year < 1950 || year > 2049)
+            time = new DERGeneralizedTime(d);
+        else
+            time = new DERUTCTime(d.substring(2));
+    }
+
+    public static Time getInstance(Object obj)
+    {
+        if(obj == null || (obj instanceof Time))
+            return (Time)obj;
+        if(obj instanceof DERUTCTime)
+            return new Time((DERUTCTime)obj);
+        if(obj instanceof DERGeneralizedTime)
+            return new Time((DERGeneralizedTime)obj);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("unknown object in factory: ").append(obj.getClass().getName()).toString());
+    }
+
+    public String getTime()
+    {
+        if(time instanceof DERUTCTime)
+            return ((DERUTCTime)time).getAdjustedTime();
+        else
+            return ((DERGeneralizedTime)time).getTime();
+    }
+
+    public Date getDate()
+    {
+        try
+        {
+            if(time instanceof DERUTCTime)
+                return ((DERUTCTime)time).getAdjustedDate();
+        }
+        catch(ParseException e)
+        {
+            throw new IllegalStateException((new StringBuilder()).append("invalid date string: ").append(e.getMessage()).toString());
+        }
+        return ((DERGeneralizedTime)time).getDate();
+    }
+
+    public DERObject toASN1Object()
+    {
+        return time;
+    }
+
+    public String toString()
+    {
+        return getTime();
+    }
+
+    DERObject time;
+}

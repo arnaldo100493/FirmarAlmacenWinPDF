@@ -1,0 +1,189 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECFieldElement.java
+
+package co.org.bouncy.math.ec;
+
+import java.math.BigInteger;
+import java.util.Random;
+
+// Referenced classes of package co.org.bouncy.math.ec:
+//            ECFieldElement, ECConstants
+
+public static class ECFieldElement$Fp extends ECFieldElement
+{
+
+    public BigInteger toBigInteger()
+    {
+        return x;
+    }
+
+    public String getFieldName()
+    {
+        return "Fp";
+    }
+
+    public int getFieldSize()
+    {
+        return q.bitLength();
+    }
+
+    public BigInteger getQ()
+    {
+        return q;
+    }
+
+    public ECFieldElement add(ECFieldElement b)
+    {
+        return new ECFieldElement$Fp(q, x.add(b.toBigInteger()).mod(q));
+    }
+
+    public ECFieldElement subtract(ECFieldElement b)
+    {
+        return new ECFieldElement$Fp(q, x.subtract(b.toBigInteger()).mod(q));
+    }
+
+    public ECFieldElement multiply(ECFieldElement b)
+    {
+        return new ECFieldElement$Fp(q, x.multiply(b.toBigInteger()).mod(q));
+    }
+
+    public ECFieldElement divide(ECFieldElement b)
+    {
+        return new ECFieldElement$Fp(q, x.multiply(b.toBigInteger().modInverse(q)).mod(q));
+    }
+
+    public ECFieldElement negate()
+    {
+        return new ECFieldElement$Fp(q, x.negate().mod(q));
+    }
+
+    public ECFieldElement square()
+    {
+        return new ECFieldElement$Fp(q, x.multiply(x).mod(q));
+    }
+
+    public ECFieldElement invert()
+    {
+        return new ECFieldElement$Fp(q, x.modInverse(q));
+    }
+
+    public ECFieldElement sqrt()
+    {
+        if(!q.testBit(0))
+            throw new RuntimeException("not done yet");
+        if(q.testBit(1))
+        {
+            ECFieldElement z = new ECFieldElement$Fp(q, x.modPow(q.shiftRight(2).add(ECConstants.ONE), q));
+            return z.square().equals(this) ? z : null;
+        }
+        BigInteger qMinusOne = q.subtract(ECConstants.ONE);
+        BigInteger legendreExponent = qMinusOne.shiftRight(1);
+        if(!x.modPow(legendreExponent, q).equals(ECConstants.ONE))
+            return null;
+        BigInteger u = qMinusOne.shiftRight(2);
+        BigInteger k = u.shiftLeft(1).add(ECConstants.ONE);
+        BigInteger Q = x;
+        BigInteger fourQ = Q.shiftLeft(2).mod(q);
+        Random rand = new Random();
+        BigInteger U;
+        do
+        {
+            BigInteger P;
+            do
+                P = new BigInteger(q.bitLength(), rand);
+            while(P.compareTo(q) >= 0 || !P.multiply(P).subtract(fourQ).modPow(legendreExponent, q).equals(qMinusOne));
+            BigInteger result[] = lucasSequence(q, P, Q, k);
+            U = result[0];
+            BigInteger V = result[1];
+            if(V.multiply(V).mod(q).equals(fourQ))
+            {
+                if(V.testBit(0))
+                    V = V.add(q);
+                V = V.shiftRight(1);
+                return new ECFieldElement$Fp(q, V);
+            }
+        } while(U.equals(ECConstants.ONE) || U.equals(qMinusOne));
+        return null;
+    }
+
+    private static BigInteger[] lucasSequence(BigInteger p, BigInteger P, BigInteger Q, BigInteger k)
+    {
+        int n = k.bitLength();
+        int s = k.getLowestSetBit();
+        BigInteger Uh = ECConstants.ONE;
+        BigInteger Vl = ECConstants.TWO;
+        BigInteger Vh = P;
+        BigInteger Ql = ECConstants.ONE;
+        BigInteger Qh = ECConstants.ONE;
+        for(int j = n - 1; j >= s + 1; j--)
+        {
+            Ql = Ql.multiply(Qh).mod(p);
+            if(k.testBit(j))
+            {
+                Qh = Ql.multiply(Q).mod(p);
+                Uh = Uh.multiply(Vh).mod(p);
+                Vl = Vh.multiply(Vl).subtract(P.multiply(Ql)).mod(p);
+                Vh = Vh.multiply(Vh).subtract(Qh.shiftLeft(1)).mod(p);
+            } else
+            {
+                Qh = Ql;
+                Uh = Uh.multiply(Vl).subtract(Ql).mod(p);
+                Vh = Vh.multiply(Vl).subtract(P.multiply(Ql)).mod(p);
+                Vl = Vl.multiply(Vl).subtract(Ql.shiftLeft(1)).mod(p);
+            }
+        }
+
+        Ql = Ql.multiply(Qh).mod(p);
+        Qh = Ql.multiply(Q).mod(p);
+        Uh = Uh.multiply(Vl).subtract(Ql).mod(p);
+        Vl = Vh.multiply(Vl).subtract(P.multiply(Ql)).mod(p);
+        Ql = Ql.multiply(Qh).mod(p);
+        for(int j = 1; j <= s; j++)
+        {
+            Uh = Uh.multiply(Vl).mod(p);
+            Vl = Vl.multiply(Vl).subtract(Ql.shiftLeft(1)).mod(p);
+            Ql = Ql.multiply(Ql).mod(p);
+        }
+
+        return (new BigInteger[] {
+            Uh, Vl
+        });
+    }
+
+    public boolean equals(Object other)
+    {
+        if(other == this)
+            return true;
+        if(!(other instanceof ECFieldElement$Fp))
+        {
+            return false;
+        } else
+        {
+            ECFieldElement$Fp o = (ECFieldElement$Fp)other;
+            return q.equals(o.q) && x.equals(o.x);
+        }
+    }
+
+    public int hashCode()
+    {
+        return q.hashCode() ^ x.hashCode();
+    }
+
+    BigInteger x;
+    BigInteger q;
+
+    public ECFieldElement$Fp(BigInteger q, BigInteger x)
+    {
+        this.x = x;
+        if(x.compareTo(q) >= 0)
+        {
+            throw new IllegalArgumentException("x value too large in field element");
+        } else
+        {
+            this.q = q;
+            return;
+        }
+    }
+}

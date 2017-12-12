@@ -1,0 +1,16 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ConfigurableProvider.java
+
+package org.bouncycastle.jce.interfaces;
+
+
+public interface ConfigurableProvider
+{
+
+    public abstract void setParameter(String s, Object obj);
+
+    public static final String THREAD_LOCAL_EC_IMPLICITLY_CA = "threadLocalEcImplicitlyCa";
+    public static final String EC_IMPLICITLY_CA = "ecImplicitlyCa";
+}

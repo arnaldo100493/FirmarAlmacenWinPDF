@@ -1,0 +1,324 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   WrapCipherSpi.java
+
+package org.bouncycastle.jce.provider;
+
+import java.io.PrintStream;
+import java.security.*;
+import java.security.spec.*;
+import javax.crypto.*;
+import javax.crypto.spec.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cryptopro.CryptoProObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.engines.RC2WrapEngine;
+import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.ParametersWithIV;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JCEPBEKey, JCEECPrivateKey, JDKGOST3410PrivateKey, JDKDSAPrivateKey, 
+//            JCEDHPrivateKey, JCERSAPrivateCrtKey, PBE, BouncyCastleProvider
+
+public abstract class WrapCipherSpi extends CipherSpi
+    implements PBE
+{
+    public static class RC2Wrap extends WrapCipherSpi
+    {
+
+        public RC2Wrap()
+        {
+            super(new RC2WrapEngine());
+        }
+    }
+
+
+    protected WrapCipherSpi()
+    {
+        pbeType = 2;
+        pbeHash = 1;
+        engineParams = null;
+        wrapEngine = null;
+    }
+
+    protected WrapCipherSpi(Wrapper wrapEngine)
+    {
+        this(wrapEngine, 0);
+    }
+
+    protected WrapCipherSpi(Wrapper wrapEngine, int ivSize)
+    {
+        pbeType = 2;
+        pbeHash = 1;
+        engineParams = null;
+        this.wrapEngine = null;
+        this.wrapEngine = wrapEngine;
+        this.ivSize = ivSize;
+    }
+
+    protected int engineGetBlockSize()
+    {
+        return 0;
+    }
+
+    protected byte[] engineGetIV()
+    {
+        return (byte[])(byte[])iv.clone();
+    }
+
+    protected int engineGetKeySize(Key key)
+    {
+        return key.getEncoded().length;
+    }
+
+    protected int engineGetOutputSize(int inputLen)
+    {
+        return -1;
+    }
+
+    protected AlgorithmParameters engineGetParameters()
+    {
+        return null;
+    }
+
+    protected void engineSetMode(String mode)
+        throws NoSuchAlgorithmException
+    {
+        throw new NoSuchAlgorithmException((new StringBuilder()).append("can't support mode ").append(mode).toString());
+    }
+
+    protected void engineSetPadding(String padding)
+        throws NoSuchPaddingException
+    {
+        throw new NoSuchPaddingException((new StringBuilder()).append("Padding ").append(padding).append(" unknown.").toString());
+    }
+
+    protected void engineInit(int opmode, Key key, AlgorithmParameterSpec params, SecureRandom random)
+        throws InvalidKeyException, InvalidAlgorithmParameterException
+    {
+        CipherParameters param;
+        if(key instanceof JCEPBEKey)
+        {
+            JCEPBEKey k = (JCEPBEKey)key;
+            if(params instanceof PBEParameterSpec)
+                param = PBE.Util.makePBEParameters(k, params, wrapEngine.getAlgorithmName());
+            else
+            if(k.getParam() != null)
+                param = k.getParam();
+            else
+                throw new InvalidAlgorithmParameterException("PBE requires PBE parameters to be set.");
+        } else
+        {
+            param = new KeyParameter(key.getEncoded());
+        }
+        if(params instanceof IvParameterSpec)
+        {
+            IvParameterSpec iv = (IvParameterSpec)params;
+            param = new ParametersWithIV(param, iv.getIV());
+        }
+        if((param instanceof KeyParameter) && ivSize != 0)
+        {
+            this.iv = new byte[ivSize];
+            random.nextBytes(this.iv);
+            param = new ParametersWithIV(param, this.iv);
+        }
+        switch(opmode)
+        {
+        case 3: // '\003'
+            wrapEngine.init(true, param);
+            break;
+
+        case 4: // '\004'
+            wrapEngine.init(false, param);
+            break;
+
+        case 1: // '\001'
+        case 2: // '\002'
+            throw new IllegalArgumentException("engine only valid for wrapping");
+
+        default:
+            System.out.println("eeek!");
+            break;
+        }
+    }
+
+    protected void engineInit(int opmode, Key key, AlgorithmParameters params, SecureRandom random)
+        throws InvalidKeyException, InvalidAlgorithmParameterException
+    {
+        AlgorithmParameterSpec paramSpec = null;
+        if(params != null)
+        {
+            int i = 0;
+            do
+            {
+                if(i == availableSpecs.length)
+                    break;
+                try
+                {
+                    paramSpec = params.getParameterSpec(availableSpecs[i]);
+                    break;
+                }
+                catch(Exception e)
+                {
+                    i++;
+                }
+            } while(true);
+            if(paramSpec == null)
+                throw new InvalidAlgorithmParameterException((new StringBuilder()).append("can't handle parameter ").append(params.toString()).toString());
+        }
+        engineParams = params;
+        engineInit(opmode, key, paramSpec, random);
+    }
+
+    protected void engineInit(int opmode, Key key, SecureRandom random)
+        throws InvalidKeyException
+    {
+        try
+        {
+            engineInit(opmode, key, (AlgorithmParameterSpec)null, random);
+        }
+        catch(InvalidAlgorithmParameterException e)
+        {
+            throw new IllegalArgumentException(e.getMessage());
+        }
+    }
+
+    protected byte[] engineUpdate(byte input[], int inputOffset, int inputLen)
+    {
+        throw new RuntimeException("not supported for wrapping");
+    }
+
+    protected int engineUpdate(byte input[], int inputOffset, int inputLen, byte output[], int outputOffset)
+        throws ShortBufferException
+    {
+        throw new RuntimeException("not supported for wrapping");
+    }
+
+    protected byte[] engineDoFinal(byte input[], int inputOffset, int inputLen)
+        throws IllegalBlockSizeException, BadPaddingException
+    {
+        return null;
+    }
+
+    protected int engineDoFinal(byte input[], int inputOffset, int inputLen, byte abyte0[], int i)
+        throws IllegalBlockSizeException, BadPaddingException
+    {
+        return 0;
+    }
+
+    protected byte[] engineWrap(Key key)
+        throws IllegalBlockSizeException, InvalidKeyException
+    {
+        byte encoded[] = key.getEncoded();
+        if(encoded == null)
+            throw new InvalidKeyException("Cannot wrap key, null encoding.");
+        try
+        {
+            if(wrapEngine == null)
+                return engineDoFinal(encoded, 0, encoded.length);
+        }
+        catch(BadPaddingException e)
+        {
+            throw new IllegalBlockSizeException(e.getMessage());
+        }
+        return wrapEngine.wrap(encoded, 0, encoded.length);
+    }
+
+    protected Key engineUnwrap(byte wrappedKey[], String wrappedKeyAlgorithm, int wrappedKeyType)
+        throws InvalidKeyException
+    {
+        byte encoded[];
+        try
+        {
+            if(wrapEngine == null)
+                encoded = engineDoFinal(wrappedKey, 0, wrappedKey.length);
+            else
+                encoded = wrapEngine.unwrap(wrappedKey, 0, wrappedKey.length);
+        }
+        catch(InvalidCipherTextException e)
+        {
+            throw new InvalidKeyException(e.getMessage());
+        }
+        catch(BadPaddingException e)
+        {
+            throw new InvalidKeyException(e.getMessage());
+        }
+        catch(IllegalBlockSizeException e2)
+        {
+            throw new InvalidKeyException(e2.getMessage());
+        }
+        if(wrappedKeyType == 3)
+            return new SecretKeySpec(encoded, wrappedKeyAlgorithm);
+        if(wrappedKeyAlgorithm.equals("") && wrappedKeyType == 2)
+        {
+            ASN1InputStream bIn = new ASN1InputStream(encoded);
+            PrivateKey privKey;
+            try
+            {
+                ASN1Sequence s = (ASN1Sequence)bIn.readObject();
+                PrivateKeyInfo in = new PrivateKeyInfo(s);
+                DERObjectIdentifier oid = in.getAlgorithmId().getObjectId();
+                if(oid.equals(X9ObjectIdentifiers.id_ecPublicKey))
+                    privKey = new JCEECPrivateKey(in);
+                else
+                if(oid.equals(CryptoProObjectIdentifiers.gostR3410_94))
+                    privKey = new JDKGOST3410PrivateKey(in);
+                else
+                if(oid.equals(X9ObjectIdentifiers.id_dsa))
+                    privKey = new JDKDSAPrivateKey(in);
+                else
+                if(oid.equals(PKCSObjectIdentifiers.dhKeyAgreement))
+                    privKey = new JCEDHPrivateKey(in);
+                else
+                if(oid.equals(X9ObjectIdentifiers.dhpublicnumber))
+                    privKey = new JCEDHPrivateKey(in);
+                else
+                    privKey = new JCERSAPrivateCrtKey(in);
+            }
+            catch(Exception e)
+            {
+                throw new InvalidKeyException("Invalid key encoding.");
+            }
+            return privKey;
+        }
+        KeyFactory kf;
+        try
+        {
+            kf = KeyFactory.getInstance(wrappedKeyAlgorithm, BouncyCastleProvider.PROVIDER_NAME);
+            if(wrappedKeyType == 1)
+                return kf.generatePublic(new X509EncodedKeySpec(encoded));
+        }
+        catch(NoSuchProviderException e)
+        {
+            throw new InvalidKeyException((new StringBuilder()).append("Unknown key type ").append(e.getMessage()).toString());
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            throw new InvalidKeyException((new StringBuilder()).append("Unknown key type ").append(e.getMessage()).toString());
+        }
+        catch(InvalidKeySpecException e2)
+        {
+            throw new InvalidKeyException((new StringBuilder()).append("Unknown key type ").append(e2.getMessage()).toString());
+        }
+        if(wrappedKeyType == 2)
+            return kf.generatePrivate(new PKCS8EncodedKeySpec(encoded));
+        throw new InvalidKeyException((new StringBuilder()).append("Unknown key type ").append(wrappedKeyType).toString());
+    }
+
+    private Class availableSpecs[] = {
+        javax/crypto/spec/IvParameterSpec, javax/crypto/spec/PBEParameterSpec, javax/crypto/spec/RC2ParameterSpec, javax/crypto/spec/RC5ParameterSpec
+    };
+    protected int pbeType;
+    protected int pbeHash;
+    protected int pbeKeySize;
+    protected int pbeIvSize;
+    protected AlgorithmParameters engineParams;
+    protected Wrapper wrapEngine;
+    private int ivSize;
+    private byte iv[];
+}

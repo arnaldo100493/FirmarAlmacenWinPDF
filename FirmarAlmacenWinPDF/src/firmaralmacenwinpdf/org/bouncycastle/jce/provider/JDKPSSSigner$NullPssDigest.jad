@@ -1,0 +1,73 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKPSSSigner.java
+
+package org.bouncycastle.jce.provider;
+
+import java.io.ByteArrayOutputStream;
+import org.bouncycastle.crypto.Digest;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            JDKPSSSigner
+
+private class JDKPSSSigner$NullPssDigest
+    implements Digest
+{
+
+    public String getAlgorithmName()
+    {
+        return "NULL";
+    }
+
+    public int getDigestSize()
+    {
+        return baseDigest.getDigestSize();
+    }
+
+    public void update(byte in)
+    {
+        bOut.write(in);
+    }
+
+    public void update(byte in[], int inOff, int len)
+    {
+        bOut.write(in, inOff, len);
+    }
+
+    public int doFinal(byte out[], int outOff)
+    {
+        byte res[] = bOut.toByteArray();
+        if(oddTime)
+        {
+            System.arraycopy(res, 0, out, outOff, res.length);
+        } else
+        {
+            baseDigest.update(res, 0, res.length);
+            baseDigest.doFinal(out, outOff);
+        }
+        reset();
+        oddTime = !oddTime;
+        return res.length;
+    }
+
+    public void reset()
+    {
+        bOut.reset();
+        baseDigest.reset();
+    }
+
+    private ByteArrayOutputStream bOut;
+    private Digest baseDigest;
+    private boolean oddTime;
+    final JDKPSSSigner this$0;
+
+    public JDKPSSSigner$NullPssDigest(Digest mgfDigest)
+    {
+        this$0 = JDKPSSSigner.this;
+        super();
+        bOut = new ByteArrayOutputStream();
+        oddTime = true;
+        baseDigest = mgfDigest;
+    }
+}

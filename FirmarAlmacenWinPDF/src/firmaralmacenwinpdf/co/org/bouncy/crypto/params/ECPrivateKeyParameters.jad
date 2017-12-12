@@ -1,0 +1,28 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECPrivateKeyParameters.java
+
+package co.org.bouncy.crypto.params;
+
+import java.math.BigInteger;
+
+// Referenced classes of package co.org.bouncy.crypto.params:
+//            ECKeyParameters, ECDomainParameters
+
+public class ECPrivateKeyParameters extends ECKeyParameters
+{
+
+    public ECPrivateKeyParameters(BigInteger d, ECDomainParameters params)
+    {
+        super(true, params);
+        this.d = d;
+    }
+
+    public BigInteger getD()
+    {
+        return d;
+    }
+
+    BigInteger d;
+}

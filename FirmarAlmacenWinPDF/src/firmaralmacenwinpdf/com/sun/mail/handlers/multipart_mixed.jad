@@ -1,0 +1,70 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   multipart_mixed.java
+
+package com.sun.mail.handlers;
+
+import java.awt.datatransfer.DataFlavor;
+import java.io.IOException;
+import java.io.OutputStream;
+import javax.activation.*;
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMultipart;
+
+public class multipart_mixed
+    implements DataContentHandler
+{
+
+    public multipart_mixed()
+    {
+        myDF = new ActivationDataFlavor(javax/mail/internet/MimeMultipart, "multipart/mixed", "Multipart");
+    }
+
+    public DataFlavor[] getTransferDataFlavors()
+    {
+        return (new DataFlavor[] {
+            myDF
+        });
+    }
+
+    public Object getTransferData(DataFlavor df, DataSource ds)
+        throws IOException
+    {
+        if(myDF.equals(df))
+            return getContent(ds);
+        else
+            return null;
+    }
+
+    public Object getContent(DataSource ds)
+        throws IOException
+    {
+        try
+        {
+            return new MimeMultipart(ds);
+        }
+        catch(MessagingException e)
+        {
+            IOException ioex = new IOException("Exception while constructing MimeMultipart");
+            ioex.initCause(e);
+            throw ioex;
+        }
+    }
+
+    public void writeTo(Object obj, String mimeType, OutputStream os)
+        throws IOException
+    {
+        if(obj instanceof MimeMultipart)
+            try
+            {
+                ((MimeMultipart)obj).writeTo(os);
+            }
+            catch(MessagingException e)
+            {
+                throw new IOException(e.toString());
+            }
+    }
+
+    private ActivationDataFlavor myDF;
+}

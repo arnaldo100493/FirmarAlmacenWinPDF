@@ -1,0 +1,56 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CAST5CBCParameters.java
+
+package org.bouncycastle.asn1.misc;
+
+import java.math.BigInteger;
+import org.bouncycastle.asn1.*;
+
+public class CAST5CBCParameters extends ASN1Encodable
+{
+
+    public static CAST5CBCParameters getInstance(Object o)
+    {
+        if(o instanceof CAST5CBCParameters)
+            return (CAST5CBCParameters)o;
+        if(o instanceof ASN1Sequence)
+            return new CAST5CBCParameters((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException("unknown object in CAST5CBCParameter factory");
+    }
+
+    public CAST5CBCParameters(byte iv[], int keyLength)
+    {
+        this.iv = new DEROctetString(iv);
+        this.keyLength = new DERInteger(keyLength);
+    }
+
+    public CAST5CBCParameters(ASN1Sequence seq)
+    {
+        iv = (ASN1OctetString)seq.getObjectAt(0);
+        keyLength = (DERInteger)seq.getObjectAt(1);
+    }
+
+    public byte[] getIV()
+    {
+        return iv.getOctets();
+    }
+
+    public int getKeyLength()
+    {
+        return keyLength.getValue().intValue();
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(iv);
+        v.add(keyLength);
+        return new DERSequence(v);
+    }
+
+    DERInteger keyLength;
+    ASN1OctetString iv;
+}

@@ -1,0 +1,619 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   SignerInformation.java
+
+package org.bouncycastle.cms;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.cert.*;
+import java.util.*;
+import javax.crypto.Cipher;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DigestInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.operator.*;
+import org.bouncycastle.util.Arrays;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            SignerId, SignerInformationStore, CounterSignatureDigestCalculator, DigOutputStream, 
+//            CMSException, CMSSignerDigestMismatchException, SigOutputStream, CMSVerifierCertificateNotValidException, 
+//            CMSProcessable, IntDigestCalculator, SignerInformationVerifier, CMSSignedHelper, 
+//            CMSEnvelopedHelper, CMSUtils
+
+public class SignerInformation
+{
+
+    SignerInformation(SignerInfo info, ASN1ObjectIdentifier contentType, CMSProcessable content, IntDigestCalculator digestCalculator, SignatureAlgorithmIdentifierFinder sigAlgFinder)
+    {
+        this.info = info;
+        this.contentType = contentType;
+        this.sigAlgFinder = sigAlgFinder;
+        isCounterSignature = contentType == null;
+        SignerIdentifier s = info.getSID();
+        if(s.isTagged())
+        {
+            ASN1OctetString octs = ASN1OctetString.getInstance(s.getId());
+            sid = new SignerId(octs.getOctets());
+        } else
+        {
+            IssuerAndSerialNumber iAnds = IssuerAndSerialNumber.getInstance(s.getId());
+            sid = new SignerId(iAnds.getName(), iAnds.getSerialNumber().getValue());
+        }
+        digestAlgorithm = info.getDigestAlgorithm();
+        signedAttributeSet = info.getAuthenticatedAttributes();
+        unsignedAttributeSet = info.getUnauthenticatedAttributes();
+        encryptionAlgorithm = info.getDigestEncryptionAlgorithm();
+        signature = info.getEncryptedDigest().getOctets();
+        this.content = content;
+        this.digestCalculator = digestCalculator;
+    }
+
+    public boolean isCounterSignature()
+    {
+        return isCounterSignature;
+    }
+
+    public ASN1ObjectIdentifier getContentType()
+    {
+        return contentType;
+    }
+
+    private byte[] encodeObj(DEREncodable obj)
+        throws IOException
+    {
+        if(obj != null)
+            return obj.getDERObject().getEncoded();
+        else
+            return null;
+    }
+
+    public SignerId getSID()
+    {
+        return sid;
+    }
+
+    public int getVersion()
+    {
+        return info.getVersion().getValue().intValue();
+    }
+
+    public AlgorithmIdentifier getDigestAlgorithmID()
+    {
+        return digestAlgorithm;
+    }
+
+    public String getDigestAlgOID()
+    {
+        return digestAlgorithm.getObjectId().getId();
+    }
+
+    public byte[] getDigestAlgParams()
+    {
+        try
+        {
+            return encodeObj(digestAlgorithm.getParameters());
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException((new StringBuilder()).append("exception getting digest parameters ").append(e).toString());
+        }
+    }
+
+    public byte[] getContentDigest()
+    {
+        if(resultDigest == null)
+            throw new IllegalStateException("method can only be called after verify.");
+        else
+            return (byte[])(byte[])resultDigest.clone();
+    }
+
+    public String getEncryptionAlgOID()
+    {
+        return encryptionAlgorithm.getObjectId().getId();
+    }
+
+    public byte[] getEncryptionAlgParams()
+    {
+        try
+        {
+            return encodeObj(encryptionAlgorithm.getParameters());
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException((new StringBuilder()).append("exception getting encryption parameters ").append(e).toString());
+        }
+    }
+
+    public AttributeTable getSignedAttributes()
+    {
+        if(signedAttributeSet != null && signedAttributeValues == null)
+            signedAttributeValues = new AttributeTable(signedAttributeSet);
+        return signedAttributeValues;
+    }
+
+    public AttributeTable getUnsignedAttributes()
+    {
+        if(unsignedAttributeSet != null && unsignedAttributeValues == null)
+            unsignedAttributeValues = new AttributeTable(unsignedAttributeSet);
+        return unsignedAttributeValues;
+    }
+
+    public byte[] getSignature()
+    {
+        return (byte[])(byte[])signature.clone();
+    }
+
+    public SignerInformationStore getCounterSignatures()
+    {
+        AttributeTable unsignedAttributeTable = getUnsignedAttributes();
+        if(unsignedAttributeTable == null)
+            return new SignerInformationStore(new ArrayList(0));
+        List counterSignatures = new ArrayList();
+        ASN1EncodableVector allCSAttrs = unsignedAttributeTable.getAll(CMSAttributes.counterSignature);
+        for(int i = 0; i < allCSAttrs.size(); i++)
+        {
+            Attribute counterSignatureAttribute = (Attribute)allCSAttrs.get(i);
+            ASN1Set values = counterSignatureAttribute.getAttrValues();
+            if(values.size() >= 1);
+            SignerInfo si;
+            String digestName;
+            for(Enumeration en = values.getObjects(); en.hasMoreElements(); counterSignatures.add(new SignerInformation(si, null, null, new CounterSignatureDigestCalculator(digestName, null, getSignature()), new DefaultSignatureAlgorithmIdentifierFinder())))
+            {
+                si = SignerInfo.getInstance(en.nextElement());
+                digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(si.getDigestAlgorithm().getObjectId().getId());
+            }
+
+        }
+
+        return new SignerInformationStore(counterSignatures);
+    }
+
+    public byte[] getEncodedSignedAttributes()
+        throws IOException
+    {
+        if(signedAttributeSet != null)
+            return signedAttributeSet.getEncoded("DER");
+        else
+            return null;
+    }
+
+    /**
+     * @deprecated Method doVerify is deprecated
+     */
+
+    private boolean doVerify(PublicKey key, Provider sigProvider)
+        throws CMSException, NoSuchAlgorithmException
+    {
+        String digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(getDigestAlgOID());
+        String encName = CMSSignedHelper.INSTANCE.getEncryptionAlgName(getEncryptionAlgOID());
+        String signatureName = (new StringBuilder()).append(digestName).append("with").append(encName).toString();
+        Signature sig = CMSSignedHelper.INSTANCE.getSignatureInstance(signatureName, sigProvider);
+        MessageDigest digest = CMSSignedHelper.INSTANCE.getDigestInstance(digestName, sigProvider);
+        try
+        {
+            if(digestCalculator != null)
+            {
+                resultDigest = digestCalculator.getDigest();
+            } else
+            {
+                if(content != null)
+                    content.write(new DigOutputStream(digest));
+                else
+                if(signedAttributeSet == null)
+                    throw new CMSException("data not encapsulated in signature - use detached constructor.");
+                resultDigest = digest.digest();
+            }
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("can't process mime object to create signature.", e);
+        }
+        DERObject validContentType = getSingleValuedSignedAttribute(CMSAttributes.contentType, "content-type");
+        if(validContentType == null)
+        {
+            if(!isCounterSignature && signedAttributeSet != null)
+                throw new CMSException("The content-type attribute type MUST be present whenever signed attributes are present in signed-data");
+        } else
+        {
+            if(isCounterSignature)
+                throw new CMSException("[For counter signatures,] the signedAttributes field MUST NOT contain a content-type attribute");
+            if(!(validContentType instanceof DERObjectIdentifier))
+                throw new CMSException("content-type attribute value not of ASN.1 type 'OBJECT IDENTIFIER'");
+            DERObjectIdentifier signedContentType = (DERObjectIdentifier)validContentType;
+            if(!signedContentType.equals(contentType))
+                throw new CMSException("content-type attribute value does not match eContentType");
+        }
+        DERObject validMessageDigest = getSingleValuedSignedAttribute(CMSAttributes.messageDigest, "message-digest");
+        if(validMessageDigest == null)
+        {
+            if(signedAttributeSet != null)
+                throw new CMSException("the message-digest signed attribute type MUST be present when there are any signed attributes present");
+        } else
+        {
+            if(!(validMessageDigest instanceof ASN1OctetString))
+                throw new CMSException("message-digest attribute value not of ASN.1 type 'OCTET STRING'");
+            ASN1OctetString signedMessageDigest = (ASN1OctetString)validMessageDigest;
+            if(!Arrays.constantTimeAreEqual(resultDigest, signedMessageDigest.getOctets()))
+                throw new CMSSignerDigestMismatchException("message-digest attribute value does not match calculated value");
+        }
+        AttributeTable signedAttrTable = getSignedAttributes();
+        if(signedAttrTable != null && signedAttrTable.getAll(CMSAttributes.counterSignature).size() > 0)
+            throw new CMSException("A countersignature attribute MUST NOT be a signed attribute");
+        AttributeTable unsignedAttrTable = getUnsignedAttributes();
+        if(unsignedAttrTable != null)
+        {
+            ASN1EncodableVector csAttrs = unsignedAttrTable.getAll(CMSAttributes.counterSignature);
+            for(int i = 0; i < csAttrs.size(); i++)
+            {
+                Attribute csAttr = (Attribute)csAttrs.get(i);
+                if(csAttr.getAttrValues().size() < 1)
+                    throw new CMSException("A countersignature attribute MUST contain at least one AttributeValue");
+            }
+
+        }
+        try
+        {
+            sig.initVerify(key);
+            if(signedAttributeSet != null)
+                break MISSING_BLOCK_LABEL_523;
+            if(digestCalculator != null)
+                return verifyDigest(resultDigest, key, getSignature(), sigProvider);
+        }
+        catch(InvalidKeyException e)
+        {
+            throw new CMSException("key not appropriate to signature in message.", e);
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("can't process mime object to create signature.", e);
+        }
+        catch(SignatureException e)
+        {
+            throw new CMSException((new StringBuilder()).append("invalid signature format in message: ").append(e.getMessage()).toString(), e);
+        }
+        if(content != null)
+            content.write(new SigOutputStream(sig));
+        break MISSING_BLOCK_LABEL_532;
+        sig.update(getEncodedSignedAttributes());
+        return sig.verify(getSignature());
+    }
+
+    private boolean doVerify(SignerInformationVerifier verifier)
+        throws CMSException
+    {
+        String encName;
+        String signatureName;
+        String digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(getDigestAlgOID());
+        encName = CMSSignedHelper.INSTANCE.getEncryptionAlgName(getEncryptionAlgOID());
+        signatureName = (new StringBuilder()).append(digestName).append("with").append(encName).toString();
+        try
+        {
+            if(digestCalculator != null)
+            {
+                resultDigest = digestCalculator.getDigest();
+            } else
+            {
+                DigestCalculator calc = verifier.getDigestCalculator(getDigestAlgorithmID());
+                if(content != null)
+                {
+                    OutputStream digOut = calc.getOutputStream();
+                    content.write(digOut);
+                    digOut.close();
+                } else
+                if(signedAttributeSet == null)
+                    throw new CMSException("data not encapsulated in signature - use detached constructor.");
+                resultDigest = calc.getDigest();
+            }
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("can't process mime object to create signature.", e);
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            throw new CMSException((new StringBuilder()).append("can't find algorithm: ").append(e.getMessage()).toString(), e);
+        }
+        catch(OperatorCreationException e)
+        {
+            throw new CMSException((new StringBuilder()).append("can't create digest calculator: ").append(e.getMessage()).toString(), e);
+        }
+        DERObject validContentType = getSingleValuedSignedAttribute(CMSAttributes.contentType, "content-type");
+        if(validContentType == null)
+        {
+            if(!isCounterSignature && signedAttributeSet != null)
+                throw new CMSException("The content-type attribute type MUST be present whenever signed attributes are present in signed-data");
+        } else
+        {
+            if(isCounterSignature)
+                throw new CMSException("[For counter signatures,] the signedAttributes field MUST NOT contain a content-type attribute");
+            if(!(validContentType instanceof DERObjectIdentifier))
+                throw new CMSException("content-type attribute value not of ASN.1 type 'OBJECT IDENTIFIER'");
+            DERObjectIdentifier signedContentType = (DERObjectIdentifier)validContentType;
+            if(!signedContentType.equals(contentType))
+                throw new CMSException("content-type attribute value does not match eContentType");
+        }
+        DERObject validMessageDigest = getSingleValuedSignedAttribute(CMSAttributes.messageDigest, "message-digest");
+        if(validMessageDigest == null)
+        {
+            if(signedAttributeSet != null)
+                throw new CMSException("the message-digest signed attribute type MUST be present when there are any signed attributes present");
+        } else
+        {
+            if(!(validMessageDigest instanceof ASN1OctetString))
+                throw new CMSException("message-digest attribute value not of ASN.1 type 'OCTET STRING'");
+            ASN1OctetString signedMessageDigest = (ASN1OctetString)validMessageDigest;
+            if(!Arrays.constantTimeAreEqual(resultDigest, signedMessageDigest.getOctets()))
+                throw new CMSSignerDigestMismatchException("message-digest attribute value does not match calculated value");
+        }
+        AttributeTable signedAttrTable = getSignedAttributes();
+        if(signedAttrTable != null && signedAttrTable.getAll(CMSAttributes.counterSignature).size() > 0)
+            throw new CMSException("A countersignature attribute MUST NOT be a signed attribute");
+        AttributeTable unsignedAttrTable = getUnsignedAttributes();
+        if(unsignedAttrTable != null)
+        {
+            ASN1EncodableVector csAttrs = unsignedAttrTable.getAll(CMSAttributes.counterSignature);
+            for(int i = 0; i < csAttrs.size(); i++)
+            {
+                Attribute csAttr = (Attribute)csAttrs.get(i);
+                if(csAttr.getAttrValues().size() < 1)
+                    throw new CMSException("A countersignature attribute MUST contain at least one AttributeValue");
+            }
+
+        }
+        ContentVerifier contentVerifier;
+        OutputStream sigOut;
+        RawContentVerifier rawVerifier;
+        contentVerifier = verifier.getContentVerifier(sigAlgFinder.find(signatureName));
+        sigOut = contentVerifier.getOutputStream();
+        if(signedAttributeSet != null)
+            break MISSING_BLOCK_LABEL_671;
+        if(digestCalculator == null)
+            break MISSING_BLOCK_LABEL_650;
+        if(!(contentVerifier instanceof RawContentVerifier))
+            break MISSING_BLOCK_LABEL_640;
+        rawVerifier = (RawContentVerifier)contentVerifier;
+        if(encName.equals("RSA"))
+        {
+            DigestInfo digInfo = new DigestInfo(digestAlgorithm, resultDigest);
+            return rawVerifier.verify(digInfo.getDEREncoded(), getSignature());
+        }
+        try
+        {
+            return rawVerifier.verify(resultDigest, getSignature());
+        }
+        catch(IOException e)
+        {
+            throw new CMSException("can't process mime object to create signature.", e);
+        }
+        catch(OperatorCreationException e)
+        {
+            throw new CMSException((new StringBuilder()).append("can't create content verifier: ").append(e.getMessage()).toString(), e);
+        }
+        throw new CMSException("verifier unable to process raw signature");
+        if(content != null)
+            content.write(sigOut);
+        break MISSING_BLOCK_LABEL_680;
+        sigOut.write(getEncodedSignedAttributes());
+        sigOut.close();
+        return contentVerifier.verify(getSignature());
+    }
+
+    private boolean isNull(DEREncodable o)
+    {
+        return (o instanceof ASN1Null) || o == null;
+    }
+
+    private DigestInfo derDecode(byte encoding[])
+        throws IOException, CMSException
+    {
+        if(encoding[0] != 48)
+            throw new IOException("not a digest info object");
+        ASN1InputStream aIn = new ASN1InputStream(encoding);
+        DigestInfo digInfo = new DigestInfo((ASN1Sequence)aIn.readObject());
+        if(digInfo.getEncoded().length != encoding.length)
+            throw new CMSException("malformed RSA signature");
+        else
+            return digInfo;
+    }
+
+    /**
+     * @deprecated Method verifyDigest is deprecated
+     */
+
+    private boolean verifyDigest(byte digest[], PublicKey key, byte signature[], Provider sigProvider)
+        throws NoSuchAlgorithmException, CMSException
+    {
+        String encName = CMSSignedHelper.INSTANCE.getEncryptionAlgName(getEncryptionAlgOID());
+        DigestInfo digInfo;
+        if(!encName.equals("RSA"))
+            break MISSING_BLOCK_LABEL_107;
+        Cipher c = CMSEnvelopedHelper.INSTANCE.createAsymmetricCipher("RSA/ECB/PKCS1Padding", sigProvider);
+        c.init(2, key);
+        digInfo = derDecode(c.doFinal(signature));
+        if(!digInfo.getAlgorithmId().getObjectId().equals(digestAlgorithm.getObjectId()))
+            return false;
+        byte sigHash[];
+        try
+        {
+            if(!isNull(digInfo.getAlgorithmId().getParameters()))
+                return false;
+        }
+        catch(GeneralSecurityException e)
+        {
+            throw new CMSException((new StringBuilder()).append("Exception processing signature: ").append(e).toString(), e);
+        }
+        catch(IOException e)
+        {
+            throw new CMSException((new StringBuilder()).append("Exception decoding signature: ").append(e).toString(), e);
+        }
+        sigHash = digInfo.getDigest();
+        return Arrays.constantTimeAreEqual(digest, sigHash);
+        if(encName.equals("DSA"))
+        {
+            Signature sig = CMSSignedHelper.INSTANCE.getSignatureInstance("NONEwithDSA", sigProvider);
+            sig.initVerify(key);
+            sig.update(digest);
+            return sig.verify(signature);
+        }
+        throw new CMSException((new StringBuilder()).append("algorithm: ").append(encName).append(" not supported in base signatures.").toString());
+    }
+
+    /**
+     * @deprecated Method verify is deprecated
+     */
+
+    public boolean verify(PublicKey key, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, CMSException
+    {
+        return verify(key, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method verify is deprecated
+     */
+
+    public boolean verify(PublicKey key, Provider sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, CMSException
+    {
+        getSigningTime();
+        return doVerify(key, sigProvider);
+    }
+
+    /**
+     * @deprecated Method verify is deprecated
+     */
+
+    public boolean verify(X509Certificate cert, String sigProvider)
+        throws NoSuchAlgorithmException, NoSuchProviderException, CertificateExpiredException, CertificateNotYetValidException, CMSException
+    {
+        return verify(cert, CMSUtils.getProvider(sigProvider));
+    }
+
+    /**
+     * @deprecated Method verify is deprecated
+     */
+
+    public boolean verify(X509Certificate cert, Provider sigProvider)
+        throws NoSuchAlgorithmException, CertificateExpiredException, CertificateNotYetValidException, CMSException
+    {
+        Time signingTime = getSigningTime();
+        if(signingTime != null)
+            cert.checkValidity(signingTime.getDate());
+        return doVerify(cert.getPublicKey(), sigProvider);
+    }
+
+    public boolean verify(SignerInformationVerifier verifier)
+        throws CMSException
+    {
+        Time signingTime = getSigningTime();
+        if(verifier.hasAssociatedCertificate() && signingTime != null)
+        {
+            X509CertificateHolder dcv = verifier.getAssociatedCertificate();
+            if(!dcv.isValidOn(signingTime.getDate()))
+                throw new CMSVerifierCertificateNotValidException("verifier not valid at signingTime");
+        }
+        return doVerify(verifier);
+    }
+
+    /**
+     * @deprecated Method toSignerInfo is deprecated
+     */
+
+    public SignerInfo toSignerInfo()
+    {
+        return info;
+    }
+
+    public SignerInfo toASN1Structure()
+    {
+        return info;
+    }
+
+    private DERObject getSingleValuedSignedAttribute(DERObjectIdentifier attrOID, String printableName)
+        throws CMSException
+    {
+        AttributeTable unsignedAttrTable = getUnsignedAttributes();
+        if(unsignedAttrTable != null && unsignedAttrTable.getAll(attrOID).size() > 0)
+            throw new CMSException((new StringBuilder()).append("The ").append(printableName).append(" attribute MUST NOT be an unsigned attribute").toString());
+        AttributeTable signedAttrTable = getSignedAttributes();
+        if(signedAttrTable == null)
+            return null;
+        ASN1EncodableVector v = signedAttrTable.getAll(attrOID);
+        switch(v.size())
+        {
+        case 0: // '\0'
+            return null;
+
+        case 1: // '\001'
+            Attribute t = (Attribute)v.get(0);
+            ASN1Set attrValues = t.getAttrValues();
+            if(attrValues.size() != 1)
+                throw new CMSException((new StringBuilder()).append("A ").append(printableName).append(" attribute MUST have a single attribute value").toString());
+            else
+                return attrValues.getObjectAt(0).getDERObject();
+        }
+        throw new CMSException((new StringBuilder()).append("The SignedAttributes in a signerInfo MUST NOT include multiple instances of the ").append(printableName).append(" attribute").toString());
+    }
+
+    private Time getSigningTime()
+        throws CMSException
+    {
+        DERObject validSigningTime = getSingleValuedSignedAttribute(CMSAttributes.signingTime, "signing-time");
+        if(validSigningTime == null)
+            return null;
+        try
+        {
+            return Time.getInstance(validSigningTime);
+        }
+        catch(IllegalArgumentException e)
+        {
+            throw new CMSException("signing-time attribute value not a valid 'Time' structure");
+        }
+    }
+
+    public static SignerInformation replaceUnsignedAttributes(SignerInformation signerInformation, AttributeTable unsignedAttributes)
+    {
+        SignerInfo sInfo = signerInformation.info;
+        ASN1Set unsignedAttr = null;
+        if(unsignedAttributes != null)
+            unsignedAttr = new DERSet(unsignedAttributes.toASN1EncodableVector());
+        return new SignerInformation(new SignerInfo(sInfo.getSID(), sInfo.getDigestAlgorithm(), sInfo.getAuthenticatedAttributes(), sInfo.getDigestEncryptionAlgorithm(), sInfo.getEncryptedDigest(), unsignedAttr), signerInformation.contentType, signerInformation.content, null, new DefaultSignatureAlgorithmIdentifierFinder());
+    }
+
+    public static SignerInformation addCounterSigners(SignerInformation signerInformation, SignerInformationStore counterSigners)
+    {
+        SignerInfo sInfo = signerInformation.info;
+        AttributeTable unsignedAttr = signerInformation.getUnsignedAttributes();
+        ASN1EncodableVector v;
+        if(unsignedAttr != null)
+            v = unsignedAttr.toASN1EncodableVector();
+        else
+            v = new ASN1EncodableVector();
+        ASN1EncodableVector sigs = new ASN1EncodableVector();
+        for(Iterator it = counterSigners.getSigners().iterator(); it.hasNext(); sigs.add(((SignerInformation)it.next()).toSignerInfo()));
+        v.add(new Attribute(CMSAttributes.counterSignature, new DERSet(sigs)));
+        return new SignerInformation(new SignerInfo(sInfo.getSID(), sInfo.getDigestAlgorithm(), sInfo.getAuthenticatedAttributes(), sInfo.getDigestEncryptionAlgorithm(), sInfo.getEncryptedDigest(), new DERSet(v)), signerInformation.contentType, signerInformation.content, null, new DefaultSignatureAlgorithmIdentifierFinder());
+    }
+
+    private SignerId sid;
+    private SignerInfo info;
+    private AlgorithmIdentifier digestAlgorithm;
+    private AlgorithmIdentifier encryptionAlgorithm;
+    private final ASN1Set signedAttributeSet;
+    private final ASN1Set unsignedAttributeSet;
+    private CMSProcessable content;
+    private byte signature[];
+    private ASN1ObjectIdentifier contentType;
+    private IntDigestCalculator digestCalculator;
+    private byte resultDigest[];
+    private SignatureAlgorithmIdentifierFinder sigAlgFinder;
+    private AttributeTable signedAttributeValues;
+    private AttributeTable unsignedAttributeValues;
+    private boolean isCounterSignature;
+}

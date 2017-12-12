@@ -1,0 +1,248 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   OperatorHelper.java
+
+package org.bouncycastle.operator.jcajce;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.security.*;
+import java.security.cert.*;
+import java.util.HashMap;
+import java.util.Map;
+import javax.crypto.Cipher;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cryptopro.CryptoProObjectIdentifiers;
+import org.bouncycastle.asn1.kisa.KISAObjectIdentifiers;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
+import org.bouncycastle.asn1.ntt.NTTObjectIdentifiers;
+import org.bouncycastle.asn1.oiw.OIWObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.RSASSAPSSparams;
+import org.bouncycastle.asn1.teletrust.TeleTrusTObjectIdentifiers;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.jcajce.JcaJceHelper;
+import org.bouncycastle.operator.OperatorCreationException;
+
+class OperatorHelper
+{
+    private static class OpCertificateException extends CertificateException
+    {
+
+        public Throwable getCause()
+        {
+            return cause;
+        }
+
+        private Throwable cause;
+
+        public OpCertificateException(String msg, Throwable cause)
+        {
+            super(msg);
+            this.cause = cause;
+        }
+    }
+
+
+    OperatorHelper(JcaJceHelper helper)
+    {
+        this.helper = helper;
+    }
+
+    Cipher createAsymmetricWrapper(ASN1ObjectIdentifier algorithm)
+        throws OperatorCreationException
+    {
+        String cipherName = (String)asymmetricWrapperAlgNames.get(algorithm);
+        if(cipherName != null)
+            try
+            {
+                return helper.createCipher(cipherName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createCipher(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new OperatorCreationException((new StringBuilder()).append("cannot create cipher: ").append(e.getMessage()).toString(), e);
+    }
+
+    Cipher createSymmetricWrapper(ASN1ObjectIdentifier algorithm)
+        throws OperatorCreationException
+    {
+        String cipherName = (String)symmetricWrapperAlgNames.get(algorithm);
+        if(cipherName != null)
+            try
+            {
+                return helper.createCipher(cipherName);
+            }
+            catch(NoSuchAlgorithmException e) { }
+        return helper.createCipher(algorithm.getId());
+        GeneralSecurityException e;
+        e;
+        throw new OperatorCreationException((new StringBuilder()).append("cannot create cipher: ").append(e.getMessage()).toString(), e);
+    }
+
+    MessageDigest createDigest(AlgorithmIdentifier digAlgId)
+        throws GeneralSecurityException
+    {
+        MessageDigest dig;
+        try
+        {
+            dig = helper.createDigest(getSignatureName(digAlgId));
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            if(oids.get(digAlgId.getAlgorithm()) != null)
+            {
+                String digestAlgorithm = (String)oids.get(digAlgId.getAlgorithm());
+                dig = helper.createDigest(digestAlgorithm);
+            } else
+            {
+                throw e;
+            }
+        }
+        return dig;
+    }
+
+    Signature createSignature(AlgorithmIdentifier sigAlgId)
+        throws GeneralSecurityException
+    {
+        Signature sig;
+        try
+        {
+            sig = helper.createSignature(getSignatureName(sigAlgId));
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            if(oids.get(sigAlgId.getAlgorithm()) != null)
+            {
+                String signatureAlgorithm = (String)oids.get(sigAlgId.getAlgorithm());
+                sig = helper.createSignature(signatureAlgorithm);
+            } else
+            {
+                throw e;
+            }
+        }
+        return sig;
+    }
+
+    public Signature createRawSignature(AlgorithmIdentifier algorithm)
+    {
+        Signature sig;
+        try
+        {
+            String algName = getSignatureName(algorithm);
+            algName = (new StringBuilder()).append("NONE").append(algName.substring(algName.indexOf("WITH"))).toString();
+            sig = helper.createSignature(algName);
+        }
+        catch(Exception e)
+        {
+            return null;
+        }
+        return sig;
+    }
+
+    private static String getSignatureName(AlgorithmIdentifier sigAlgId)
+    {
+        DEREncodable params = sigAlgId.getParameters();
+        if(params != null && !DERNull.INSTANCE.equals(params) && sigAlgId.getAlgorithm().equals(PKCSObjectIdentifiers.id_RSASSA_PSS))
+        {
+            RSASSAPSSparams rsaParams = RSASSAPSSparams.getInstance(params);
+            return (new StringBuilder()).append(getDigestAlgName(rsaParams.getHashAlgorithm().getAlgorithm())).append("withRSAandMGF1").toString();
+        }
+        if(oids.containsKey(sigAlgId.getAlgorithm()))
+            return (String)oids.get(sigAlgId.getAlgorithm());
+        else
+            return sigAlgId.getAlgorithm().getId();
+    }
+
+    private static String getDigestAlgName(DERObjectIdentifier digestAlgOID)
+    {
+        if(PKCSObjectIdentifiers.md5.equals(digestAlgOID))
+            return "MD5";
+        if(OIWObjectIdentifiers.idSHA1.equals(digestAlgOID))
+            return "SHA1";
+        if(NISTObjectIdentifiers.id_sha224.equals(digestAlgOID))
+            return "SHA224";
+        if(NISTObjectIdentifiers.id_sha256.equals(digestAlgOID))
+            return "SHA256";
+        if(NISTObjectIdentifiers.id_sha384.equals(digestAlgOID))
+            return "SHA384";
+        if(NISTObjectIdentifiers.id_sha512.equals(digestAlgOID))
+            return "SHA512";
+        if(TeleTrusTObjectIdentifiers.ripemd128.equals(digestAlgOID))
+            return "RIPEMD128";
+        if(TeleTrusTObjectIdentifiers.ripemd160.equals(digestAlgOID))
+            return "RIPEMD160";
+        if(TeleTrusTObjectIdentifiers.ripemd256.equals(digestAlgOID))
+            return "RIPEMD256";
+        if(CryptoProObjectIdentifiers.gostR3411.equals(digestAlgOID))
+            return "GOST3411";
+        else
+            return digestAlgOID.getId();
+    }
+
+    public X509Certificate convertCertificate(X509CertificateHolder certHolder)
+        throws CertificateException
+    {
+        try
+        {
+            CertificateFactory certFact = helper.createCertificateFactory("X.509");
+            return (X509Certificate)certFact.generateCertificate(new ByteArrayInputStream(certHolder.getEncoded()));
+        }
+        catch(IOException e)
+        {
+            throw new OpCertificateException((new StringBuilder()).append("cannot get encoded form of certificate: ").append(e.getMessage()).toString(), e);
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            throw new OpCertificateException((new StringBuilder()).append("cannot create certificate factory: ").append(e.getMessage()).toString(), e);
+        }
+        catch(NoSuchProviderException e)
+        {
+            throw new OpCertificateException((new StringBuilder()).append("cannot find factory provider: ").append(e.getMessage()).toString(), e);
+        }
+    }
+
+    private static final Map oids;
+    private static final Map asymmetricWrapperAlgNames;
+    private static final Map symmetricWrapperAlgNames;
+    private JcaJceHelper helper;
+
+    static 
+    {
+        oids = new HashMap();
+        asymmetricWrapperAlgNames = new HashMap();
+        symmetricWrapperAlgNames = new HashMap();
+        oids.put(new DERObjectIdentifier("1.2.840.113549.1.1.5"), "SHA1WITHRSA");
+        oids.put(PKCSObjectIdentifiers.sha224WithRSAEncryption, "SHA224WITHRSA");
+        oids.put(PKCSObjectIdentifiers.sha256WithRSAEncryption, "SHA256WITHRSA");
+        oids.put(PKCSObjectIdentifiers.sha384WithRSAEncryption, "SHA384WITHRSA");
+        oids.put(PKCSObjectIdentifiers.sha512WithRSAEncryption, "SHA512WITHRSA");
+        oids.put(CryptoProObjectIdentifiers.gostR3411_94_with_gostR3410_94, "GOST3411WITHGOST3410");
+        oids.put(CryptoProObjectIdentifiers.gostR3411_94_with_gostR3410_2001, "GOST3411WITHECGOST3410");
+        oids.put(new DERObjectIdentifier("1.2.840.113549.1.1.4"), "MD5WITHRSA");
+        oids.put(new DERObjectIdentifier("1.2.840.113549.1.1.2"), "MD2WITHRSA");
+        oids.put(new DERObjectIdentifier("1.2.840.10040.4.3"), "SHA1WITHDSA");
+        oids.put(X9ObjectIdentifiers.ecdsa_with_SHA1, "SHA1WITHECDSA");
+        oids.put(X9ObjectIdentifiers.ecdsa_with_SHA224, "SHA224WITHECDSA");
+        oids.put(X9ObjectIdentifiers.ecdsa_with_SHA256, "SHA256WITHECDSA");
+        oids.put(X9ObjectIdentifiers.ecdsa_with_SHA384, "SHA384WITHECDSA");
+        oids.put(X9ObjectIdentifiers.ecdsa_with_SHA512, "SHA512WITHECDSA");
+        oids.put(OIWObjectIdentifiers.sha1WithRSA, "SHA1WITHRSA");
+        oids.put(OIWObjectIdentifiers.dsaWithSHA1, "SHA1WITHDSA");
+        oids.put(NISTObjectIdentifiers.dsa_with_sha224, "SHA224WITHDSA");
+        oids.put(NISTObjectIdentifiers.dsa_with_sha256, "SHA256WITHDSA");
+        asymmetricWrapperAlgNames.put(new ASN1ObjectIdentifier(PKCSObjectIdentifiers.rsaEncryption.getId()), "RSA/ECB/PKCS1Padding");
+        symmetricWrapperAlgNames.put(PKCSObjectIdentifiers.id_alg_CMS3DESwrap, "DESEDEWrap");
+        symmetricWrapperAlgNames.put(NISTObjectIdentifiers.id_aes128_wrap, "AESWrap");
+        symmetricWrapperAlgNames.put(NISTObjectIdentifiers.id_aes192_wrap, "AESWrap");
+        symmetricWrapperAlgNames.put(NISTObjectIdentifiers.id_aes256_wrap, "AESWrap");
+        symmetricWrapperAlgNames.put(NTTObjectIdentifiers.id_camellia128_wrap, "CamilliaWrap");
+        symmetricWrapperAlgNames.put(NTTObjectIdentifiers.id_camellia192_wrap, "CamilliaWrap");
+        symmetricWrapperAlgNames.put(NTTObjectIdentifiers.id_camellia256_wrap, "CamilliaWrap");
+        symmetricWrapperAlgNames.put(KISAObjectIdentifiers.id_npki_app_cmsSeed_wrap, "SEEDWrap");
+    }
+}

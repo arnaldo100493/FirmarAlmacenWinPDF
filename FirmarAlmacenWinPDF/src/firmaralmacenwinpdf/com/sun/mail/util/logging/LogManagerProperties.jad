@@ -1,0 +1,357 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   LogManagerProperties.java
+
+package com.sun.mail.util.logging;
+
+import java.io.ObjectStreamException;
+import java.lang.reflect.*;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.*;
+import java.util.logging.*;
+import javax.mail.Authenticator;
+
+final class LogManagerProperties extends Properties
+{
+
+    static LogManager getLogManager()
+    {
+        return LOG_MANAGER;
+    }
+
+    static String toLanguageTag(Locale locale)
+    {
+        String l = locale.getLanguage();
+        String c = locale.getCountry();
+        String v = locale.getVariant();
+        char b[] = new char[l.length() + c.length() + v.length() + 2];
+        int count = l.length();
+        l.getChars(0, count, b, 0);
+        if(c.length() != 0 || l.length() != 0 && v.length() != 0)
+        {
+            b[count] = '-';
+            count++;
+            c.getChars(0, c.length(), b, count);
+            count += c.length();
+        }
+        if(v.length() != 0 && (l.length() != 0 || c.length() != 0))
+        {
+            b[count] = '-';
+            count++;
+            v.getChars(0, v.length(), b, count);
+            count += v.length();
+        }
+        return String.valueOf(b, 0, count);
+    }
+
+    static Filter newFilter(String name)
+        throws Exception
+    {
+        return (Filter)newObjectFrom(name, java/util/logging/Filter);
+    }
+
+    static Formatter newFormatter(String name)
+        throws Exception
+    {
+        return (Formatter)newObjectFrom(name, java/util/logging/Formatter);
+    }
+
+    static Comparator newComparator(String name)
+        throws Exception
+    {
+        return (Comparator)newObjectFrom(name, java/util/Comparator);
+    }
+
+    static Comparator reverseOrder(Comparator c)
+    {
+        Comparator reverse = null;
+        try
+        {
+            Method m = c.getClass().getMethod("reverseOrder", new Class[0]);
+            if(java/util/Comparator.isAssignableFrom(m.getReturnType()))
+                try
+                {
+                    reverse = (Comparator)m.invoke(c, new Object[0]);
+                }
+                catch(ExceptionInInitializerError eiie)
+                {
+                    throw wrapOrThrow(eiie);
+                }
+        }
+        catch(NoSuchMethodException ignore) { }
+        catch(IllegalAccessException ignore) { }
+        catch(InvocationTargetException ite)
+        {
+            paramOrError(ite);
+        }
+        if(reverse == null)
+            reverse = Collections.reverseOrder(c);
+        return reverse;
+    }
+
+    static ErrorManager newErrorManager(String name)
+        throws Exception
+    {
+        return (ErrorManager)newObjectFrom(name, java/util/logging/ErrorManager);
+    }
+
+    static Authenticator newAuthenticator(String name)
+        throws Exception
+    {
+        return (Authenticator)newObjectFrom(name, javax/mail/Authenticator);
+    }
+
+    private static Object newObjectFrom(String name, Class type)
+        throws Exception
+    {
+        Class clazz = findClass(name);
+        if(type.isAssignableFrom(clazz))
+            try
+            {
+                return type.cast(clazz.getConstructor(new Class[0]).newInstance(new Object[0]));
+            }
+            catch(InvocationTargetException ITE)
+            {
+                throw paramOrError(ITE);
+            }
+        throw new ClassCastException((new StringBuilder()).append(clazz.getName()).append(" cannot be cast to ").append(type.getName()).toString());
+        NoClassDefFoundError NCDFE;
+        NCDFE;
+        throw new ClassNotFoundException(NCDFE.toString(), NCDFE);
+        ExceptionInInitializerError EIIE;
+        EIIE;
+        throw wrapOrThrow(EIIE);
+    }
+
+    private static Exception paramOrError(InvocationTargetException ite)
+    {
+        Throwable cause = ite.getCause();
+        if(cause != null && ((cause instanceof VirtualMachineError) || (cause instanceof ThreadDeath)))
+            throw (Error)cause;
+        else
+            return ite;
+    }
+
+    private static InvocationTargetException wrapOrThrow(ExceptionInInitializerError eiie)
+    {
+        if(eiie.getCause() instanceof Error)
+            throw eiie;
+        else
+            return new InvocationTargetException(eiie);
+    }
+
+    private static Class findClass(String name)
+        throws ClassNotFoundException
+    {
+        ClassLoader loaders[] = getClassLoaders();
+        if(!$assertionsDisabled && loaders.length != 2)
+            throw new AssertionError(loaders.length);
+        Class clazz;
+        if(loaders[0] != null)
+            try
+            {
+                clazz = Class.forName(name, false, loaders[0]);
+            }
+            catch(ClassNotFoundException tryContext)
+            {
+                clazz = tryLoad(name, loaders[1]);
+            }
+        else
+            clazz = tryLoad(name, loaders[1]);
+        return clazz;
+    }
+
+    private static Class tryLoad(String name, ClassLoader l)
+        throws ClassNotFoundException
+    {
+        if(l != null)
+            return Class.forName(name, false, l);
+        else
+            return Class.forName(name);
+    }
+
+    private static ClassLoader[] getClassLoaders()
+    {
+        return (ClassLoader[])AccessController.doPrivileged(new PrivilegedAction() {
+
+            public ClassLoader[] run()
+            {
+                ClassLoader loaders[] = new ClassLoader[2];
+                try
+                {
+                    loaders[0] = ClassLoader.getSystemClassLoader();
+                }
+                catch(SecurityException ignore)
+                {
+                    loaders[0] = null;
+                }
+                try
+                {
+                    loaders[1] = Thread.currentThread().getContextClassLoader();
+                }
+                catch(SecurityException ignore)
+                {
+                    loaders[1] = null;
+                }
+                return loaders;
+            }
+
+            public volatile Object run()
+            {
+                return run();
+            }
+
+        }
+);
+    }
+
+    LogManagerProperties(Properties parent, String prefix)
+    {
+        super(parent);
+        parent.isEmpty();
+        if(prefix == null)
+        {
+            throw new NullPointerException();
+        } else
+        {
+            this.prefix = prefix;
+            super.isEmpty();
+            return;
+        }
+    }
+
+    public synchronized Object clone()
+    {
+        return exportCopy(defaults);
+    }
+
+    public synchronized String getProperty(String key)
+    {
+        String value = defaults.getProperty(key);
+        if(value == null)
+        {
+            LogManager manager = getLogManager();
+            if(key.length() > 0)
+                value = manager.getProperty((new StringBuilder()).append(prefix).append('.').append(key).toString());
+            if(value == null)
+                value = manager.getProperty(key);
+            if(value != null)
+            {
+                super.put(key, value);
+            } else
+            {
+                Object v = super.get(key);
+                value = (v instanceof String) ? (String)v : null;
+            }
+        }
+        return value;
+    }
+
+    public String getProperty(String key, String def)
+    {
+        String value = getProperty(key);
+        return value != null ? value : def;
+    }
+
+    public Object get(Object key)
+    {
+        if(key instanceof String)
+            return getProperty((String)key);
+        else
+            return super.get(key);
+    }
+
+    public synchronized Object put(Object key, Object value)
+    {
+        Object def = preWrite(key);
+        Object man = super.put(key, value);
+        return man != null ? man : def;
+    }
+
+    public Object setProperty(String key, String value)
+    {
+        return put(key, value);
+    }
+
+    public boolean containsKey(Object key)
+    {
+        if(key instanceof String)
+            return getProperty((String)key) != null;
+        else
+            return super.containsKey(key);
+    }
+
+    public synchronized Object remove(Object key)
+    {
+        Object def = preWrite(key);
+        Object man = super.remove(key);
+        return man != null ? man : def;
+    }
+
+    public Enumeration propertyNames()
+    {
+        if(!$assertionsDisabled)
+            throw new AssertionError();
+        else
+            return super.propertyNames();
+    }
+
+    public boolean equals(Object o)
+    {
+        if(o == null)
+            return false;
+        if(o == this)
+            return true;
+        if(!(o instanceof Properties))
+            return false;
+        if(!$assertionsDisabled)
+            throw new AssertionError(prefix);
+        else
+            return super.equals(o);
+    }
+
+    public int hashCode()
+    {
+        if(!$assertionsDisabled)
+            throw new AssertionError(prefix.hashCode());
+        else
+            return super.hashCode();
+    }
+
+    private Object preWrite(Object key)
+    {
+        if(!$assertionsDisabled && !Thread.holdsLock(this))
+            throw new AssertionError();
+        Object value;
+        if((key instanceof String) && !super.containsKey(key))
+            value = getProperty((String)key);
+        else
+            value = null;
+        return value;
+    }
+
+    private Properties exportCopy(Properties parent)
+    {
+        Thread.holdsLock(this);
+        Properties child = new Properties(parent);
+        child.putAll(this);
+        return child;
+    }
+
+    private synchronized Object writeReplace()
+        throws ObjectStreamException
+    {
+        if(!$assertionsDisabled)
+            throw new AssertionError();
+        else
+            return exportCopy((Properties)defaults.clone());
+    }
+
+    private static final long serialVersionUID = 0xe0e9fb0310ade294L;
+    private static final LogManager LOG_MANAGER = LogManager.getLogManager();
+    private final String prefix;
+    static final boolean $assertionsDisabled = !com/sun/mail/util/logging/LogManagerProperties.desiredAssertionStatus();
+
+}

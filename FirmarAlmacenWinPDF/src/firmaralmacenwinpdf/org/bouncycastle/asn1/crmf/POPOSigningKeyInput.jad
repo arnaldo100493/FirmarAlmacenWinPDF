@@ -1,0 +1,85 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   POPOSigningKeyInput.java
+
+package org.bouncycastle.asn1.crmf;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+
+// Referenced classes of package org.bouncycastle.asn1.crmf:
+//            PKMACValue
+
+public class POPOSigningKeyInput extends ASN1Encodable
+{
+
+    private POPOSigningKeyInput(ASN1Sequence seq)
+    {
+        ASN1Encodable authInfo = (ASN1Encodable)seq.getObjectAt(0);
+        if(authInfo instanceof ASN1TaggedObject)
+        {
+            ASN1TaggedObject tagObj = (ASN1TaggedObject)authInfo;
+            if(tagObj.getTagNo() != 0)
+                throw new IllegalArgumentException((new StringBuilder()).append("Unknown authInfo tag: ").append(tagObj.getTagNo()).toString());
+            sender = GeneralName.getInstance(tagObj.getObject());
+        } else
+        {
+            publicKeyMAC = PKMACValue.getInstance(authInfo);
+        }
+        publicKey = SubjectPublicKeyInfo.getInstance(seq.getObjectAt(1));
+    }
+
+    public static POPOSigningKeyInput getInstance(Object o)
+    {
+        if(o instanceof POPOSigningKeyInput)
+            return (POPOSigningKeyInput)o;
+        if(o instanceof ASN1Sequence)
+            return new POPOSigningKeyInput((ASN1Sequence)o);
+        else
+            throw new IllegalArgumentException((new StringBuilder()).append("Invalid object: ").append(o.getClass().getName()).toString());
+    }
+
+    public POPOSigningKeyInput(GeneralName sender, SubjectPublicKeyInfo spki)
+    {
+        this.sender = sender;
+        publicKey = spki;
+    }
+
+    public POPOSigningKeyInput(PKMACValue pkmac, SubjectPublicKeyInfo spki)
+    {
+        publicKeyMAC = pkmac;
+        publicKey = spki;
+    }
+
+    public GeneralName getSender()
+    {
+        return sender;
+    }
+
+    public PKMACValue getPublicKeyMAC()
+    {
+        return publicKeyMAC;
+    }
+
+    public SubjectPublicKeyInfo getPublicKey()
+    {
+        return publicKey;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        if(sender != null)
+            v.add(new DERTaggedObject(false, 0, sender));
+        else
+            v.add(publicKeyMAC);
+        v.add(publicKey);
+        return new DERSequence(v);
+    }
+
+    private GeneralName sender;
+    private PKMACValue publicKeyMAC;
+    private SubjectPublicKeyInfo publicKey;
+}

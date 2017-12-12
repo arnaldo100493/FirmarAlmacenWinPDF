@@ -1,0 +1,167 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   DERApplicationSpecific.java
+
+package org.bouncycastle.asn1;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import org.bouncycastle.util.Arrays;
+
+// Referenced classes of package org.bouncycastle.asn1:
+//            ASN1Object, ASN1Encodable, ASN1ParsingException, ASN1InputStream, 
+//            DEREncodable, ASN1EncodableVector, DERObject, DEROutputStream
+
+public class DERApplicationSpecific extends ASN1Object
+{
+
+    DERApplicationSpecific(boolean isConstructed, int tag, byte octets[])
+    {
+        this.isConstructed = isConstructed;
+        this.tag = tag;
+        this.octets = octets;
+    }
+
+    public DERApplicationSpecific(int tag, byte octets[])
+    {
+        this(false, tag, octets);
+    }
+
+    public DERApplicationSpecific(int tag, DEREncodable object)
+        throws IOException
+    {
+        this(true, tag, object);
+    }
+
+    public DERApplicationSpecific(boolean explicit, int tag, DEREncodable object)
+        throws IOException
+    {
+        byte data[] = object.getDERObject().getDEREncoded();
+        isConstructed = explicit;
+        this.tag = tag;
+        if(explicit)
+        {
+            octets = data;
+        } else
+        {
+            int lenBytes = getLengthOfLength(data);
+            byte tmp[] = new byte[data.length - lenBytes];
+            System.arraycopy(data, lenBytes, tmp, 0, tmp.length);
+            octets = tmp;
+        }
+    }
+
+    public DERApplicationSpecific(int tagNo, ASN1EncodableVector vec)
+    {
+        tag = tagNo;
+        isConstructed = true;
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        for(int i = 0; i != vec.size(); i++)
+            try
+            {
+                bOut.write(((ASN1Encodable)vec.get(i)).getEncoded());
+            }
+            catch(IOException e)
+            {
+                throw new ASN1ParsingException((new StringBuilder()).append("malformed object: ").append(e).toString(), e);
+            }
+
+        octets = bOut.toByteArray();
+    }
+
+    private int getLengthOfLength(byte data[])
+    {
+        int count;
+        for(count = 2; (data[count - 1] & 0x80) != 0; count++);
+        return count;
+    }
+
+    public boolean isConstructed()
+    {
+        return isConstructed;
+    }
+
+    public byte[] getContents()
+    {
+        return octets;
+    }
+
+    public int getApplicationTag()
+    {
+        return tag;
+    }
+
+    public DERObject getObject()
+        throws IOException
+    {
+        return (new ASN1InputStream(getContents())).readObject();
+    }
+
+    public DERObject getObject(int derTagNo)
+        throws IOException
+    {
+        if(derTagNo >= 31)
+            throw new IOException("unsupported tag number");
+        byte orig[] = getEncoded();
+        byte tmp[] = replaceTagNumber(derTagNo, orig);
+        if((orig[0] & 0x20) != 0)
+            tmp[0] |= 0x20;
+        return (new ASN1InputStream(tmp)).readObject();
+    }
+
+    void encode(DEROutputStream out)
+        throws IOException
+    {
+        int classBits = 64;
+        if(isConstructed)
+            classBits |= 0x20;
+        out.writeEncoded(classBits, tag, octets);
+    }
+
+    boolean asn1Equals(DERObject o)
+    {
+        if(!(o instanceof DERApplicationSpecific))
+        {
+            return false;
+        } else
+        {
+            DERApplicationSpecific other = (DERApplicationSpecific)o;
+            return isConstructed == other.isConstructed && tag == other.tag && Arrays.areEqual(octets, other.octets);
+        }
+    }
+
+    public int hashCode()
+    {
+        return (isConstructed ? 1 : 0) ^ tag ^ Arrays.hashCode(octets);
+    }
+
+    private byte[] replaceTagNumber(int newTag, byte input[])
+        throws IOException
+    {
+        int tagNo = input[0] & 0x1f;
+        int index = 1;
+        if(tagNo == 31)
+        {
+            tagNo = 0;
+            int b = input[index++] & 0xff;
+            if((b & 0x7f) == 0)
+                throw new ASN1ParsingException("corrupted stream - invalid high tag number found");
+            for(; b >= 0 && (b & 0x80) != 0; b = input[index++] & 0xff)
+            {
+                tagNo |= b & 0x7f;
+                tagNo <<= 7;
+            }
+
+            tagNo |= b & 0x7f;
+        }
+        byte tmp[] = new byte[(input.length - index) + 1];
+        System.arraycopy(input, index, tmp, 1, tmp.length - 1);
+        tmp[0] = (byte)newTag;
+        return tmp;
+    }
+
+    private final boolean isConstructed;
+    private final int tag;
+    private final byte octets[];
+}

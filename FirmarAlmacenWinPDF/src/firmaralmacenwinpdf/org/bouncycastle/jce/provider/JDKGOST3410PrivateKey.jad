@@ -1,0 +1,127 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   JDKGOST3410PrivateKey.java
+
+package org.bouncycastle.jce.provider;
+
+import java.math.BigInteger;
+import java.util.Enumeration;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cryptopro.CryptoProObjectIdentifiers;
+import org.bouncycastle.asn1.cryptopro.GOST3410PublicKeyAlgParameters;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.crypto.params.GOST3410PrivateKeyParameters;
+import org.bouncycastle.jce.interfaces.*;
+import org.bouncycastle.jce.spec.*;
+
+// Referenced classes of package org.bouncycastle.jce.provider:
+//            PKCS12BagAttributeCarrierImpl
+
+public class JDKGOST3410PrivateKey
+    implements GOST3410PrivateKey, PKCS12BagAttributeCarrier
+{
+
+    protected JDKGOST3410PrivateKey()
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+    }
+
+    JDKGOST3410PrivateKey(GOST3410PrivateKey key)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        x = key.getX();
+        gost3410Spec = key.getParameters();
+    }
+
+    JDKGOST3410PrivateKey(GOST3410PrivateKeySpec spec)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        x = spec.getX();
+        gost3410Spec = new GOST3410ParameterSpec(new GOST3410PublicKeyParameterSetSpec(spec.getP(), spec.getQ(), spec.getA()));
+    }
+
+    JDKGOST3410PrivateKey(PrivateKeyInfo info)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        GOST3410PublicKeyAlgParameters params = new GOST3410PublicKeyAlgParameters((ASN1Sequence)info.getAlgorithmId().getParameters());
+        DEROctetString derX = (DEROctetString)info.getPrivateKey();
+        byte keyEnc[] = derX.getOctets();
+        byte keyBytes[] = new byte[keyEnc.length];
+        for(int i = 0; i != keyEnc.length; i++)
+            keyBytes[i] = keyEnc[keyEnc.length - 1 - i];
+
+        x = new BigInteger(1, keyBytes);
+        gost3410Spec = GOST3410ParameterSpec.fromPublicKeyAlg(params);
+    }
+
+    JDKGOST3410PrivateKey(GOST3410PrivateKeyParameters params, GOST3410ParameterSpec spec)
+    {
+        attrCarrier = new PKCS12BagAttributeCarrierImpl();
+        x = params.getX();
+        gost3410Spec = spec;
+        if(spec == null)
+            throw new IllegalArgumentException("spec is null");
+        else
+            return;
+    }
+
+    public String getAlgorithm()
+    {
+        return "GOST3410";
+    }
+
+    public String getFormat()
+    {
+        return "PKCS#8";
+    }
+
+    public byte[] getEncoded()
+    {
+        byte keyEnc[] = getX().toByteArray();
+        byte keyBytes[];
+        if(keyEnc[0] == 0)
+            keyBytes = new byte[keyEnc.length - 1];
+        else
+            keyBytes = new byte[keyEnc.length];
+        for(int i = 0; i != keyBytes.length; i++)
+            keyBytes[i] = keyEnc[keyEnc.length - 1 - i];
+
+        PrivateKeyInfo info;
+        if(gost3410Spec instanceof GOST3410ParameterSpec)
+            info = new PrivateKeyInfo(new AlgorithmIdentifier(CryptoProObjectIdentifiers.gostR3410_94, (new GOST3410PublicKeyAlgParameters(new DERObjectIdentifier(gost3410Spec.getPublicKeyParamSetOID()), new DERObjectIdentifier(gost3410Spec.getDigestParamSetOID()))).getDERObject()), new DEROctetString(keyBytes));
+        else
+            info = new PrivateKeyInfo(new AlgorithmIdentifier(CryptoProObjectIdentifiers.gostR3410_94), new DEROctetString(keyBytes));
+        return info.getDEREncoded();
+    }
+
+    public GOST3410Params getParameters()
+    {
+        return gost3410Spec;
+    }
+
+    public BigInteger getX()
+    {
+        return x;
+    }
+
+    public void setBagAttribute(DERObjectIdentifier oid, DEREncodable attribute)
+    {
+        attrCarrier.setBagAttribute(oid, attribute);
+    }
+
+    public DEREncodable getBagAttribute(DERObjectIdentifier oid)
+    {
+        return attrCarrier.getBagAttribute(oid);
+    }
+
+    public Enumeration getBagAttributeKeys()
+    {
+        return attrCarrier.getBagAttributeKeys();
+    }
+
+    BigInteger x;
+    GOST3410Params gost3410Spec;
+    private PKCS12BagAttributeCarrier attrCarrier;
+}

@@ -1,0 +1,101 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSSignedDataGenerator.java
+
+package org.bouncycastle.cms;
+
+import java.io.*;
+import java.security.*;
+import java.security.cert.CertificateEncodingException;
+import java.util.*;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.cms.*;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+
+// Referenced classes of package org.bouncycastle.cms:
+//            DigOutputStream, SigOutputStream, CMSProcessable, CMSException, 
+//            CMSSignedHelper, CMSSignedDataGenerator, CMSAttributeTableGenerator
+
+private class CMSSignedDataGenerator$SignerInf
+{
+
+    AlgorithmIdentifier getDigestAlgorithmID()
+    {
+        return new AlgorithmIdentifier(new DERObjectIdentifier(digestOID), new DERNull());
+    }
+
+    SignerInfo toSignerInfo(DERObjectIdentifier contentType, CMSProcessable content, SecureRandom random, Provider sigProvider, boolean addDefaultAttributes)
+        throws IOException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, CertificateEncodingException, CMSException
+    {
+        AlgorithmIdentifier digAlgId = getDigestAlgorithmID();
+        String digestName = CMSSignedHelper.INSTANCE.getDigestAlgName(digestOID);
+        String signatureName = (new StringBuilder()).append(digestName).append("with").append(CMSSignedHelper.INSTANCE.getEncryptionAlgName(encOID)).toString();
+        Signature sig = CMSSignedHelper.INSTANCE.getSignatureInstance(signatureName, sigProvider);
+        MessageDigest dig = CMSSignedHelper.INSTANCE.getDigestInstance(digestName, sigProvider);
+        AlgorithmIdentifier encAlgId = getEncAlgorithmIdentifier(encOID, sig);
+        if(content != null)
+            content.write(new DigOutputStream(dig));
+        byte hash[] = dig.digest();
+        digests.put(digestOID, hash.clone());
+        AttributeTable signed;
+        if(addDefaultAttributes)
+        {
+            Map parameters = getBaseParameters(contentType, digAlgId, hash);
+            signed = sAttr == null ? null : sAttr.getAttributes(Collections.unmodifiableMap(parameters));
+        } else
+        {
+            signed = baseSignedTable;
+        }
+        sig.initSign(key, random);
+        OutputStream sigStr = new BufferedOutputStream(new SigOutputStream(sig));
+        ASN1Set signedAttr = null;
+        if(signed != null)
+        {
+            if(contentType == null && signed.get(CMSAttributes.contentType) != null)
+            {
+                Hashtable tmpSigned = signed.toHashtable();
+                tmpSigned.remove(CMSAttributes.contentType);
+                signed = new AttributeTable(tmpSigned);
+            }
+            signedAttr = getAttributeSet(signed);
+            (new DEROutputStream(sigStr)).writeObject(signedAttr);
+        } else
+        if(content != null)
+            content.write(sigStr);
+        sigStr.close();
+        byte sigBytes[] = sig.sign();
+        ASN1Set unsignedAttr = null;
+        if(unsAttr != null)
+        {
+            Map parameters = getBaseParameters(contentType, digAlgId, hash);
+            parameters.put("encryptedDigest", sigBytes.clone());
+            AttributeTable unsigned = unsAttr.getAttributes(Collections.unmodifiableMap(parameters));
+            unsignedAttr = getAttributeSet(unsigned);
+        }
+        return new SignerInfo(signerIdentifier, digAlgId, signedAttr, encAlgId, new DEROctetString(sigBytes), unsignedAttr);
+    }
+
+    final PrivateKey key;
+    final SignerIdentifier signerIdentifier;
+    final String digestOID;
+    final String encOID;
+    final CMSAttributeTableGenerator sAttr;
+    final CMSAttributeTableGenerator unsAttr;
+    final AttributeTable baseSignedTable;
+    final CMSSignedDataGenerator this$0;
+
+    CMSSignedDataGenerator$SignerInf(PrivateKey key, SignerIdentifier signerIdentifier, String digestOID, String encOID, CMSAttributeTableGenerator sAttr, CMSAttributeTableGenerator unsAttr, 
+            AttributeTable baseSignedTable)
+    {
+        this$0 = CMSSignedDataGenerator.this;
+        super();
+        this.key = key;
+        this.signerIdentifier = signerIdentifier;
+        this.digestOID = digestOID;
+        this.encOID = encOID;
+        this.sAttr = sAttr;
+        this.unsAttr = unsAttr;
+        this.baseSignedTable = baseSignedTable;
+    }
+}

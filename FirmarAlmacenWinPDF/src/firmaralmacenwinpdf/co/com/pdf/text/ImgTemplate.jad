@@ -1,0 +1,45 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ImgTemplate.java
+
+package co.com.pdf.text;
+
+import co.com.pdf.text.error_messages.MessageLocalization;
+import co.com.pdf.text.pdf.PdfTemplate;
+import java.net.URL;
+
+// Referenced classes of package co.com.pdf.text:
+//            Image, BadElementException
+
+public class ImgTemplate extends Image
+{
+
+    ImgTemplate(Image image)
+    {
+        super(image);
+    }
+
+    public ImgTemplate(PdfTemplate template)
+        throws BadElementException
+    {
+        super((URL)null);
+        if(template == null)
+            throw new BadElementException(MessageLocalization.getComposedMessage("the.template.can.not.be.null", new Object[0]));
+        if(template.getType() == 3)
+        {
+            throw new BadElementException(MessageLocalization.getComposedMessage("a.pattern.can.not.be.used.as.a.template.to.create.an.image", new Object[0]));
+        } else
+        {
+            type = 35;
+            scaledHeight = template.getHeight();
+            setTop(scaledHeight);
+            scaledWidth = template.getWidth();
+            setRight(scaledWidth);
+            setTemplateData(template);
+            plainWidth = getWidth();
+            plainHeight = getHeight();
+            return;
+        }
+    }
+}

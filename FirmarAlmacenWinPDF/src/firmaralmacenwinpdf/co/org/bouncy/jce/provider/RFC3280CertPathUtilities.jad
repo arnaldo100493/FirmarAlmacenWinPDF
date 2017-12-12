@@ -1,0 +1,1690 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RFC3280CertPathUtilities.java
+
+package co.org.bouncy.jce.provider;
+
+import co.org.bouncy.asn1.*;
+import co.org.bouncy.asn1.x509.*;
+import co.org.bouncy.jce.exception.ExtCertPathValidatorException;
+import co.org.bouncy.util.Arrays;
+import co.org.bouncy.x509_.*;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.GeneralSecurityException;
+import java.security.PublicKey;
+import java.security.cert.*;
+import java.util.*;
+import javax.security.auth.x500.X500Principal;
+
+// Referenced classes of package co.org.bouncy.jce.provider:
+//            AnnotatedException, ReasonsMask, PKIXPolicyNode, PKIXNameConstraintValidatorException, 
+//            CertStatus, PKIXCRLUtil, PKIXNameConstraintValidator, CertPathValidatorUtilities
+
+public class RFC3280CertPathUtilities
+{
+
+    public RFC3280CertPathUtilities()
+    {
+    }
+
+    protected static void processCRLB2(DistributionPoint dp, Object cert, X509CRL crl)
+        throws AnnotatedException
+    {
+        IssuingDistributionPoint idp = null;
+        try
+        {
+            idp = IssuingDistributionPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(crl, ISSUING_DISTRIBUTION_POINT));
+        }
+        catch(Exception e)
+        {
+            throw new AnnotatedException("Issuing distribution point extension could not be decoded.", e);
+        }
+        if(idp != null)
+        {
+            if(idp.getDistributionPoint() != null)
+            {
+                DistributionPointName dpName = IssuingDistributionPoint.getInstance(idp).getDistributionPoint();
+                List names = new ArrayList();
+                if(dpName.getType() == 0)
+                {
+                    GeneralName genNames[] = GeneralNames.getInstance(dpName.getName()).getNames();
+                    for(int j = 0; j < genNames.length; j++)
+                        names.add(genNames[j]);
+
+                }
+                if(dpName.getType() == 1)
+                {
+                    ASN1EncodableVector vec = new ASN1EncodableVector();
+                    try
+                    {
+                        for(Enumeration e = ASN1Sequence.getInstance(ASN1Sequence.fromByteArray(CertPathValidatorUtilities.getIssuerPrincipal(crl).getEncoded())).getObjects(); e.hasMoreElements(); vec.add((ASN1Encodable)e.nextElement()));
+                    }
+                    catch(IOException e)
+                    {
+                        throw new AnnotatedException("Could not read CRL issuer.", e);
+                    }
+                    vec.add(dpName.getName());
+                    names.add(new GeneralName(X509Name.getInstance(new DERSequence(vec))));
+                }
+                boolean matches = false;
+                if(dp.getDistributionPoint() != null)
+                {
+                    dpName = dp.getDistributionPoint();
+                    GeneralName genNames[] = null;
+                    if(dpName.getType() == 0)
+                        genNames = GeneralNames.getInstance(dpName.getName()).getNames();
+                    if(dpName.getType() == 1)
+                    {
+                        if(dp.getCRLIssuer() != null)
+                        {
+                            genNames = dp.getCRLIssuer().getNames();
+                        } else
+                        {
+                            genNames = new GeneralName[1];
+                            try
+                            {
+                                genNames[0] = new GeneralName(new X509Name((ASN1Sequence)ASN1Sequence.fromByteArray(CertPathValidatorUtilities.getEncodedIssuerPrincipal(cert).getEncoded())));
+                            }
+                            catch(IOException e)
+                            {
+                                throw new AnnotatedException("Could not read certificate issuer.", e);
+                            }
+                        }
+                        for(int j = 0; j < genNames.length; j++)
+                        {
+                            Enumeration e = ASN1Sequence.getInstance(genNames[j].getName().toASN1Primitive()).getObjects();
+                            ASN1EncodableVector vec = new ASN1EncodableVector();
+                            for(; e.hasMoreElements(); vec.add((ASN1Encodable)e.nextElement()));
+                            vec.add(dpName.getName());
+                            genNames[j] = new GeneralName(new X509Name(new DERSequence(vec)));
+                        }
+
+                    }
+                    if(genNames != null)
+                    {
+                        int j = 0;
+                        do
+                        {
+                            if(j >= genNames.length)
+                                break;
+                            if(names.contains(genNames[j]))
+                            {
+                                matches = true;
+                                break;
+                            }
+                            j++;
+                        } while(true);
+                    }
+                    if(!matches)
+                        throw new AnnotatedException("No match for certificate CRL issuing distribution point name to cRLIssuer CRL distribution point.");
+                } else
+                {
+                    if(dp.getCRLIssuer() == null)
+                        throw new AnnotatedException("Either the cRLIssuer or the distributionPoint field must be contained in DistributionPoint.");
+                    GeneralName genNames[] = dp.getCRLIssuer().getNames();
+                    int j = 0;
+                    do
+                    {
+                        if(j >= genNames.length)
+                            break;
+                        if(names.contains(genNames[j]))
+                        {
+                            matches = true;
+                            break;
+                        }
+                        j++;
+                    } while(true);
+                    if(!matches)
+                        throw new AnnotatedException("No match for certificate CRL issuing distribution point name to cRLIssuer CRL distribution point.");
+                }
+            }
+            BasicConstraints bc = null;
+            try
+            {
+                bc = BasicConstraints.getInstance(CertPathValidatorUtilities.getExtensionValue((X509Extension)cert, BASIC_CONSTRAINTS));
+            }
+            catch(Exception e)
+            {
+                throw new AnnotatedException("Basic constraints extension could not be decoded.", e);
+            }
+            if(cert instanceof X509Certificate)
+            {
+                if(idp.onlyContainsUserCerts() && bc != null && bc.isCA())
+                    throw new AnnotatedException("CA Cert CRL only contains user certificates.");
+                if(idp.onlyContainsCACerts() && (bc == null || !bc.isCA()))
+                    throw new AnnotatedException("End CRL only contains CA certificates.");
+            }
+            if(idp.onlyContainsAttributeCerts())
+                throw new AnnotatedException("onlyContainsAttributeCerts boolean is asserted.");
+        }
+    }
+
+    protected static void processCRLB1(DistributionPoint dp, Object cert, X509CRL crl)
+        throws AnnotatedException
+    {
+        ASN1Primitive idp = CertPathValidatorUtilities.getExtensionValue(crl, ISSUING_DISTRIBUTION_POINT);
+        boolean isIndirect = false;
+        if(idp != null && IssuingDistributionPoint.getInstance(idp).isIndirectCRL())
+            isIndirect = true;
+        byte issuerBytes[] = CertPathValidatorUtilities.getIssuerPrincipal(crl).getEncoded();
+        boolean matchIssuer = false;
+        if(dp.getCRLIssuer() != null)
+        {
+            GeneralName genNames[] = dp.getCRLIssuer().getNames();
+            for(int j = 0; j < genNames.length; j++)
+            {
+                if(genNames[j].getTagNo() != 4)
+                    continue;
+                try
+                {
+                    if(Arrays.areEqual(genNames[j].getName().toASN1Primitive().getEncoded(), issuerBytes))
+                        matchIssuer = true;
+                }
+                catch(IOException e)
+                {
+                    throw new AnnotatedException("CRL issuer information from distribution point cannot be decoded.", e);
+                }
+            }
+
+            if(matchIssuer && !isIndirect)
+                throw new AnnotatedException("Distribution point contains cRLIssuer field but CRL is not indirect.");
+            if(!matchIssuer)
+                throw new AnnotatedException("CRL issuer of CRL does not match CRL issuer of distribution point.");
+        } else
+        if(CertPathValidatorUtilities.getIssuerPrincipal(crl).equals(CertPathValidatorUtilities.getEncodedIssuerPrincipal(cert)))
+            matchIssuer = true;
+        if(!matchIssuer)
+            throw new AnnotatedException("Cannot find matching CRL issuer for certificate.");
+        else
+            return;
+    }
+
+    protected static ReasonsMask processCRLD(X509CRL crl, DistributionPoint dp)
+        throws AnnotatedException
+    {
+        IssuingDistributionPoint idp = null;
+        try
+        {
+            idp = IssuingDistributionPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(crl, ISSUING_DISTRIBUTION_POINT));
+        }
+        catch(Exception e)
+        {
+            throw new AnnotatedException("Issuing distribution point extension could not be decoded.", e);
+        }
+        if(idp != null && idp.getOnlySomeReasons() != null && dp.getReasons() != null)
+            return (new ReasonsMask(dp.getReasons())).intersect(new ReasonsMask(idp.getOnlySomeReasons()));
+        if((idp == null || idp.getOnlySomeReasons() == null) && dp.getReasons() == null)
+            return ReasonsMask.allReasons;
+        else
+            return (dp.getReasons() != null ? new ReasonsMask(dp.getReasons()) : ReasonsMask.allReasons).intersect(idp != null ? new ReasonsMask(idp.getOnlySomeReasons()) : ReasonsMask.allReasons);
+    }
+
+    protected static Set processCRLF(X509CRL crl, Object cert, X509Certificate defaultCRLSignCert, PublicKey defaultCRLSignKey, ExtendedPKIXParameters paramsPKIX, List certPathCerts)
+        throws AnnotatedException
+    {
+        X509CertStoreSelector selector = new X509CertStoreSelector();
+        try
+        {
+            byte issuerPrincipal[] = CertPathValidatorUtilities.getIssuerPrincipal(crl).getEncoded();
+            selector.setSubject(issuerPrincipal);
+        }
+        catch(IOException e)
+        {
+            throw new AnnotatedException("Subject criteria for certificate selector to find issuer certificate for CRL could not be set.", e);
+        }
+        Collection coll;
+        try
+        {
+            coll = CertPathValidatorUtilities.findCertificates(selector, paramsPKIX.getStores());
+            coll.addAll(CertPathValidatorUtilities.findCertificates(selector, paramsPKIX.getAdditionalStores()));
+            coll.addAll(CertPathValidatorUtilities.findCertificates(selector, paramsPKIX.getCertStores()));
+        }
+        catch(AnnotatedException e)
+        {
+            throw new AnnotatedException("Issuer certificate for CRL cannot be searched.", e);
+        }
+        coll.add(defaultCRLSignCert);
+        Iterator cert_it = coll.iterator();
+        List validCerts = new ArrayList();
+        List validKeys = new ArrayList();
+        while(cert_it.hasNext()) 
+        {
+            X509Certificate signingCert = (X509Certificate)cert_it.next();
+            if(signingCert.equals(defaultCRLSignCert))
+            {
+                validCerts.add(signingCert);
+                validKeys.add(defaultCRLSignKey);
+            } else
+            {
+                try
+                {
+                    CertPathBuilder builder = CertPathBuilder.getInstance("PKIX", "BC");
+                    selector = new X509CertStoreSelector();
+                    selector.setCertificate(signingCert);
+                    ExtendedPKIXParameters temp = (ExtendedPKIXParameters)paramsPKIX.clone();
+                    temp.setTargetCertConstraints(selector);
+                    ExtendedPKIXBuilderParameters params = (ExtendedPKIXBuilderParameters)ExtendedPKIXBuilderParameters.getInstance(temp);
+                    if(certPathCerts.contains(signingCert))
+                        params.setRevocationEnabled(false);
+                    else
+                        params.setRevocationEnabled(true);
+                    List certs = builder.build(params).getCertPath().getCertificates();
+                    validCerts.add(signingCert);
+                    validKeys.add(CertPathValidatorUtilities.getNextWorkingKey(certs, 0));
+                }
+                catch(CertPathBuilderException e)
+                {
+                    throw new AnnotatedException("Internal error.", e);
+                }
+                catch(CertPathValidatorException e)
+                {
+                    throw new AnnotatedException("Public key of issuer certificate of CRL could not be retrieved.", e);
+                }
+                catch(Exception e)
+                {
+                    throw new RuntimeException(e.getMessage());
+                }
+            }
+        }
+        Set checkKeys = new HashSet();
+        AnnotatedException lastException = null;
+        for(int i = 0; i < validCerts.size(); i++)
+        {
+            X509Certificate signCert = (X509Certificate)validCerts.get(i);
+            boolean keyusage[] = signCert.getKeyUsage();
+            if(keyusage != null && (keyusage.length < 7 || !keyusage[6]))
+                lastException = new AnnotatedException("Issuer certificate key usage extension does not permit CRL signing.");
+            else
+                checkKeys.add(validKeys.get(i));
+        }
+
+        if(checkKeys.isEmpty() && lastException == null)
+            throw new AnnotatedException("Cannot find a valid issuer certificate.");
+        if(checkKeys.isEmpty() && lastException != null)
+            throw lastException;
+        else
+            return checkKeys;
+    }
+
+    protected static PublicKey processCRLG(X509CRL crl, Set keys)
+        throws AnnotatedException
+    {
+        Exception lastException = null;
+        for(Iterator it = keys.iterator(); it.hasNext();)
+        {
+            PublicKey key = (PublicKey)it.next();
+            try
+            {
+                crl.verify(key);
+                return key;
+            }
+            catch(Exception e)
+            {
+                lastException = e;
+            }
+        }
+
+        throw new AnnotatedException("Cannot verify CRL.", lastException);
+    }
+
+    protected static X509CRL processCRLH(Set deltacrls, PublicKey key)
+        throws AnnotatedException
+    {
+        Exception lastException = null;
+        for(Iterator it = deltacrls.iterator(); it.hasNext();)
+        {
+            X509CRL crl = (X509CRL)it.next();
+            try
+            {
+                crl.verify(key);
+                return crl;
+            }
+            catch(Exception e)
+            {
+                lastException = e;
+            }
+        }
+
+        if(lastException != null)
+            throw new AnnotatedException("Cannot verify delta CRL.", lastException);
+        else
+            return null;
+    }
+
+    protected static Set processCRLA1i(Date currentDate, ExtendedPKIXParameters paramsPKIX, X509Certificate cert, X509CRL crl)
+        throws AnnotatedException
+    {
+        Set set = new HashSet();
+        if(paramsPKIX.isUseDeltasEnabled())
+        {
+            CRLDistPoint freshestCRL = null;
+            try
+            {
+                freshestCRL = CRLDistPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, FRESHEST_CRL));
+            }
+            catch(AnnotatedException e)
+            {
+                throw new AnnotatedException("Freshest CRL extension could not be decoded from certificate.", e);
+            }
+            if(freshestCRL == null)
+                try
+                {
+                    freshestCRL = CRLDistPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(crl, FRESHEST_CRL));
+                }
+                catch(AnnotatedException e)
+                {
+                    throw new AnnotatedException("Freshest CRL extension could not be decoded from CRL.", e);
+                }
+            if(freshestCRL != null)
+            {
+                try
+                {
+                    CertPathValidatorUtilities.addAdditionalStoresFromCRLDistributionPoint(freshestCRL, paramsPKIX);
+                }
+                catch(AnnotatedException e)
+                {
+                    throw new AnnotatedException("No new delta CRL locations could be added from Freshest CRL extension.", e);
+                }
+                try
+                {
+                    set.addAll(CertPathValidatorUtilities.getDeltaCRLs(currentDate, paramsPKIX, crl));
+                }
+                catch(AnnotatedException e)
+                {
+                    throw new AnnotatedException("Exception obtaining delta CRLs.", e);
+                }
+            }
+        }
+        return set;
+    }
+
+    protected static Set[] processCRLA1ii(Date currentDate, ExtendedPKIXParameters paramsPKIX, X509Certificate cert, X509CRL crl)
+        throws AnnotatedException
+    {
+        Set deltaSet = new HashSet();
+        X509CRLStoreSelector crlselect = new X509CRLStoreSelector();
+        crlselect.setCertificateChecking(cert);
+        try
+        {
+            crlselect.addIssuerName(crl.getIssuerX500Principal().getEncoded());
+        }
+        catch(IOException e)
+        {
+            throw new AnnotatedException((new StringBuilder()).append("Cannot extract issuer from CRL.").append(e).toString(), e);
+        }
+        crlselect.setCompleteCRLEnabled(true);
+        Set completeSet = CRL_UTIL.findCRLs(crlselect, paramsPKIX, currentDate);
+        if(paramsPKIX.isUseDeltasEnabled())
+            try
+            {
+                deltaSet.addAll(CertPathValidatorUtilities.getDeltaCRLs(currentDate, paramsPKIX, crl));
+            }
+            catch(AnnotatedException e)
+            {
+                throw new AnnotatedException("Exception obtaining delta CRLs.", e);
+            }
+        return (new Set[] {
+            completeSet, deltaSet
+        });
+    }
+
+    protected static void processCRLC(X509CRL deltaCRL, X509CRL completeCRL, ExtendedPKIXParameters pkixParams)
+        throws AnnotatedException
+    {
+        if(deltaCRL == null)
+            return;
+        IssuingDistributionPoint completeidp = null;
+        try
+        {
+            completeidp = IssuingDistributionPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(completeCRL, ISSUING_DISTRIBUTION_POINT));
+        }
+        catch(Exception e)
+        {
+            throw new AnnotatedException("Issuing distribution point extension could not be decoded.", e);
+        }
+        if(pkixParams.isUseDeltasEnabled())
+        {
+            if(!deltaCRL.getIssuerX500Principal().equals(completeCRL.getIssuerX500Principal()))
+                throw new AnnotatedException("Complete CRL issuer does not match delta CRL issuer.");
+            IssuingDistributionPoint deltaidp = null;
+            try
+            {
+                deltaidp = IssuingDistributionPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(deltaCRL, ISSUING_DISTRIBUTION_POINT));
+            }
+            catch(Exception e)
+            {
+                throw new AnnotatedException("Issuing distribution point extension from delta CRL could not be decoded.", e);
+            }
+            boolean match = false;
+            if(completeidp == null)
+            {
+                if(deltaidp == null)
+                    match = true;
+            } else
+            if(completeidp.equals(deltaidp))
+                match = true;
+            if(!match)
+                throw new AnnotatedException("Issuing distribution point extension from delta CRL and complete CRL does not match.");
+            ASN1Primitive completeKeyIdentifier = null;
+            try
+            {
+                completeKeyIdentifier = CertPathValidatorUtilities.getExtensionValue(completeCRL, AUTHORITY_KEY_IDENTIFIER);
+            }
+            catch(AnnotatedException e)
+            {
+                throw new AnnotatedException("Authority key identifier extension could not be extracted from complete CRL.", e);
+            }
+            ASN1Primitive deltaKeyIdentifier = null;
+            try
+            {
+                deltaKeyIdentifier = CertPathValidatorUtilities.getExtensionValue(deltaCRL, AUTHORITY_KEY_IDENTIFIER);
+            }
+            catch(AnnotatedException e)
+            {
+                throw new AnnotatedException("Authority key identifier extension could not be extracted from delta CRL.", e);
+            }
+            if(completeKeyIdentifier == null)
+                throw new AnnotatedException("CRL authority key identifier is null.");
+            if(deltaKeyIdentifier == null)
+                throw new AnnotatedException("Delta CRL authority key identifier is null.");
+            if(!completeKeyIdentifier.equals(deltaKeyIdentifier))
+                throw new AnnotatedException("Delta CRL authority key identifier does not match complete CRL authority key identifier.");
+        }
+    }
+
+    protected static void processCRLI(Date validDate, X509CRL deltacrl, Object cert, CertStatus certStatus, ExtendedPKIXParameters pkixParams)
+        throws AnnotatedException
+    {
+        if(pkixParams.isUseDeltasEnabled() && deltacrl != null)
+            CertPathValidatorUtilities.getCertStatus(validDate, deltacrl, cert, certStatus);
+    }
+
+    protected static void processCRLJ(Date validDate, X509CRL completecrl, Object cert, CertStatus certStatus)
+        throws AnnotatedException
+    {
+        if(certStatus.getCertStatus() == 11)
+            CertPathValidatorUtilities.getCertStatus(validDate, completecrl, cert, certStatus);
+    }
+
+    protected static PKIXPolicyNode prepareCertB(CertPath certPath, int index, List policyNodes[], PKIXPolicyNode validPolicyTree, int policyMapping)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        int n = certs.size();
+        int i = n - index;
+        ASN1Sequence pm = null;
+        try
+        {
+            pm = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, POLICY_MAPPINGS));
+        }
+        catch(AnnotatedException ex)
+        {
+            throw new ExtCertPathValidatorException("Policy mappings extension could not be decoded.", ex, certPath, index);
+        }
+        PKIXPolicyNode _validPolicyTree = validPolicyTree;
+        if(pm != null)
+        {
+            ASN1Sequence mappings = pm;
+            Map m_idp = new HashMap();
+            Set s_idp = new HashSet();
+            for(int j = 0; j < mappings.size(); j++)
+            {
+                ASN1Sequence mapping = (ASN1Sequence)mappings.getObjectAt(j);
+                String id_p = ((DERObjectIdentifier)mapping.getObjectAt(0)).getId();
+                String sd_p = ((DERObjectIdentifier)mapping.getObjectAt(1)).getId();
+                if(!m_idp.containsKey(id_p))
+                {
+                    Set tmp = new HashSet();
+                    tmp.add(sd_p);
+                    m_idp.put(id_p, tmp);
+                    s_idp.add(id_p);
+                } else
+                {
+                    Set tmp = (Set)m_idp.get(id_p);
+                    tmp.add(sd_p);
+                }
+            }
+
+            Iterator it_idp = s_idp.iterator();
+label0:
+            do
+            {
+                String id_p;
+                do
+                {
+                    if(!it_idp.hasNext())
+                        break label0;
+                    id_p = (String)it_idp.next();
+                    if(policyMapping <= 0)
+                        continue;
+                    boolean idp_found = false;
+                    Iterator nodes_i = policyNodes[i].iterator();
+                    PKIXPolicyNode node;
+                    do
+                    {
+                        if(!nodes_i.hasNext())
+                            break;
+                        node = (PKIXPolicyNode)nodes_i.next();
+                        if(!node.getValidPolicy().equals(id_p))
+                            continue;
+                        idp_found = true;
+                        node.expectedPolicies = (Set)m_idp.get(id_p);
+                        break;
+                    } while(true);
+                    if(idp_found)
+                        continue label0;
+                    nodes_i = policyNodes[i].iterator();
+                    do
+                    {
+                        if(!nodes_i.hasNext())
+                            continue label0;
+                        node = (PKIXPolicyNode)nodes_i.next();
+                    } while(!"2.5.29.32.0".equals(node.getValidPolicy()));
+                    Set pq = null;
+                    ASN1Sequence policies = null;
+                    try
+                    {
+                        policies = (ASN1Sequence)CertPathValidatorUtilities.getExtensionValue(cert, CERTIFICATE_POLICIES);
+                    }
+                    catch(AnnotatedException e)
+                    {
+                        throw new ExtCertPathValidatorException("Certificate policies extension could not be decoded.", e, certPath, index);
+                    }
+                    Enumeration e = policies.getObjects();
+                    do
+                    {
+                        if(!e.hasMoreElements())
+                            break;
+                        PolicyInformation pinfo = null;
+                        try
+                        {
+                            pinfo = PolicyInformation.getInstance(e.nextElement());
+                        }
+                        catch(Exception ex)
+                        {
+                            throw new CertPathValidatorException("Policy information could not be decoded.", ex, certPath, index);
+                        }
+                        if(!"2.5.29.32.0".equals(pinfo.getPolicyIdentifier().getId()))
+                            continue;
+                        try
+                        {
+                            pq = CertPathValidatorUtilities.getQualifierSet(pinfo.getPolicyQualifiers());
+                        }
+                        catch(CertPathValidatorException ex)
+                        {
+                            throw new ExtCertPathValidatorException("Policy qualifier info set could not be decoded.", ex, certPath, index);
+                        }
+                        break;
+                    } while(true);
+                    boolean ci = false;
+                    if(cert.getCriticalExtensionOIDs() != null)
+                        ci = cert.getCriticalExtensionOIDs().contains(CERTIFICATE_POLICIES);
+                    PKIXPolicyNode p_node = (PKIXPolicyNode)node.getParent();
+                    if("2.5.29.32.0".equals(p_node.getValidPolicy()))
+                    {
+                        PKIXPolicyNode c_node = new PKIXPolicyNode(new ArrayList(), i, (Set)m_idp.get(id_p), p_node, pq, id_p, ci);
+                        p_node.addChild(c_node);
+                        policyNodes[i].add(c_node);
+                    }
+                    continue label0;
+                } while(policyMapping > 0);
+                Iterator nodes_i = policyNodes[i].iterator();
+                while(nodes_i.hasNext()) 
+                {
+                    PKIXPolicyNode node = (PKIXPolicyNode)nodes_i.next();
+                    if(node.getValidPolicy().equals(id_p))
+                    {
+                        PKIXPolicyNode p_node = (PKIXPolicyNode)node.getParent();
+                        p_node.removeChild(node);
+                        nodes_i.remove();
+                        int k = i - 1;
+                        while(k >= 0) 
+                        {
+                            List nodes = policyNodes[k];
+                            for(int l = 0; l < nodes.size(); l++)
+                            {
+                                PKIXPolicyNode node2 = (PKIXPolicyNode)nodes.get(l);
+                                if(node2.hasChildren())
+                                    continue;
+                                _validPolicyTree = CertPathValidatorUtilities.removePolicyNode(_validPolicyTree, policyNodes, node2);
+                                if(_validPolicyTree == null)
+                                    break;
+                            }
+
+                            k--;
+                        }
+                    }
+                }
+            } while(true);
+        }
+        return _validPolicyTree;
+    }
+
+    protected static void prepareNextCertA(CertPath certPath, int index)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        ASN1Sequence pm = null;
+        try
+        {
+            pm = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, POLICY_MAPPINGS));
+        }
+        catch(AnnotatedException ex)
+        {
+            throw new ExtCertPathValidatorException("Policy mappings extension could not be decoded.", ex, certPath, index);
+        }
+        if(pm != null)
+        {
+            ASN1Sequence mappings = pm;
+            for(int j = 0; j < mappings.size(); j++)
+            {
+                DERObjectIdentifier issuerDomainPolicy = null;
+                DERObjectIdentifier subjectDomainPolicy = null;
+                try
+                {
+                    ASN1Sequence mapping = DERSequence.getInstance(mappings.getObjectAt(j));
+                    issuerDomainPolicy = DERObjectIdentifier.getInstance(mapping.getObjectAt(0));
+                    subjectDomainPolicy = DERObjectIdentifier.getInstance(mapping.getObjectAt(1));
+                }
+                catch(Exception e)
+                {
+                    throw new ExtCertPathValidatorException("Policy mappings extension contents could not be decoded.", e, certPath, index);
+                }
+                if("2.5.29.32.0".equals(issuerDomainPolicy.getId()))
+                    throw new CertPathValidatorException("IssuerDomainPolicy is anyPolicy", null, certPath, index);
+                if("2.5.29.32.0".equals(subjectDomainPolicy.getId()))
+                    throw new CertPathValidatorException("SubjectDomainPolicy is anyPolicy,", null, certPath, index);
+            }
+
+        }
+    }
+
+    protected static void processCertF(CertPath certPath, int index, PKIXPolicyNode validPolicyTree, int explicitPolicy)
+        throws CertPathValidatorException
+    {
+        if(explicitPolicy <= 0 && validPolicyTree == null)
+            throw new ExtCertPathValidatorException("No valid policy tree found when one expected.", null, certPath, index);
+        else
+            return;
+    }
+
+    protected static PKIXPolicyNode processCertE(CertPath certPath, int index, PKIXPolicyNode validPolicyTree)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        ASN1Sequence certPolicies = null;
+        try
+        {
+            certPolicies = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, CERTIFICATE_POLICIES));
+        }
+        catch(AnnotatedException e)
+        {
+            throw new ExtCertPathValidatorException("Could not read certificate policies extension from certificate.", e, certPath, index);
+        }
+        if(certPolicies == null)
+            validPolicyTree = null;
+        return validPolicyTree;
+    }
+
+    protected static void processCertBC(CertPath certPath, int index, PKIXNameConstraintValidator nameConstraintValidator)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        int n = certs.size();
+        int i = n - index;
+        if(!CertPathValidatorUtilities.isSelfIssued(cert) || i >= n)
+        {
+            X500Principal principal = CertPathValidatorUtilities.getSubjectPrincipal(cert);
+            ASN1InputStream aIn = new ASN1InputStream(principal.getEncoded());
+            ASN1Sequence dns;
+            try
+            {
+                dns = DERSequence.getInstance(aIn.readObject());
+            }
+            catch(Exception e)
+            {
+                throw new CertPathValidatorException("Exception extracting subject name when checking subtrees.", e, certPath, index);
+            }
+            try
+            {
+                nameConstraintValidator.checkPermittedDN(dns);
+                nameConstraintValidator.checkExcludedDN(dns);
+            }
+            catch(PKIXNameConstraintValidatorException e)
+            {
+                throw new CertPathValidatorException("Subtree check for certificate subject failed.", e, certPath, index);
+            }
+            GeneralNames altName = null;
+            try
+            {
+                altName = GeneralNames.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, SUBJECT_ALTERNATIVE_NAME));
+            }
+            catch(Exception e)
+            {
+                throw new CertPathValidatorException("Subject alternative name extension could not be decoded.", e, certPath, index);
+            }
+            Vector emails = (new X509Name(dns)).getValues(X509Name.EmailAddress);
+            for(Enumeration e = emails.elements(); e.hasMoreElements();)
+            {
+                String email = (String)e.nextElement();
+                GeneralName emailAsGeneralName = new GeneralName(1, email);
+                try
+                {
+                    nameConstraintValidator.checkPermitted(emailAsGeneralName);
+                    nameConstraintValidator.checkExcluded(emailAsGeneralName);
+                }
+                catch(PKIXNameConstraintValidatorException ex)
+                {
+                    throw new CertPathValidatorException("Subtree check for certificate subject alternative email failed.", ex, certPath, index);
+                }
+            }
+
+            if(altName != null)
+            {
+                GeneralName genNames[] = null;
+                try
+                {
+                    genNames = altName.getNames();
+                }
+                catch(Exception e)
+                {
+                    throw new CertPathValidatorException("Subject alternative name contents could not be decoded.", e, certPath, index);
+                }
+                for(int j = 0; j < genNames.length; j++)
+                    try
+                    {
+                        nameConstraintValidator.checkPermitted(genNames[j]);
+                        nameConstraintValidator.checkExcluded(genNames[j]);
+                    }
+                    catch(PKIXNameConstraintValidatorException e)
+                    {
+                        throw new CertPathValidatorException("Subtree check for certificate subject alternative name failed.", e, certPath, index);
+                    }
+
+            }
+        }
+    }
+
+    protected static PKIXPolicyNode processCertD(CertPath certPath, int index, Set acceptablePolicies, PKIXPolicyNode validPolicyTree, List policyNodes[], int inhibitAnyPolicy)
+        throws CertPathValidatorException
+    {
+label0:
+        {
+            X509Certificate cert;
+            int i;
+label1:
+            {
+                List certs = certPath.getCertificates();
+                cert = (X509Certificate)certs.get(index);
+                int n = certs.size();
+                i = n - index;
+                ASN1Sequence certPolicies = null;
+                try
+                {
+                    certPolicies = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, CERTIFICATE_POLICIES));
+                }
+                catch(AnnotatedException e)
+                {
+                    throw new ExtCertPathValidatorException("Could not read certificate policies extension from certificate.", e, certPath, index);
+                }
+                if(certPolicies == null || validPolicyTree == null)
+                    break label0;
+                Enumeration e = certPolicies.getObjects();
+                Set pols = new HashSet();
+                PolicyInformation pInfo;
+                do
+                {
+                    if(!e.hasMoreElements())
+                        break;
+                    pInfo = PolicyInformation.getInstance(e.nextElement());
+                    DERObjectIdentifier pOid = pInfo.getPolicyIdentifier();
+                    pols.add(pOid.getId());
+                    if(!"2.5.29.32.0".equals(pOid.getId()))
+                    {
+                        Set pq = null;
+                        try
+                        {
+                            pq = CertPathValidatorUtilities.getQualifierSet(pInfo.getPolicyQualifiers());
+                        }
+                        catch(CertPathValidatorException ex)
+                        {
+                            throw new ExtCertPathValidatorException("Policy qualifier info set could not be build.", ex, certPath, index);
+                        }
+                        boolean match = CertPathValidatorUtilities.processCertD1i(i, policyNodes, pOid, pq);
+                        if(!match)
+                            CertPathValidatorUtilities.processCertD1ii(i, policyNodes, pOid, pq);
+                    }
+                } while(true);
+                if(acceptablePolicies.isEmpty() || acceptablePolicies.contains("2.5.29.32.0"))
+                {
+                    acceptablePolicies.clear();
+                    acceptablePolicies.addAll(pols);
+                } else
+                {
+                    Iterator it = acceptablePolicies.iterator();
+                    Set t1 = new HashSet();
+                    do
+                    {
+                        if(!it.hasNext())
+                            break;
+                        Object o = it.next();
+                        if(pols.contains(o))
+                            t1.add(o);
+                    } while(true);
+                    acceptablePolicies.clear();
+                    acceptablePolicies.addAll(t1);
+                }
+                if(inhibitAnyPolicy <= 0 && (i >= n || !CertPathValidatorUtilities.isSelfIssued(cert)))
+                    break label1;
+                e = certPolicies.getObjects();
+                do
+                {
+                    if(!e.hasMoreElements())
+                        break label1;
+                    it = PolicyInformation.getInstance(e.nextElement());
+                } while(!"2.5.29.32.0".equals(it.getPolicyIdentifier().getId()));
+                Set _apq = CertPathValidatorUtilities.getQualifierSet(it.getPolicyQualifiers());
+                List _nodes = policyNodes[i - 1];
+label2:
+                for(int k = 0; k < _nodes.size(); k++)
+                {
+                    PKIXPolicyNode _node = (PKIXPolicyNode)_nodes.get(k);
+                    Iterator _policySetIter = _node.getExpectedPolicies().iterator();
+                    do
+                    {
+                        if(!_policySetIter.hasNext())
+                            continue label2;
+                        Object _tmp = _policySetIter.next();
+                        String _policy;
+                        if(_tmp instanceof String)
+                        {
+                            _policy = (String)_tmp;
+                        } else
+                        {
+                            if(!(_tmp instanceof DERObjectIdentifier))
+                                continue;
+                            _policy = ((DERObjectIdentifier)_tmp).getId();
+                        }
+                        boolean _found = false;
+                        Iterator _childrenIter = _node.getChildren();
+                        do
+                        {
+                            if(!_childrenIter.hasNext())
+                                break;
+                            PKIXPolicyNode _child = (PKIXPolicyNode)_childrenIter.next();
+                            if(_policy.equals(_child.getValidPolicy()))
+                                _found = true;
+                        } while(true);
+                        if(!_found)
+                        {
+                            Set _newChildExpectedPolicies = new HashSet();
+                            _newChildExpectedPolicies.add(_policy);
+                            PKIXPolicyNode _newChild = new PKIXPolicyNode(new ArrayList(), i, _newChildExpectedPolicies, _node, _apq, _policy, false);
+                            _node.addChild(_newChild);
+                            policyNodes[i].add(_newChild);
+                        }
+                    } while(true);
+                }
+
+            }
+            PKIXPolicyNode _validPolicyTree = validPolicyTree;
+            for(int j = i - 1; j >= 0; j--)
+            {
+                List nodes = policyNodes[j];
+                for(int k = 0; k < nodes.size(); k++)
+                {
+                    PKIXPolicyNode node = (PKIXPolicyNode)nodes.get(k);
+                    if(node.hasChildren())
+                        continue;
+                    _validPolicyTree = CertPathValidatorUtilities.removePolicyNode(_validPolicyTree, policyNodes, node);
+                    if(_validPolicyTree == null)
+                        break;
+                }
+
+            }
+
+            Set criticalExtensionOids = cert.getCriticalExtensionOIDs();
+            if(criticalExtensionOids != null)
+            {
+                boolean critical = criticalExtensionOids.contains(CERTIFICATE_POLICIES);
+                List nodes = policyNodes[i];
+                for(int j = 0; j < nodes.size(); j++)
+                {
+                    PKIXPolicyNode node = (PKIXPolicyNode)nodes.get(j);
+                    node.setCritical(critical);
+                }
+
+            }
+            return _validPolicyTree;
+        }
+        return null;
+    }
+
+    protected static void processCertA(CertPath certPath, ExtendedPKIXParameters paramsPKIX, int index, PublicKey workingPublicKey, boolean verificationAlreadyPerformed, X500Principal workingIssuerName, X509Certificate sign)
+        throws ExtCertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        if(!verificationAlreadyPerformed)
+            try
+            {
+                CertPathValidatorUtilities.verifyX509Certificate(cert, workingPublicKey, paramsPKIX.getSigProvider());
+            }
+            catch(GeneralSecurityException e)
+            {
+                throw new ExtCertPathValidatorException("Could not validate certificate signature.", e, certPath, index);
+            }
+        try
+        {
+            cert.checkValidity(CertPathValidatorUtilities.getValidCertDateFromValidityModel(paramsPKIX, certPath, index));
+        }
+        catch(CertificateExpiredException e)
+        {
+            throw new ExtCertPathValidatorException((new StringBuilder()).append("Could not validate certificate: ").append(e.getMessage()).toString(), e, certPath, index);
+        }
+        catch(CertificateNotYetValidException e)
+        {
+            throw new ExtCertPathValidatorException((new StringBuilder()).append("Could not validate certificate: ").append(e.getMessage()).toString(), e, certPath, index);
+        }
+        catch(AnnotatedException e)
+        {
+            throw new ExtCertPathValidatorException("Could not validate time of certificate.", e, certPath, index);
+        }
+        if(paramsPKIX.isRevocationEnabled())
+            try
+            {
+                checkCRLs(paramsPKIX, cert, CertPathValidatorUtilities.getValidCertDateFromValidityModel(paramsPKIX, certPath, index), sign, workingPublicKey, certs);
+            }
+            catch(AnnotatedException e)
+            {
+                Throwable cause = e;
+                if(null != e.getCause())
+                    cause = e.getCause();
+                throw new ExtCertPathValidatorException(e.getMessage(), cause, certPath, index);
+            }
+        if(!CertPathValidatorUtilities.getEncodedIssuerPrincipal(cert).equals(workingIssuerName))
+            throw new ExtCertPathValidatorException((new StringBuilder()).append("IssuerName(").append(CertPathValidatorUtilities.getEncodedIssuerPrincipal(cert)).append(") does not match SubjectName(").append(workingIssuerName).append(") of signing certificate.").toString(), null, certPath, index);
+        else
+            return;
+    }
+
+    protected static int prepareNextCertI1(CertPath certPath, int index, int explicitPolicy)
+        throws CertPathValidatorException
+    {
+        Enumeration policyConstraints;
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        ASN1Sequence pc = null;
+        try
+        {
+            pc = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, POLICY_CONSTRAINTS));
+        }
+        catch(Exception e)
+        {
+            throw new ExtCertPathValidatorException("Policy constraints extension cannot be decoded.", e, certPath, index);
+        }
+        if(pc == null)
+            break MISSING_BLOCK_LABEL_141;
+        policyConstraints = pc.getObjects();
+_L2:
+        if(!policyConstraints.hasMoreElements())
+            break MISSING_BLOCK_LABEL_141;
+        ASN1TaggedObject constraint = ASN1TaggedObject.getInstance(policyConstraints.nextElement());
+        if(constraint.getTagNo() == 0)
+        {
+            int tmpInt = DERInteger.getInstance(constraint, false).getValue().intValue();
+            if(tmpInt < explicitPolicy)
+                return tmpInt;
+            break MISSING_BLOCK_LABEL_141;
+        }
+        if(true) goto _L2; else goto _L1
+_L1:
+        IllegalArgumentException e;
+        e;
+        throw new ExtCertPathValidatorException("Policy constraints extension contents cannot be decoded.", e, certPath, index);
+        return explicitPolicy;
+    }
+
+    protected static int prepareNextCertI2(CertPath certPath, int index, int policyMapping)
+        throws CertPathValidatorException
+    {
+        Enumeration policyConstraints;
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        ASN1Sequence pc = null;
+        try
+        {
+            pc = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, POLICY_CONSTRAINTS));
+        }
+        catch(Exception e)
+        {
+            throw new ExtCertPathValidatorException("Policy constraints extension cannot be decoded.", e, certPath, index);
+        }
+        if(pc == null)
+            break MISSING_BLOCK_LABEL_142;
+        policyConstraints = pc.getObjects();
+_L2:
+        if(!policyConstraints.hasMoreElements())
+            break MISSING_BLOCK_LABEL_142;
+        ASN1TaggedObject constraint = ASN1TaggedObject.getInstance(policyConstraints.nextElement());
+        if(constraint.getTagNo() == 1)
+        {
+            int tmpInt = DERInteger.getInstance(constraint, false).getValue().intValue();
+            if(tmpInt < policyMapping)
+                return tmpInt;
+            break MISSING_BLOCK_LABEL_142;
+        }
+        if(true) goto _L2; else goto _L1
+_L1:
+        IllegalArgumentException e;
+        e;
+        throw new ExtCertPathValidatorException("Policy constraints extension contents cannot be decoded.", e, certPath, index);
+        return policyMapping;
+    }
+
+    protected static void prepareNextCertG(CertPath certPath, int index, PKIXNameConstraintValidator nameConstraintValidator)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        NameConstraints nc = null;
+        try
+        {
+            ASN1Sequence ncSeq = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, NAME_CONSTRAINTS));
+            if(ncSeq != null)
+                nc = NameConstraints.getInstance(ncSeq);
+        }
+        catch(Exception e)
+        {
+            throw new ExtCertPathValidatorException("Name constraints extension could not be decoded.", e, certPath, index);
+        }
+        if(nc != null)
+        {
+            co.org.bouncy.asn1.x509.GeneralSubtree permitted[] = nc.getPermittedSubtrees();
+            if(permitted != null)
+                try
+                {
+                    nameConstraintValidator.intersectPermittedSubtree(permitted);
+                }
+                catch(Exception ex)
+                {
+                    throw new ExtCertPathValidatorException("Permitted subtrees cannot be build from name constraints extension.", ex, certPath, index);
+                }
+            co.org.bouncy.asn1.x509.GeneralSubtree excluded[] = nc.getExcludedSubtrees();
+            if(excluded != null)
+            {
+                for(int i = 0; i != excluded.length; i++)
+                    try
+                    {
+                        nameConstraintValidator.addExcludedSubtree(excluded[i]);
+                    }
+                    catch(Exception ex)
+                    {
+                        throw new ExtCertPathValidatorException("Excluded subtrees cannot be build from name constraints extension.", ex, certPath, index);
+                    }
+
+            }
+        }
+    }
+
+    private static void checkCRL(DistributionPoint dp, ExtendedPKIXParameters paramsPKIX, X509Certificate cert, Date validDate, X509Certificate defaultCRLSignCert, PublicKey defaultCRLSignKey, CertStatus certStatus, ReasonsMask reasonMask, 
+            List certPathCerts)
+        throws AnnotatedException
+    {
+        Date currentDate;
+        boolean validCrlFound;
+        AnnotatedException lastException;
+        Iterator crl_iter;
+        currentDate = new Date(System.currentTimeMillis());
+        if(validDate.getTime() > currentDate.getTime())
+            throw new AnnotatedException("Validation time is in future.");
+        Set crls = CertPathValidatorUtilities.getCompleteCRLs(dp, cert, currentDate, paramsPKIX);
+        validCrlFound = false;
+        lastException = null;
+        crl_iter = crls.iterator();
+_L2:
+        if(!crl_iter.hasNext() || certStatus.getCertStatus() != 11 || reasonMask.isAllReasons())
+            break; /* Loop/switch isn't completed */
+        X509CRL crl;
+        ReasonsMask interimReasonsMask;
+        crl = (X509CRL)crl_iter.next();
+        interimReasonsMask = processCRLD(crl, dp);
+        if(interimReasonsMask.hasNewReasons(reasonMask))
+            try
+            {
+                Set keys = processCRLF(crl, cert, defaultCRLSignCert, defaultCRLSignKey, paramsPKIX, certPathCerts);
+                PublicKey key = processCRLG(crl, keys);
+                X509CRL deltaCRL = null;
+                if(paramsPKIX.isUseDeltasEnabled())
+                {
+                    Set deltaCRLs = CertPathValidatorUtilities.getDeltaCRLs(currentDate, paramsPKIX, crl);
+                    deltaCRL = processCRLH(deltaCRLs, key);
+                }
+                if(paramsPKIX.getValidityModel() != 1 && cert.getNotAfter().getTime() < crl.getThisUpdate().getTime())
+                    throw new AnnotatedException("No valid CRL for current time found.");
+                processCRLB1(dp, cert, crl);
+                processCRLB2(dp, cert, crl);
+                processCRLC(deltaCRL, crl, paramsPKIX);
+                processCRLI(validDate, deltaCRL, cert, certStatus, paramsPKIX);
+                processCRLJ(validDate, crl, cert, certStatus);
+                if(certStatus.getCertStatus() == 8)
+                    certStatus.setCertStatus(11);
+                reasonMask.addReasons(interimReasonsMask);
+                Set criticalExtensions = crl.getCriticalExtensionOIDs();
+                if(criticalExtensions != null)
+                {
+                    criticalExtensions = new HashSet(criticalExtensions);
+                    criticalExtensions.remove(X509Extensions.IssuingDistributionPoint.getId());
+                    criticalExtensions.remove(X509Extensions.DeltaCRLIndicator.getId());
+                    if(!criticalExtensions.isEmpty())
+                        throw new AnnotatedException("CRL contains unsupported critical extensions.");
+                }
+                if(deltaCRL != null)
+                {
+                    criticalExtensions = deltaCRL.getCriticalExtensionOIDs();
+                    if(criticalExtensions != null)
+                    {
+                        criticalExtensions = new HashSet(criticalExtensions);
+                        criticalExtensions.remove(X509Extensions.IssuingDistributionPoint.getId());
+                        criticalExtensions.remove(X509Extensions.DeltaCRLIndicator.getId());
+                        if(!criticalExtensions.isEmpty())
+                            throw new AnnotatedException("Delta CRL contains unsupported critical extension.");
+                    }
+                }
+                validCrlFound = true;
+            }
+            catch(AnnotatedException e)
+            {
+                lastException = e;
+            }
+        if(true) goto _L2; else goto _L1
+_L1:
+        if(!validCrlFound)
+            throw lastException;
+        else
+            return;
+    }
+
+    protected static void checkCRLs(ExtendedPKIXParameters paramsPKIX, X509Certificate cert, Date validDate, X509Certificate sign, PublicKey workingPublicKey, List certPathCerts)
+        throws AnnotatedException
+    {
+        AnnotatedException lastException = null;
+        CRLDistPoint crldp = null;
+        try
+        {
+            crldp = CRLDistPoint.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, CRL_DISTRIBUTION_POINTS));
+        }
+        catch(Exception e)
+        {
+            throw new AnnotatedException("CRL distribution point extension could not be read.", e);
+        }
+        try
+        {
+            CertPathValidatorUtilities.addAdditionalStoresFromCRLDistributionPoint(crldp, paramsPKIX);
+        }
+        catch(AnnotatedException e)
+        {
+            throw new AnnotatedException("No additional CRL locations could be decoded from CRL distribution point extension.", e);
+        }
+        CertStatus certStatus = new CertStatus();
+        ReasonsMask reasonsMask = new ReasonsMask();
+        boolean validCrlFound = false;
+        if(crldp != null)
+        {
+            DistributionPoint dps[] = null;
+            try
+            {
+                dps = crldp.getDistributionPoints();
+            }
+            catch(Exception e)
+            {
+                throw new AnnotatedException("Distribution points could not be read.", e);
+            }
+            if(dps != null)
+            {
+                for(int i = 0; i < dps.length && certStatus.getCertStatus() == 11 && !reasonsMask.isAllReasons(); i++)
+                {
+                    ExtendedPKIXParameters paramsPKIXClone = (ExtendedPKIXParameters)paramsPKIX.clone();
+                    try
+                    {
+                        checkCRL(dps[i], paramsPKIXClone, cert, validDate, sign, workingPublicKey, certStatus, reasonsMask, certPathCerts);
+                        validCrlFound = true;
+                    }
+                    catch(AnnotatedException e)
+                    {
+                        lastException = e;
+                    }
+                }
+
+            }
+        }
+        if(certStatus.getCertStatus() == 11 && !reasonsMask.isAllReasons())
+            try
+            {
+                ASN1Primitive issuer = null;
+                try
+                {
+                    issuer = (new ASN1InputStream(CertPathValidatorUtilities.getEncodedIssuerPrincipal(cert).getEncoded())).readObject();
+                }
+                catch(Exception e)
+                {
+                    throw new AnnotatedException("Issuer from certificate for CRL could not be reencoded.", e);
+                }
+                DistributionPoint dp = new DistributionPoint(new DistributionPointName(0, new GeneralNames(new GeneralName(4, issuer))), null, null);
+                ExtendedPKIXParameters paramsPKIXClone = (ExtendedPKIXParameters)paramsPKIX.clone();
+                checkCRL(dp, paramsPKIXClone, cert, validDate, sign, workingPublicKey, certStatus, reasonsMask, certPathCerts);
+                validCrlFound = true;
+            }
+            catch(AnnotatedException e)
+            {
+                lastException = e;
+            }
+        if(!validCrlFound)
+            if(lastException instanceof AnnotatedException)
+                throw lastException;
+            else
+                throw new AnnotatedException("No valid CRL found.", lastException);
+        if(certStatus.getCertStatus() != 11)
+        {
+            String message = (new StringBuilder()).append("Certificate revocation after ").append(certStatus.getRevocationDate()).toString();
+            message = (new StringBuilder()).append(message).append(", reason: ").append(crlReasons[certStatus.getCertStatus()]).toString();
+            throw new AnnotatedException(message);
+        }
+        if(!reasonsMask.isAllReasons() && certStatus.getCertStatus() == 11)
+            certStatus.setCertStatus(12);
+        if(certStatus.getCertStatus() == 12)
+            throw new AnnotatedException("Certificate status could not be determined.");
+        else
+            return;
+    }
+
+    protected static int prepareNextCertJ(CertPath certPath, int index, int inhibitAnyPolicy)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        DERInteger iap = null;
+        try
+        {
+            iap = DERInteger.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, INHIBIT_ANY_POLICY));
+        }
+        catch(Exception e)
+        {
+            throw new ExtCertPathValidatorException("Inhibit any-policy extension cannot be decoded.", e, certPath, index);
+        }
+        if(iap != null)
+        {
+            int _inhibitAnyPolicy = iap.getValue().intValue();
+            if(_inhibitAnyPolicy < inhibitAnyPolicy)
+                return _inhibitAnyPolicy;
+        }
+        return inhibitAnyPolicy;
+    }
+
+    protected static void prepareNextCertK(CertPath certPath, int index)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        BasicConstraints bc = null;
+        try
+        {
+            bc = BasicConstraints.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, BASIC_CONSTRAINTS));
+        }
+        catch(Exception e)
+        {
+            throw new ExtCertPathValidatorException("Basic constraints extension cannot be decoded.", e, certPath, index);
+        }
+        if(bc != null)
+        {
+            if(!bc.isCA())
+                throw new CertPathValidatorException("Not a CA certificate");
+            else
+                return;
+        } else
+        {
+            throw new CertPathValidatorException("Intermediate certificate lacks BasicConstraints");
+        }
+    }
+
+    protected static int prepareNextCertL(CertPath certPath, int index, int maxPathLength)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        if(!CertPathValidatorUtilities.isSelfIssued(cert))
+        {
+            if(maxPathLength <= 0)
+                throw new ExtCertPathValidatorException("Max path length not greater than zero", null, certPath, index);
+            else
+                return maxPathLength - 1;
+        } else
+        {
+            return maxPathLength;
+        }
+    }
+
+    protected static int prepareNextCertM(CertPath certPath, int index, int maxPathLength)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        BasicConstraints bc = null;
+        try
+        {
+            bc = BasicConstraints.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, BASIC_CONSTRAINTS));
+        }
+        catch(Exception e)
+        {
+            throw new ExtCertPathValidatorException("Basic constraints extension cannot be decoded.", e, certPath, index);
+        }
+        if(bc != null)
+        {
+            BigInteger _pathLengthConstraint = bc.getPathLenConstraint();
+            if(_pathLengthConstraint != null)
+            {
+                int _plc = _pathLengthConstraint.intValue();
+                if(_plc < maxPathLength)
+                    return _plc;
+            }
+        }
+        return maxPathLength;
+    }
+
+    protected static void prepareNextCertN(CertPath certPath, int index)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        boolean _usage[] = cert.getKeyUsage();
+        if(_usage != null && !_usage[5])
+            throw new ExtCertPathValidatorException("Issuer certificate keyusage extension is critical and does not permit key signing.", null, certPath, index);
+        else
+            return;
+    }
+
+    protected static void prepareNextCertO(CertPath certPath, int index, Set criticalExtensions, List pathCheckers)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        for(Iterator tmpIter = pathCheckers.iterator(); tmpIter.hasNext();)
+            try
+            {
+                ((PKIXCertPathChecker)tmpIter.next()).check(cert, criticalExtensions);
+            }
+            catch(CertPathValidatorException e)
+            {
+                throw new CertPathValidatorException(e.getMessage(), e.getCause(), certPath, index);
+            }
+
+        if(!criticalExtensions.isEmpty())
+            throw new ExtCertPathValidatorException((new StringBuilder()).append("Certificate has unsupported critical extension: ").append(criticalExtensions).toString(), null, certPath, index);
+        else
+            return;
+    }
+
+    protected static int prepareNextCertH1(CertPath certPath, int index, int explicitPolicy)
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        if(!CertPathValidatorUtilities.isSelfIssued(cert) && explicitPolicy != 0)
+            return explicitPolicy - 1;
+        else
+            return explicitPolicy;
+    }
+
+    protected static int prepareNextCertH2(CertPath certPath, int index, int policyMapping)
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        if(!CertPathValidatorUtilities.isSelfIssued(cert) && policyMapping != 0)
+            return policyMapping - 1;
+        else
+            return policyMapping;
+    }
+
+    protected static int prepareNextCertH3(CertPath certPath, int index, int inhibitAnyPolicy)
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        if(!CertPathValidatorUtilities.isSelfIssued(cert) && inhibitAnyPolicy != 0)
+            return inhibitAnyPolicy - 1;
+        else
+            return inhibitAnyPolicy;
+    }
+
+    protected static int wrapupCertA(int explicitPolicy, X509Certificate cert)
+    {
+        if(!CertPathValidatorUtilities.isSelfIssued(cert) && explicitPolicy != 0)
+            explicitPolicy--;
+        return explicitPolicy;
+    }
+
+    protected static int wrapupCertB(CertPath certPath, int index, int explicitPolicy)
+        throws CertPathValidatorException
+    {
+        ASN1Sequence pc;
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        pc = null;
+        try
+        {
+            pc = DERSequence.getInstance(CertPathValidatorUtilities.getExtensionValue(cert, POLICY_CONSTRAINTS));
+        }
+        catch(AnnotatedException e)
+        {
+            throw new ExtCertPathValidatorException("Policy constraints could not be decoded.", e, certPath, index);
+        }
+        if(pc == null) goto _L2; else goto _L1
+_L1:
+        Enumeration policyConstraints = pc.getObjects();
+_L4:
+        if(policyConstraints.hasMoreElements())
+        {
+            ASN1TaggedObject constraint = (ASN1TaggedObject)policyConstraints.nextElement();
+            switch(constraint.getTagNo())
+            {
+            case 0: // '\0'
+                int tmpInt;
+                try
+                {
+                    tmpInt = DERInteger.getInstance(constraint, false).getValue().intValue();
+                }
+                catch(Exception e)
+                {
+                    throw new ExtCertPathValidatorException("Policy constraints requireExplicitPolicy field could not be decoded.", e, certPath, index);
+                }
+                if(tmpInt == 0)
+                    return 0;
+                break;
+            }
+            continue; /* Loop/switch isn't completed */
+        }
+_L2:
+        return explicitPolicy;
+        if(true) goto _L4; else goto _L3
+_L3:
+    }
+
+    protected static void wrapupCertF(CertPath certPath, int index, List pathCheckers, Set criticalExtensions)
+        throws CertPathValidatorException
+    {
+        List certs = certPath.getCertificates();
+        X509Certificate cert = (X509Certificate)certs.get(index);
+        for(Iterator tmpIter = pathCheckers.iterator(); tmpIter.hasNext();)
+            try
+            {
+                ((PKIXCertPathChecker)tmpIter.next()).check(cert, criticalExtensions);
+            }
+            catch(CertPathValidatorException e)
+            {
+                throw new ExtCertPathValidatorException("Additional certificate path checker failed.", e, certPath, index);
+            }
+
+        if(!criticalExtensions.isEmpty())
+            throw new ExtCertPathValidatorException((new StringBuilder()).append("Certificate has unsupported critical extension: ").append(criticalExtensions).toString(), null, certPath, index);
+        else
+            return;
+    }
+
+    protected static PKIXPolicyNode wrapupCertG(CertPath certPath, ExtendedPKIXParameters paramsPKIX, Set userInitialPolicySet, int index, List policyNodes[], PKIXPolicyNode validPolicyTree, Set acceptablePolicies)
+        throws CertPathValidatorException
+    {
+        int n = certPath.getCertificates().size();
+        PKIXPolicyNode intersection;
+        if(validPolicyTree == null)
+        {
+            if(paramsPKIX.isExplicitPolicyRequired())
+                throw new ExtCertPathValidatorException("Explicit policy requested but none available.", null, certPath, index);
+            intersection = null;
+        } else
+        if(CertPathValidatorUtilities.isAnyPolicy(userInitialPolicySet))
+        {
+            if(paramsPKIX.isExplicitPolicyRequired())
+            {
+                if(acceptablePolicies.isEmpty())
+                    throw new ExtCertPathValidatorException("Explicit policy requested but none available.", null, certPath, index);
+                Set _validPolicyNodeSet = new HashSet();
+                for(int j = 0; j < policyNodes.length; j++)
+                {
+                    List _nodeDepth = policyNodes[j];
+                    for(int k = 0; k < _nodeDepth.size(); k++)
+                    {
+                        PKIXPolicyNode _node = (PKIXPolicyNode)_nodeDepth.get(k);
+                        if(!"2.5.29.32.0".equals(_node.getValidPolicy()))
+                            continue;
+                        for(Iterator _iter = _node.getChildren(); _iter.hasNext(); _validPolicyNodeSet.add(_iter.next()));
+                    }
+
+                }
+
+                for(Iterator _vpnsIter = _validPolicyNodeSet.iterator(); _vpnsIter.hasNext();)
+                {
+                    PKIXPolicyNode _node = (PKIXPolicyNode)_vpnsIter.next();
+                    String _validPolicy = _node.getValidPolicy();
+                    if(acceptablePolicies.contains(_validPolicy));
+                }
+
+                if(validPolicyTree != null)
+                {
+                    for(int j = n - 1; j >= 0; j--)
+                    {
+                        List nodes = policyNodes[j];
+                        for(int k = 0; k < nodes.size(); k++)
+                        {
+                            PKIXPolicyNode node = (PKIXPolicyNode)nodes.get(k);
+                            if(!node.hasChildren())
+                                validPolicyTree = CertPathValidatorUtilities.removePolicyNode(validPolicyTree, policyNodes, node);
+                        }
+
+                    }
+
+                }
+            }
+            intersection = validPolicyTree;
+        } else
+        {
+            Set _validPolicyNodeSet = new HashSet();
+            for(int j = 0; j < policyNodes.length; j++)
+            {
+                List _nodeDepth = policyNodes[j];
+label0:
+                for(int k = 0; k < _nodeDepth.size(); k++)
+                {
+                    PKIXPolicyNode _node = (PKIXPolicyNode)_nodeDepth.get(k);
+                    if(!"2.5.29.32.0".equals(_node.getValidPolicy()))
+                        continue;
+                    Iterator _iter = _node.getChildren();
+                    do
+                    {
+                        PKIXPolicyNode _c_node;
+                        do
+                        {
+                            if(!_iter.hasNext())
+                                continue label0;
+                            _c_node = (PKIXPolicyNode)_iter.next();
+                        } while("2.5.29.32.0".equals(_c_node.getValidPolicy()));
+                        _validPolicyNodeSet.add(_c_node);
+                    } while(true);
+                }
+
+            }
+
+            Iterator _vpnsIter = _validPolicyNodeSet.iterator();
+            do
+            {
+                if(!_vpnsIter.hasNext())
+                    break;
+                PKIXPolicyNode _node = (PKIXPolicyNode)_vpnsIter.next();
+                String _validPolicy = _node.getValidPolicy();
+                if(!userInitialPolicySet.contains(_validPolicy))
+                    validPolicyTree = CertPathValidatorUtilities.removePolicyNode(validPolicyTree, policyNodes, _node);
+            } while(true);
+            if(validPolicyTree != null)
+            {
+                for(int j = n - 1; j >= 0; j--)
+                {
+                    List nodes = policyNodes[j];
+                    for(int k = 0; k < nodes.size(); k++)
+                    {
+                        PKIXPolicyNode node = (PKIXPolicyNode)nodes.get(k);
+                        if(!node.hasChildren())
+                            validPolicyTree = CertPathValidatorUtilities.removePolicyNode(validPolicyTree, policyNodes, node);
+                    }
+
+                }
+
+            }
+            intersection = validPolicyTree;
+        }
+        return intersection;
+    }
+
+    private static final PKIXCRLUtil CRL_UTIL = new PKIXCRLUtil();
+    public static final String CERTIFICATE_POLICIES;
+    public static final String POLICY_MAPPINGS;
+    public static final String INHIBIT_ANY_POLICY;
+    public static final String ISSUING_DISTRIBUTION_POINT;
+    public static final String FRESHEST_CRL;
+    public static final String DELTA_CRL_INDICATOR;
+    public static final String POLICY_CONSTRAINTS;
+    public static final String BASIC_CONSTRAINTS;
+    public static final String CRL_DISTRIBUTION_POINTS;
+    public static final String SUBJECT_ALTERNATIVE_NAME;
+    public static final String NAME_CONSTRAINTS;
+    public static final String AUTHORITY_KEY_IDENTIFIER;
+    public static final String KEY_USAGE;
+    public static final String CRL_NUMBER;
+    public static final String ANY_POLICY = "2.5.29.32.0";
+    protected static final int KEY_CERT_SIGN = 5;
+    protected static final int CRL_SIGN = 6;
+    protected static final String crlReasons[] = {
+        "unspecified", "keyCompromise", "cACompromise", "affiliationChanged", "superseded", "cessationOfOperation", "certificateHold", "unknown", "removeFromCRL", "privilegeWithdrawn", 
+        "aACompromise"
+    };
+
+    static 
+    {
+        CERTIFICATE_POLICIES = X509Extensions.CertificatePolicies.getId();
+        POLICY_MAPPINGS = X509Extensions.PolicyMappings.getId();
+        INHIBIT_ANY_POLICY = X509Extensions.InhibitAnyPolicy.getId();
+        ISSUING_DISTRIBUTION_POINT = X509Extensions.IssuingDistributionPoint.getId();
+        FRESHEST_CRL = X509Extensions.FreshestCRL.getId();
+        DELTA_CRL_INDICATOR = X509Extensions.DeltaCRLIndicator.getId();
+        POLICY_CONSTRAINTS = X509Extensions.PolicyConstraints.getId();
+        BASIC_CONSTRAINTS = X509Extensions.BasicConstraints.getId();
+        CRL_DISTRIBUTION_POINTS = X509Extensions.CRLDistributionPoints.getId();
+        SUBJECT_ALTERNATIVE_NAME = X509Extensions.SubjectAlternativeName.getId();
+        NAME_CONSTRAINTS = X509Extensions.NameConstraints.getId();
+        AUTHORITY_KEY_IDENTIFIER = X509Extensions.AuthorityKeyIdentifier.getId();
+        KEY_USAGE = X509Extensions.KeyUsage.getId();
+        CRL_NUMBER = X509Extensions.CRLNumber.getId();
+    }
+}

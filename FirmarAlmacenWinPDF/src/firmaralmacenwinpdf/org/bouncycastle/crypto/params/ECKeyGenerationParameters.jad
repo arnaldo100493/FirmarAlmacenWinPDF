@@ -1,0 +1,30 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ECKeyGenerationParameters.java
+
+package org.bouncycastle.crypto.params;
+
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import org.bouncycastle.crypto.KeyGenerationParameters;
+
+// Referenced classes of package org.bouncycastle.crypto.params:
+//            ECDomainParameters
+
+public class ECKeyGenerationParameters extends KeyGenerationParameters
+{
+
+    public ECKeyGenerationParameters(ECDomainParameters domainParams, SecureRandom random)
+    {
+        super(random, domainParams.getN().bitLength());
+        this.domainParams = domainParams;
+    }
+
+    public ECDomainParameters getDomainParameters()
+    {
+        return domainParams;
+    }
+
+    private ECDomainParameters domainParams;
+}

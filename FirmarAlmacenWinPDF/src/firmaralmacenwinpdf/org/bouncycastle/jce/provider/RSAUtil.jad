@@ -1,0 +1,44 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   RSAUtil.java
+
+package org.bouncycastle.jce.provider;
+
+import java.security.interfaces.*;
+import org.bouncycastle.asn1.DERObjectIdentifier;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.x509.X509ObjectIdentifiers;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
+
+class RSAUtil
+{
+
+    RSAUtil()
+    {
+    }
+
+    static boolean isRsaOid(DERObjectIdentifier algOid)
+    {
+        return algOid.equals(PKCSObjectIdentifiers.rsaEncryption) || algOid.equals(X509ObjectIdentifiers.id_ea_rsa) || algOid.equals(PKCSObjectIdentifiers.id_RSASSA_PSS) || algOid.equals(PKCSObjectIdentifiers.id_RSAES_OAEP);
+    }
+
+    static RSAKeyParameters generatePublicKeyParameter(RSAPublicKey key)
+    {
+        return new RSAKeyParameters(false, key.getModulus(), key.getPublicExponent());
+    }
+
+    static RSAKeyParameters generatePrivateKeyParameter(RSAPrivateKey key)
+    {
+        if(key instanceof RSAPrivateCrtKey)
+        {
+            RSAPrivateCrtKey k = (RSAPrivateCrtKey)key;
+            return new RSAPrivateCrtKeyParameters(k.getModulus(), k.getPublicExponent(), k.getPrivateExponent(), k.getPrimeP(), k.getPrimeQ(), k.getPrimeExponentP(), k.getPrimeExponentQ(), k.getCrtCoefficient());
+        } else
+        {
+            RSAPrivateKey k = key;
+            return new RSAKeyParameters(true, k.getModulus(), k.getPrivateExponent());
+        }
+    }
+}

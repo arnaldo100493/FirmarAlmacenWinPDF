@@ -1,0 +1,67 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   GOST3410ValidationParameters.java
+
+package co.org.bouncy.crypto.params;
+
+
+public class GOST3410ValidationParameters
+{
+
+    public GOST3410ValidationParameters(int x0, int c)
+    {
+        this.x0 = x0;
+        this.c = c;
+    }
+
+    public GOST3410ValidationParameters(long x0L, long cL)
+    {
+        this.x0L = x0L;
+        this.cL = cL;
+    }
+
+    public int getC()
+    {
+        return c;
+    }
+
+    public int getX0()
+    {
+        return x0;
+    }
+
+    public long getCL()
+    {
+        return cL;
+    }
+
+    public long getX0L()
+    {
+        return x0L;
+    }
+
+    public boolean equals(Object o)
+    {
+        if(!(o instanceof GOST3410ValidationParameters))
+            return false;
+        GOST3410ValidationParameters other = (GOST3410ValidationParameters)o;
+        if(other.c != c)
+            return false;
+        if(other.x0 != x0)
+            return false;
+        if(other.cL != cL)
+            return false;
+        return other.x0L == x0L;
+    }
+
+    public int hashCode()
+    {
+        return x0 ^ c ^ (int)x0L ^ (int)(x0L >> 32) ^ (int)cL ^ (int)(cL >> 32);
+    }
+
+    private int x0;
+    private int c;
+    private long x0L;
+    private long cL;
+}

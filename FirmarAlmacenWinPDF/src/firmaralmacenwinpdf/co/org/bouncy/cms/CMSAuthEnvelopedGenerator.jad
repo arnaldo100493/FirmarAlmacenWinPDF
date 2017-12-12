@@ -1,0 +1,34 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CMSAuthEnvelopedGenerator.java
+
+package co.org.bouncy.cms;
+
+import co.org.bouncy.asn1.ASN1ObjectIdentifier;
+import co.org.bouncy.asn1.nist.NISTObjectIdentifiers;
+
+class CMSAuthEnvelopedGenerator
+{
+
+    CMSAuthEnvelopedGenerator()
+    {
+    }
+
+    public static final String AES128_CCM;
+    public static final String AES192_CCM;
+    public static final String AES256_CCM;
+    public static final String AES128_GCM;
+    public static final String AES192_GCM;
+    public static final String AES256_GCM;
+
+    static 
+    {
+        AES128_CCM = NISTObjectIdentifiers.id_aes128_CCM.getId();
+        AES192_CCM = NISTObjectIdentifiers.id_aes192_CCM.getId();
+        AES256_CCM = NISTObjectIdentifiers.id_aes256_CCM.getId();
+        AES128_GCM = NISTObjectIdentifiers.id_aes128_GCM.getId();
+        AES192_GCM = NISTObjectIdentifiers.id_aes192_GCM.getId();
+        AES256_GCM = NISTObjectIdentifiers.id_aes256_GCM.getId();
+    }
+}

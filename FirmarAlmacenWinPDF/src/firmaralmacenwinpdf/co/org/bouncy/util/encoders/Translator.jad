@@ -1,0 +1,19 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Translator.java
+
+package co.org.bouncy.util.encoders;
+
+
+public interface Translator
+{
+
+    public abstract int getEncodedBlockSize();
+
+    public abstract int encode(byte abyte0[], int i, int j, byte abyte1[], int k);
+
+    public abstract int getDecodedBlockSize();
+
+    public abstract int decode(byte abyte0[], int i, int j, byte abyte1[], int k);
+}

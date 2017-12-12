@@ -1,0 +1,43 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   CertificateVerificationResult.java
+
+package co.com.andesscd.pki.clases;
+
+import java.security.cert.PKIXCertPathBuilderResult;
+
+public class CertificateVerificationResult
+{
+
+    public CertificateVerificationResult(PKIXCertPathBuilderResult result)
+    {
+        valid = true;
+        this.result = result;
+    }
+
+    public CertificateVerificationResult(Throwable exception)
+    {
+        valid = false;
+        this.exception = exception;
+    }
+
+    public boolean isValid()
+    {
+        return valid;
+    }
+
+    public PKIXCertPathBuilderResult getResult()
+    {
+        return result;
+    }
+
+    public Throwable getException()
+    {
+        return exception;
+    }
+
+    private boolean valid;
+    private PKIXCertPathBuilderResult result;
+    private Throwable exception;
+}

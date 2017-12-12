@@ -1,0 +1,31 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   BcRSAKeyTransRecipientInfoGenerator.java
+
+package org.bouncycastle.cms.bc;
+
+import java.io.IOException;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.operator.bc.BcRSAAsymmetricKeyWrapper;
+
+// Referenced classes of package org.bouncycastle.cms.bc:
+//            BcKeyTransRecipientInfoGenerator
+
+public class BcRSAKeyTransRecipientInfoGenerator extends BcKeyTransRecipientInfoGenerator
+{
+
+    public BcRSAKeyTransRecipientInfoGenerator(byte subjectKeyIdentifier[], AlgorithmIdentifier encAlgId, AsymmetricKeyParameter publicKey)
+    {
+        super(subjectKeyIdentifier, new BcRSAAsymmetricKeyWrapper(encAlgId, publicKey));
+    }
+
+    public BcRSAKeyTransRecipientInfoGenerator(X509CertificateHolder recipientCert)
+        throws IOException
+    {
+        super(recipientCert, new BcRSAAsymmetricKeyWrapper(recipientCert.getSubjectPublicKeyInfo().getAlgorithmId(), recipientCert.getSubjectPublicKeyInfo()));
+    }
+}

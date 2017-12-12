@@ -1,0 +1,134 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:45 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   UserNameTokenHandler.java
+
+package co.com.andesscd.clientes.fna;
+
+import co.com.andesscd.Base64Coder;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Date;
+import java.util.Set;
+import javax.xml.soap.*;
+import javax.xml.ws.handler.MessageContext;
+import javax.xml.ws.handler.soap.SOAPHandler;
+import javax.xml.ws.handler.soap.SOAPMessageContext;
+import org.w3c.dom.DOMException;
+
+public class UserNameTokenHandler
+    implements SOAPHandler
+{
+
+    public String getUser()
+    {
+        return user;
+    }
+
+    public void setUser(String user)
+    {
+        this.user = user;
+    }
+
+    public String getPass()
+    {
+        return pass;
+    }
+
+    public void setPass(String pass)
+    {
+        this.pass = pass;
+    }
+
+    public UserNameTokenHandler(String user, String pass)
+    {
+        setUser(user);
+        setPass(pass);
+    }
+
+    public boolean handleMessage(SOAPMessageContext smc)
+    {
+        Boolean outboundProperty;
+        SOAPMessage message;
+        outboundProperty = (Boolean)smc.get("javax.xml.ws.handler.message.outbound");
+        if(!outboundProperty.booleanValue())
+            break MISSING_BLOCK_LABEL_353;
+        message = smc.getMessage();
+        try
+        {
+            String usernameStr = getUser();
+            String passwordStr = getPass();
+            byte nonceBytes[] = String.valueOf(Math.round(Math.random() * 1000000D)).getBytes();
+            long create = (new Date()).getTime();
+            String createdDate = String.valueOf(create);
+            byte createdDateBytes[] = createdDate.getBytes("UTF-8");
+            byte passwordBytes[] = passwordStr.getBytes("UTF-8");
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            baos.write(nonceBytes);
+            baos.write(createdDateBytes);
+            baos.write(passwordBytes);
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte digestedPassword[] = md.digest(baos.toByteArray());
+            String passwordB64 = new String(Base64Coder.encode(digestedPassword));
+            String nonceB64 = new String(Base64Coder.encode(nonceBytes));
+            SOAPEnvelope envelope = smc.getMessage().getSOAPPart().getEnvelope();
+            SOAPHeader header = envelope.getHeader();
+            if(header == null)
+                header = envelope.addHeader();
+            SOAPElement security = header.addChildElement("Security", "wsse", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd");
+            SOAPElement usernameToken = security.addChildElement("UsernameToken", "wsse");
+            SOAPElement username = usernameToken.addChildElement("Username", "wsse");
+            username.addTextNode(usernameStr);
+            SOAPElement password = usernameToken.addChildElement("Password", "wsse");
+            password.setAttribute("Type", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest");
+            password.addTextNode(passwordB64);
+            SOAPElement nonce = usernameToken.addChildElement("Nonce", "wsse");
+            nonce.addTextNode(nonceB64);
+            SOAPElement created = usernameToken.addChildElement("Created", "wsu", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd");
+            created.addTextNode(createdDate);
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+        break MISSING_BLOCK_LABEL_368;
+        try
+        {
+            message = smc.getMessage();
+        }
+        catch(Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        return outboundProperty.booleanValue();
+    }
+
+    public Set getHeaders()
+    {
+        return null;
+    }
+
+    public boolean handleFault(SOAPMessageContext context)
+    {
+        return true;
+    }
+
+    public void close(MessageContext messagecontext)
+    {
+    }
+
+    public volatile boolean handleFault(MessageContext x0)
+    {
+        return handleFault((SOAPMessageContext)x0);
+    }
+
+    public volatile boolean handleMessage(MessageContext x0)
+    {
+        return handleMessage((SOAPMessageContext)x0);
+    }
+
+    public String user;
+    public String pass;
+}

@@ -1,0 +1,26 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   StreamCipher.java
+
+package co.org.bouncy.crypto;
+
+
+// Referenced classes of package co.org.bouncy.crypto:
+//            DataLengthException, CipherParameters
+
+public interface StreamCipher
+{
+
+    public abstract void init(boolean flag, CipherParameters cipherparameters)
+        throws IllegalArgumentException;
+
+    public abstract String getAlgorithmName();
+
+    public abstract byte returnByte(byte byte0);
+
+    public abstract void processBytes(byte abyte0[], int i, int j, byte abyte1[], int k)
+        throws DataLengthException;
+
+    public abstract void reset();
+}

@@ -1,0 +1,74 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   CertRequest.java
+
+package org.bouncycastle.asn1.crmf;
+
+import org.bouncycastle.asn1.*;
+
+// Referenced classes of package org.bouncycastle.asn1.crmf:
+//            CertTemplate, Controls
+
+public class CertRequest extends ASN1Encodable
+{
+
+    private CertRequest(ASN1Sequence seq)
+    {
+        certReqId = DERInteger.getInstance(seq.getObjectAt(0));
+        certTemplate = CertTemplate.getInstance(seq.getObjectAt(1));
+        if(seq.size() > 2)
+            controls = Controls.getInstance(seq.getObjectAt(2));
+    }
+
+    public static CertRequest getInstance(Object o)
+    {
+        if(o instanceof CertRequest)
+            return (CertRequest)o;
+        if(o != null)
+            return new CertRequest(ASN1Sequence.getInstance(o));
+        else
+            return null;
+    }
+
+    public CertRequest(int certReqId, CertTemplate certTemplate, Controls controls)
+    {
+        this(new DERInteger(certReqId), certTemplate, controls);
+    }
+
+    public CertRequest(DERInteger certReqId, CertTemplate certTemplate, Controls controls)
+    {
+        this.certReqId = certReqId;
+        this.certTemplate = certTemplate;
+        this.controls = controls;
+    }
+
+    public DERInteger getCertReqId()
+    {
+        return certReqId;
+    }
+
+    public CertTemplate getCertTemplate()
+    {
+        return certTemplate;
+    }
+
+    public Controls getControls()
+    {
+        return controls;
+    }
+
+    public DERObject toASN1Object()
+    {
+        ASN1EncodableVector v = new ASN1EncodableVector();
+        v.add(certReqId);
+        v.add(certTemplate);
+        if(controls != null)
+            v.add(controls);
+        return new DERSequence(v);
+    }
+
+    private DERInteger certReqId;
+    private CertTemplate certTemplate;
+    private Controls controls;
+}

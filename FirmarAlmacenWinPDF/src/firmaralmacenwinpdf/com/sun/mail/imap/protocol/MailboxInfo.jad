@@ -1,0 +1,95 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   MailboxInfo.java
+
+package com.sun.mail.imap.protocol;
+
+import com.sun.mail.iap.ParsingException;
+import com.sun.mail.iap.Response;
+import javax.mail.Flags;
+
+// Referenced classes of package com.sun.mail.imap.protocol:
+//            IMAPResponse, FLAGS
+
+public class MailboxInfo
+{
+
+    public MailboxInfo(Response r[])
+        throws ParsingException
+    {
+        availableFlags = null;
+        permanentFlags = null;
+        total = -1;
+        recent = -1;
+        first = -1;
+        uidvalidity = -1L;
+        uidnext = -1L;
+        for(int i = 0; i < r.length; i++)
+        {
+            if(r[i] == null || !(r[i] instanceof IMAPResponse))
+                continue;
+            IMAPResponse ir = (IMAPResponse)r[i];
+            if(ir.keyEquals("EXISTS"))
+            {
+                total = ir.getNumber();
+                r[i] = null;
+                continue;
+            }
+            if(ir.keyEquals("RECENT"))
+            {
+                recent = ir.getNumber();
+                r[i] = null;
+                continue;
+            }
+            if(ir.keyEquals("FLAGS"))
+            {
+                availableFlags = new FLAGS(ir);
+                r[i] = null;
+                continue;
+            }
+            if(!ir.isUnTagged() || !ir.isOK())
+                continue;
+            ir.skipSpaces();
+            if(ir.readByte() != 91)
+            {
+                ir.reset();
+                continue;
+            }
+            boolean handled = true;
+            String s = ir.readAtom();
+            if(s.equalsIgnoreCase("UNSEEN"))
+                first = ir.readNumber();
+            else
+            if(s.equalsIgnoreCase("UIDVALIDITY"))
+                uidvalidity = ir.readLong();
+            else
+            if(s.equalsIgnoreCase("PERMANENTFLAGS"))
+                permanentFlags = new FLAGS(ir);
+            else
+            if(s.equalsIgnoreCase("UIDNEXT"))
+                uidnext = ir.readLong();
+            else
+                handled = false;
+            if(handled)
+                r[i] = null;
+            else
+                ir.reset();
+        }
+
+        if(permanentFlags == null)
+            if(availableFlags != null)
+                permanentFlags = new Flags(availableFlags);
+            else
+                permanentFlags = new Flags();
+    }
+
+    public Flags availableFlags;
+    public Flags permanentFlags;
+    public int total;
+    public int recent;
+    public int first;
+    public long uidvalidity;
+    public long uidnext;
+    public int mode;
+}

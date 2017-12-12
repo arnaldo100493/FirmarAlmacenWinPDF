@@ -1,0 +1,131 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   Rectangle2D.java
+
+package co.com.pdf.awt.geom;
+
+
+// Referenced classes of package co.com.pdf.awt.geom:
+//            Rectangle2D
+
+public static class Rectangle2D$Float extends Rectangle2D
+{
+
+    public double getX()
+    {
+        return (double)x;
+    }
+
+    public double getY()
+    {
+        return (double)y;
+    }
+
+    public double getWidth()
+    {
+        return (double)width;
+    }
+
+    public double getHeight()
+    {
+        return (double)height;
+    }
+
+    public boolean isEmpty()
+    {
+        return width <= 0.0F || height <= 0.0F;
+    }
+
+    public void setRect(float x, float y, float width, float height)
+    {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    public void setRect(double x, double y, double width, double height)
+    {
+        this.x = (float)x;
+        this.y = (float)y;
+        this.width = (float)width;
+        this.height = (float)height;
+    }
+
+    public void setRect(Rectangle2D r)
+    {
+        x = (float)r.getX();
+        y = (float)r.getY();
+        width = (float)r.getWidth();
+        height = (float)r.getHeight();
+    }
+
+    public int outcode(double px, double py)
+    {
+        int code = 0;
+        if(width <= 0.0F)
+            code |= 5;
+        else
+        if(px < (double)x)
+            code |= 1;
+        else
+        if(px > (double)(x + width))
+            code |= 4;
+        if(height <= 0.0F)
+            code |= 0xa;
+        else
+        if(py < (double)y)
+            code |= 2;
+        else
+        if(py > (double)(y + height))
+            code |= 8;
+        return code;
+    }
+
+    public Rectangle2D getBounds2D()
+    {
+        return new Rectangle2D$Float(x, y, width, height);
+    }
+
+    public Rectangle2D createIntersection(Rectangle2D r)
+    {
+        Rectangle2D dst;
+        if(r instanceof )
+            dst = new ();
+        else
+            dst = new Rectangle2D$Float();
+        Rectangle2D.intersect(this, r, dst);
+        return dst;
+    }
+
+    public Rectangle2D createUnion(Rectangle2D r)
+    {
+        Rectangle2D dst;
+        if(r instanceof )
+            dst = new ();
+        else
+            dst = new Rectangle2D$Float();
+        Rectangle2D.union(this, r, dst);
+        return dst;
+    }
+
+    public String toString()
+    {
+        return (new StringBuilder()).append(getClass().getName()).append("[x=").append(x).append(",y=").append(y).append(",width=").append(width).append(",height=").append(height).append("]").toString();
+    }
+
+    public float x;
+    public float y;
+    public float width;
+    public float height;
+
+    public Rectangle2D$Float()
+    {
+    }
+
+    public Rectangle2D$Float(float x, float y, float width, float height)
+    {
+        setRect(x, y, width, height);
+    }
+}

@@ -1,0 +1,32 @@
+// Decompiled by Jad v1.5.8g. Copyright 2001 Pavel Kouznetsov.
+// Jad home page: http://www.kpdus.com/jad.html
+// Decompiler options: packimports(3) 
+// Source File Name:   ParametersWithSBox.java
+
+package org.bouncycastle.crypto.params;
+
+import org.bouncycastle.crypto.CipherParameters;
+
+public class ParametersWithSBox
+    implements CipherParameters
+{
+
+    public ParametersWithSBox(CipherParameters parameters, byte sBox[])
+    {
+        this.parameters = parameters;
+        this.sBox = sBox;
+    }
+
+    public byte[] getSBox()
+    {
+        return sBox;
+    }
+
+    public CipherParameters getParameters()
+    {
+        return parameters;
+    }
+
+    private CipherParameters parameters;
+    private byte sBox[];
+}

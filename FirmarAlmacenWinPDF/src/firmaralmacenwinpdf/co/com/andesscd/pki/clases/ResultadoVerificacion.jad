@@ -1,0 +1,104 @@
+// Decompiled by DJ v3.12.12.96 Copyright 2011 Atanas Neshkov  Date: 12/12/2017 5:12:46 p. m.
+// Home Page: http://members.fortunecity.com/neshkov/dj.html  http://www.neshkov.com/dj.html - Check often for new version!
+// Decompiler options: packimports(3) 
+// Source File Name:   ResultadoVerificacion.java
+
+package co.com.andesscd.pki.clases;
+
+
+public final class ResultadoVerificacion extends Enum
+{
+
+    public static ResultadoVerificacion[] values()
+    {
+        return (ResultadoVerificacion[])$VALUES.clone();
+    }
+
+    public static ResultadoVerificacion valueOf(String name)
+    {
+        return (ResultadoVerificacion)Enum.valueOf(co/com/andesscd/pki/clases/ResultadoVerificacion, name);
+    }
+
+    private ResultadoVerificacion(String s, int i)
+    {
+        super(s, i);
+    }
+
+    public static final ResultadoVerificacion VALIDO;
+    public static final ResultadoVerificacion OCSP_CRL_FUERA_DE_LINEA;
+    public static final ResultadoVerificacion CTL_NO_VALIDO;
+    public static final ResultadoVerificacion CTL_ERROR_FIRMA;
+    public static final ResultadoVerificacion CTL_ERROR_TIEMPO;
+    public static final ResultadoVerificacion CADENA_INCOMPLETA;
+    public static final ResultadoVerificacion TIENE_RESTRICCION_DE_NOMBRE_EXCLUIDA;
+    public static final ResultadoVerificacion TIENE_RESTRICCION_DE_NOMBRE_NO_PERMITIDA;
+    public static final ResultadoVerificacion TIENE_RESTRICCION_DE_NOMBRE_NO_DEFINIDA;
+    public static final ResultadoVerificacion TIENE_RESTRICCION_DE_NOMBRE_NO_SOPORTADA;
+    public static final ResultadoVerificacion RESTRICCION_DE_NOMBRE_INVALIDA;
+    public static final ResultadoVerificacion RESTRICCION_BASICA_INVALIDA;
+    public static final ResultadoVerificacion RESTRICCION_DE_POLITICAS_INVALIDA;
+    public static final ResultadoVerificacion EXTENCION_INVALIDA;
+    public static final ResultadoVerificacion CADENA_CICLICA;
+    public static final ResultadoVerificacion ESTADO_DE_REVOCACION_DESCONOCIDO;
+    public static final ResultadoVerificacion RAIZ_NO_CONFIABLE;
+    public static final ResultadoVerificacion USO_NO_VALIDO;
+    public static final ResultadoVerificacion FIRMA_DE_CERTIFICADO_NO_VALIDA;
+    public static final ResultadoVerificacion CADENA_DE_TIEMPO_INVALIDA;
+    public static final ResultadoVerificacion CERTIFICADO_EXPIRADO;
+    public static final ResultadoVerificacion CERTIFICADO_REVOCADO;
+    public static final ResultadoVerificacion SIN_ERROR;
+    public static final ResultadoVerificacion DOCUMENTO_ORIGINAL_MODIFICADO;
+    public static final ResultadoVerificacion FECHA_FIRMA_INCORRECTA;
+    public static final ResultadoVerificacion SNTP_NO_DISPONIBLE;
+    public static final ResultadoVerificacion ERROR_DESCONOCIDO;
+    public static final ResultadoVerificacion SIN_INFORMACION_OCSP;
+    public static final ResultadoVerificacion TIMESTAMP_NO_CONFIABLE;
+    public static final ResultadoVerificacion TIMESTAMP_NO_CORRESPONDE;
+    public static final ResultadoVerificacion TIMESTAMP_ERROR_DE_VALIDACION;
+    public static final ResultadoVerificacion FECHA_FIRMA_DESCONOCIDA;
+    public static final ResultadoVerificacion CERTIFICADO_NO_ENCONTRADO;
+    private static final ResultadoVerificacion $VALUES[];
+
+    static 
+    {
+        VALIDO = new ResultadoVerificacion("VALIDO", 0);
+        OCSP_CRL_FUERA_DE_LINEA = new ResultadoVerificacion("OCSP_CRL_FUERA_DE_LINEA", 1);
+        CTL_NO_VALIDO = new ResultadoVerificacion("CTL_NO_VALIDO", 2);
+        CTL_ERROR_FIRMA = new ResultadoVerificacion("CTL_ERROR_FIRMA", 3);
+        CTL_ERROR_TIEMPO = new ResultadoVerificacion("CTL_ERROR_TIEMPO", 4);
+        CADENA_INCOMPLETA = new ResultadoVerificacion("CADENA_INCOMPLETA", 5);
+        TIENE_RESTRICCION_DE_NOMBRE_EXCLUIDA = new ResultadoVerificacion("TIENE_RESTRICCION_DE_NOMBRE_EXCLUIDA", 6);
+        TIENE_RESTRICCION_DE_NOMBRE_NO_PERMITIDA = new ResultadoVerificacion("TIENE_RESTRICCION_DE_NOMBRE_NO_PERMITIDA", 7);
+        TIENE_RESTRICCION_DE_NOMBRE_NO_DEFINIDA = new ResultadoVerificacion("TIENE_RESTRICCION_DE_NOMBRE_NO_DEFINIDA", 8);
+        TIENE_RESTRICCION_DE_NOMBRE_NO_SOPORTADA = new ResultadoVerificacion("TIENE_RESTRICCION_DE_NOMBRE_NO_SOPORTADA", 9);
+        RESTRICCION_DE_NOMBRE_INVALIDA = new ResultadoVerificacion("RESTRICCION_DE_NOMBRE_INVALIDA", 10);
+        RESTRICCION_BASICA_INVALIDA = new ResultadoVerificacion("RESTRICCION_BASICA_INVALIDA", 11);
+        RESTRICCION_DE_POLITICAS_INVALIDA = new ResultadoVerificacion("RESTRICCION_DE_POLITICAS_INVALIDA", 12);
+        EXTENCION_INVALIDA = new ResultadoVerificacion("EXTENCION_INVALIDA", 13);
+        CADENA_CICLICA = new ResultadoVerificacion("CADENA_CICLICA", 14);
+        ESTADO_DE_REVOCACION_DESCONOCIDO = new ResultadoVerificacion("ESTADO_DE_REVOCACION_DESCONOCIDO", 15);
+        RAIZ_NO_CONFIABLE = new ResultadoVerificacion("RAIZ_NO_CONFIABLE", 16);
+        USO_NO_VALIDO = new ResultadoVerificacion("USO_NO_VALIDO", 17);
+        FIRMA_DE_CERTIFICADO_NO_VALIDA = new ResultadoVerificacion("FIRMA_DE_CERTIFICADO_NO_VALIDA", 18);
+        CADENA_DE_TIEMPO_INVALIDA = new ResultadoVerificacion("CADENA_DE_TIEMPO_INVALIDA", 19);
+        CERTIFICADO_EXPIRADO = new ResultadoVerificacion("CERTIFICADO_EXPIRADO", 20);
+        CERTIFICADO_REVOCADO = new ResultadoVerificacion("CERTIFICADO_REVOCADO", 21);
+        SIN_ERROR = new ResultadoVerificacion("SIN_ERROR", 22);
+        DOCUMENTO_ORIGINAL_MODIFICADO = new ResultadoVerificacion("DOCUMENTO_ORIGINAL_MODIFICADO", 23);
+        FECHA_FIRMA_INCORRECTA = new ResultadoVerificacion("FECHA_FIRMA_INCORRECTA", 24);
+        SNTP_NO_DISPONIBLE = new ResultadoVerificacion("SNTP_NO_DISPONIBLE", 25);
+        ERROR_DESCONOCIDO = new ResultadoVerificacion("ERROR_DESCONOCIDO", 26);
+        SIN_INFORMACION_OCSP = new ResultadoVerificacion("SIN_INFORMACION_OCSP", 27);
+        TIMESTAMP_NO_CONFIABLE = new ResultadoVerificacion("TIMESTAMP_NO_CONFIABLE", 28);
+        TIMESTAMP_NO_CORRESPONDE = new ResultadoVerificacion("TIMESTAMP_NO_CORRESPONDE", 29);
+        TIMESTAMP_ERROR_DE_VALIDACION = new ResultadoVerificacion("TIMESTAMP_ERROR_DE_VALIDACION", 30);
+        FECHA_FIRMA_DESCONOCIDA = new ResultadoVerificacion("FECHA_FIRMA_DESCONOCIDA", 31);
+        CERTIFICADO_NO_ENCONTRADO = new ResultadoVerificacion("CERTIFICADO_NO_ENCONTRADO", 32);
+        $VALUES = (new ResultadoVerificacion[] {
+            VALIDO, OCSP_CRL_FUERA_DE_LINEA, CTL_NO_VALIDO, CTL_ERROR_FIRMA, CTL_ERROR_TIEMPO, CADENA_INCOMPLETA, TIENE_RESTRICCION_DE_NOMBRE_EXCLUIDA, TIENE_RESTRICCION_DE_NOMBRE_NO_PERMITIDA, TIENE_RESTRICCION_DE_NOMBRE_NO_DEFINIDA, TIENE_RESTRICCION_DE_NOMBRE_NO_SOPORTADA, 
+            RESTRICCION_DE_NOMBRE_INVALIDA, RESTRICCION_BASICA_INVALIDA, RESTRICCION_DE_POLITICAS_INVALIDA, EXTENCION_INVALIDA, CADENA_CICLICA, ESTADO_DE_REVOCACION_DESCONOCIDO, RAIZ_NO_CONFIABLE, USO_NO_VALIDO, FIRMA_DE_CERTIFICADO_NO_VALIDA, CADENA_DE_TIEMPO_INVALIDA, 
+            CERTIFICADO_EXPIRADO, CERTIFICADO_REVOCADO, SIN_ERROR, DOCUMENTO_ORIGINAL_MODIFICADO, FECHA_FIRMA_INCORRECTA, SNTP_NO_DISPONIBLE, ERROR_DESCONOCIDO, SIN_INFORMACION_OCSP, TIMESTAMP_NO_CONFIABLE, TIMESTAMP_NO_CORRESPONDE, 
+            TIMESTAMP_ERROR_DE_VALIDACION, FECHA_FIRMA_DESCONOCIDA, CERTIFICADO_NO_ENCONTRADO
+        });
+    }
+}
